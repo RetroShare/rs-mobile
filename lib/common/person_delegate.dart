@@ -1,15 +1,17 @@
+// ignore_for_file: prefer_constructors_over_static_methods
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/styles.dart';
-import 'package:retroshare/provider/Idenity.dart';
+import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class PersonDelegateData {
   const PersonDelegateData({
-    this.name,
+    required this.name,
     this.mId,
     this.message = '',
     this.time = '',
@@ -24,7 +26,7 @@ class PersonDelegateData {
   });
 
   final String name;
-  final String mId;
+  final String? mId;
   final String message;
   final String time;
   final String profileImage;
@@ -34,68 +36,69 @@ class PersonDelegateData {
   final bool isTime;
   final bool isRoom;
   final IconData icon;
-  final MemoryImage image;
+  final MemoryImage? image;
 
   /// Generate generic chat person delegate data for DRY
-  static PersonDelegateData ChatData(Chat chatData) {
+  static PersonDelegateData chatData(Chat chatData) {
     return PersonDelegateData(
-      name: chatData.chatName,
-      message: chatData.lobbyTopic,
-      mId: chatData.chatId.toString(),
+      name: chatData.chatName ?? 'Unknown Chat',
+      message: chatData.lobbyTopic ?? '',
+      mId: chatData.chatId?.toString(),
       isRoom: true,
       isMessage: true,
-      icon: chatData.isPublic ?? true ? Icons.public : Icons.lock,
-      isUnread: chatData.unreadCount > 0,
+      icon: (chatData.isPublic) ? Icons.public : Icons.lock,
+      isUnread: (chatData.unreadCount) > 0,
     );
   }
 
-  static PersonDelegateData PublicChatData(VisibleChatLobbyRecord chatData) {
-    // ignore: prefer_interpolation_to_compose_strings
-    final String message = chatData.lobbyTopic +
-        (chatData.totalNumberOfPeers != null || chatData.totalNumberOfPeers != 0
-            ? 'Total: ${chatData.totalNumberOfPeers}'
+  static PersonDelegateData publicChatData(VisibleChatLobbyRecord chatData) {
+    final message = (chatData.lobbyTopic ?? '') +
+        (chatData.totalNumberOfPeers != null &&
+                (chatData.totalNumberOfPeers ?? 0) != 0
+            ? ' Total: ${chatData.totalNumberOfPeers ?? 0}'
             : ' ') +
         (chatData.participatingFriends.isNotEmpty
-            ? 'Friends: ${chatData.participatingFriends.length.toString()}'
+            ? ' Friends: ${chatData.participatingFriends.length}'
             : '');
 
     return PersonDelegateData(
-      name: chatData.lobbyName,
+      name: chatData.lobbyName ?? 'Unknown Lobby',
       message: message,
-      mId: chatData.lobbyId.xstr64,
+      mId: chatData.lobbyId?.xstr64,
       isRoom: true,
       isMessage: true,
-      icon: Chat.isPublicChat(chatData.lobbyFlags) ?? true
+      icon: (Chat.isPublicChat(chatData.lobbyFlags ?? 0))
           ? Icons.public
           : Icons.lock,
     );
   }
 
-  static PersonDelegateData IdentityData(
+  static PersonDelegateData identityData(
     Identity identity,
     BuildContext context,
   ) {
-    final Identity currentIdenInfo =
+    final currentIdenInfo =
         Provider.of<Identities>(context, listen: false).currentIdentity;
+
     return PersonDelegateData(
-      name: identity.name,
+      name: identity.name ?? 'Unknown Identity',
       mId: identity.mId,
-      image: identity.avatar != null && identity.avatar.isNotEmpty
-          ? MemoryImage(base64Decode(identity.avatar))
+      image: identity.avatar != null && identity.avatar!.isNotEmpty
+          ? MemoryImage(base64Decode(identity.avatar!))
           : null,
       isMessage: true,
       // ignore: avoid_bool_literals_in_conditional_expressions
-      isUnread: Provider.of<RoomChatLobby>(context, listen: false)
-                  .getUnreadCount(identity, currentIdenInfo) >
-              0
+      isUnread: currentIdenInfo != null &&
+              Provider.of<RoomChatLobby>(context, listen: false)
+                      .getUnreadCount(identity, currentIdenInfo) >
+                  0
           ? true
           : false,
     );
   }
 
   // ignore: non_constant_identifier_names
-  // ignore: prefer_constructors_over_static_methods
-  static PersonDelegateData LocationData(Location location) {
+  static PersonDelegateData locationData(Location location) {
     return PersonDelegateData(
       name: location.accountName,
       message: location.locationName,
@@ -106,31 +109,38 @@ class PersonDelegateData {
 }
 
 class PersonDelegate extends StatefulWidget {
-  const PersonDelegate(
-      {this.data, this.onPressed, this.onLongPress, this.isSelectable = false});
+  const PersonDelegate({
+    required this.data,
+    this.onPressed,
+    this.onLongPress,
+    this.isSelectable = false,
+    super.key,
+  });
   final PersonDelegateData data;
-  final Function onPressed;
-  final Function onLongPress;
+  final Function? onPressed;
+  final Function? onLongPress;
   final bool isSelectable;
 
   @override
-  _PersonDelegateState createState() => _PersonDelegateState();
+  PersonDelegateState createState() => PersonDelegateState();
 }
 
 // Todo: implement ListTile or ExpansionPanel or similar class here
-class _PersonDelegateState extends State<PersonDelegate>
+class PersonDelegateState extends State<PersonDelegate>
     with SingleTickerProviderStateMixin {
   final double delegateHeight = personDelegateHeight;
 
-  Animation<Decoration> boxShadow;
-  AnimationController _animationController;
-  CurvedAnimation _curvedAnimation;
+  late Animation<Decoration> boxShadow;
+  late AnimationController _animationController;
+  late CurvedAnimation _curvedAnimation;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 200));
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
     _curvedAnimation =
         CurvedAnimation(parent: _animationController, curve: Curves.easeOut);
 
@@ -140,7 +150,7 @@ class _PersonDelegateState extends State<PersonDelegate>
           BoxShadow(
             color: Colors.white.withOpacity(0),
             spreadRadius: appBarHeight / 3,
-          )
+          ),
         ],
         borderRadius: const BorderRadius.all(Radius.circular(appBarHeight / 3)),
         color: Colors.white.withOpacity(0),
@@ -149,9 +159,9 @@ class _PersonDelegateState extends State<PersonDelegate>
         boxShadow: [
           BoxShadow(
             color: Colors.black12,
-            blurRadius: 10.0,
-            spreadRadius: 2.0,
-          )
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
         ],
         borderRadius: BorderRadius.all(Radius.circular(appBarHeight / 3)),
         color: Colors.white,
@@ -165,18 +175,20 @@ class _PersonDelegateState extends State<PersonDelegate>
     super.dispose();
   }
 
-  Offset _tapPosition;
+  Offset? _tapPosition;
   void _storePosition(TapDownDetails details) {
     _tapPosition = details.globalPosition;
   }
 
-  Widget _build(BuildContext context, [Identity id = null]) {
+  Widget _build(BuildContext context, [Identity? id]) {
     return GestureDetector(
       onTap: () {
-        if (widget.onPressed != null) widget.onPressed();
+        widget.onPressed!();
       },
       onLongPress: () {
-        if (widget.onLongPress != null) widget.onLongPress(_tapPosition);
+        if (widget.onLongPress != null && _tapPosition != null) {
+          widget.onLongPress!(_tapPosition!);
+        }
       },
       onTapDown: _storePosition,
       child: AnimatedContainer(
@@ -208,7 +220,8 @@ class _PersonDelegateState extends State<PersonDelegate>
                             ],
                           ),
                           borderRadius: BorderRadius.circular(
-                              delegateHeight * 0.92 * 0.33),
+                            delegateHeight * 0.92 * 0.33,
+                          ),
                         ),
                       ),
                     ),
@@ -228,19 +241,24 @@ class _PersonDelegateState extends State<PersonDelegate>
                                   border: widget.data.isUnread
                                       ? Border.all(
                                           color: Colors.white,
-                                          width: delegateHeight * 0.03)
+                                          width: delegateHeight * 0.03,
+                                        )
                                       : null,
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(
-                                      delegateHeight * 0.92 * 0.33),
-                                  image: DecorationImage(
-                                      fit: BoxFit.fill,
-                                      image: widget.data.image,
-                                      onError: (context, stackTrace) => Center(
-                                              child: Icon(
-                                            widget.data.icon,
-                                            size: personDelegateIconHeight,
-                                          ))),
+                                    delegateHeight * 0.92 * 0.33,
+                                  ),
+                                  image: widget.data.image != null
+                                      ? DecorationImage(
+                                          fit: BoxFit.fill,
+                                          image: widget.data.image!,
+                                          onError: (exception, stackTrace) {
+                                            print(
+                                              'Error loading image in PersonDelegate: $exception',
+                                            );
+                                          },
+                                        )
+                                      : null,
                                 ),
                       child: Visibility(
                         visible:
@@ -264,8 +282,9 @@ class _PersonDelegateState extends State<PersonDelegate>
                         width: delegateHeight * 0.25,
                         decoration: BoxDecoration(
                           border: Border.all(
-                              color: Colors.white,
-                              width: delegateHeight * 0.03),
+                            color: Colors.white,
+                            width: delegateHeight * 0.03,
+                          ),
                           color: Colors.lightGreenAccent,
                           borderRadius:
                               BorderRadius.circular(delegateHeight * 0.3 * 0.5),
@@ -283,37 +302,39 @@ class _PersonDelegateState extends State<PersonDelegate>
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Row(children: [
-                      SizedBox(
-                        width: 200,
-                        child: Text(
-                          widget.data.name,
-                          style: widget.data.isMessage
-                              ? Theme.of(context).textTheme.bodyText1
-                              : Theme.of(context).textTheme.bodyText1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const Spacer(),
-                      Visibility(
-                        visible:
-                            widget.isSelectable && _curvedAnimation.value == 1,
-                        child: IconButton(
-                          icon: const Icon(Icons.navigate_next),
-                          onPressed: () =>
-                              Navigator.of(context).pushReplacementNamed(
-                            '/profile',
-                            arguments: {'id': id},
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 200,
+                          child: Text(
+                            widget.data.name,
+                            style: widget.data.isMessage
+                                ? Theme.of(context).textTheme.bodyLarge
+                                : Theme.of(context).textTheme.bodyLarge,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      )
-                    ]),
+                        const Spacer(),
+                        Visibility(
+                          visible: widget.isSelectable &&
+                              _curvedAnimation.value == 1,
+                          child: IconButton(
+                            icon: const Icon(Icons.navigate_next),
+                            onPressed: () =>
+                                Navigator.of(context).pushReplacementNamed(
+                              '/profile',
+                              arguments: {'id': id},
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     Visibility(
                       visible: widget.data.isMessage &&
                           widget.data.message.isNotEmpty,
                       child: Text(
                         widget.data.message,
-                        style: Theme.of(context).textTheme.bodyText1,
+                        style: Theme.of(context).textTheme.bodyLarge,
                       ),
                     ),
                   ],
@@ -324,7 +345,7 @@ class _PersonDelegateState extends State<PersonDelegate>
               visible: widget.data.isTime,
               child: Text(
                 widget.data.time,
-                style: Theme.of(context).textTheme.caption,
+                style: Theme.of(context).textTheme.labelSmall,
               ),
             ),
           ],
@@ -339,7 +360,8 @@ class _PersonDelegateState extends State<PersonDelegate>
       return Consumer<Identities>(
         key: UniqueKey(),
         builder: (context, id, _) {
-          if (id.selectedIdentity.mId == widget.data.mId) {
+          if (id.selectedIdentity != null &&
+              id.selectedIdentity!.mId == widget.data.mId) {
             _animationController.value = 1;
           } else {
             _animationController.value = 0;
@@ -356,10 +378,14 @@ class _PersonDelegateState extends State<PersonDelegate>
 
 /// Todo: do this better when new PersonDelegate
 /// class will be implemented. For ListTile, integrate new popup menu.
-Future<void> showCustomMenu(String title, Icon icon, Function action,
-    Offset tapPosition, BuildContext context) async {
-  final RenderBox overlay =
-      Overlay.of(context).context.findRenderObject() as RenderBox;
+Future<void> showCustomMenu(
+  String title,
+  Icon icon,
+  Function action,
+  Offset tapPosition,
+  BuildContext context,
+) async {
+  final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
 
   final delta = await showMenu(
     context: context,
@@ -367,9 +393,9 @@ Future<void> showCustomMenu(String title, Icon icon, Function action,
       PopupMenuItem(
         value: 0,
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
           leading: icon,
-          title: Text(title, style: Theme.of(context).textTheme.bodyText1),
+          title: Text(title, style: Theme.of(context).textTheme.bodyLarge),
         ),
       ),
     ],

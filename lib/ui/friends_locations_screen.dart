@@ -6,11 +6,13 @@ import 'package:retroshare/common/shimmer.dart';
 import 'package:retroshare/provider/friend_location.dart';
 
 class FriendsLocationsScreen extends StatefulWidget {
+  const FriendsLocationsScreen({super.key});
+
   @override
-  _FriendsLocationsScreenState createState() => _FriendsLocationsScreenState();
+  FriendsLocationsScreenState createState() => FriendsLocationsScreenState();
 }
 
-class _FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
+class FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
   @override
   void initState() {
     super.initState();
@@ -41,11 +43,10 @@ class _FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
             return snapshot.connectionState == ConnectionState.done
                 ? Consumer<FriendLocations>(
                     builder: (ctx, idsTuple, _) {
-                      return idsTuple.friendlist != null &&
-                              idsTuple.friendlist.isNotEmpty
+                      return idsTuple.friendlist.isNotEmpty
                           ? ListView.builder(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
+                                horizontal: 16,
                                 vertical: 8,
                               ),
                               itemCount: idsTuple.friendlist.length,
@@ -53,7 +54,8 @@ class _FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
                                 return Card(
                                   elevation: 2,
                                   shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8)),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                   child: PersonDelegate(
                                     data: PersonDelegateData(
                                       name:
@@ -76,7 +78,8 @@ class _FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: <Widget>[
                                       Image.asset(
-                                          'assets/icons8/pluto-children-parent-relationships-petting-animal.png'),
+                                        'assets/icons8/pluto-children-parent-relationships-petting-animal.png',
+                                      ),
                                       const SizedBox(
                                         height: 20,
                                       ),
@@ -84,17 +87,18 @@ class _FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
                                         'woof woof',
                                         style: Theme.of(context)
                                             .textTheme
-                                            .bodyText2,
+                                            .bodyMedium,
                                         textAlign: TextAlign.center,
                                       ),
                                       Padding(
                                         padding: const EdgeInsets.symmetric(
-                                            vertical: 5),
+                                          vertical: 5,
+                                        ),
                                         child: Text(
                                           'You can add friends in the menu',
                                           style: Theme.of(context)
                                               .textTheme
-                                              .bodyText1,
+                                              .bodyLarge,
                                           textAlign: TextAlign.center,
                                         ),
                                       ),

@@ -2,67 +2,77 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
-import 'package:tuple/tuple.dart';
 
 class AccountCredentials with ChangeNotifier {
   List<Account> _accountsList = [];
-  Account _lastAccountUsed;
-  Account _loggedinAccount;
-  AuthToken _authToken;
-  Account get lastAccountUsed => _lastAccountUsed;
+  Account? _lastAccountUsed;
+  Account? _loggedinAccount;
+  AuthToken? _authToken;
+  Account? get lastAccountUsed => _lastAccountUsed;
   List<Account> get accountList => _accountsList;
-  Account get loggedinAccount => _loggedinAccount;
-  AuthToken get getAuthToken => _authToken;
+  Account? get loggedinAccount => _loggedinAccount;
+  AuthToken? get getAuthToken => _authToken;
 
   set logginAccount(Account acc) {
     _loggedinAccount = acc;
   }
 
-  AuthToken get authtoken => _authToken;
+  AuthToken? get authtoken => _authToken;
 
   Future<void> fetchAuthAccountList() async {
     try {
       final resp = await RsLoginHelper.getLocations();
-      List<Account> accountsList = [];
+      final accountsList = <Account>[];
       resp.forEach((location) {
         if (location != null) {
-          accountsList.add(Account(location['mLocationId'], location['mPgpId'],
-              location['mLocationName'], location['mPgpName']));
+          accountsList.add(
+            Account(
+              locationId: location['mLocationId'],
+              pgpId: location['mPgpId'],
+              locationName: location['mLocationName'],
+              pgpName: location['mPgpName'],
+            ),
+          );
         }
       });
       _accountsList = [];
       _accountsList = accountsList;
       notifyListeners();
-      _lastAccountUsed = await setlastAccountUsed();
+      _lastAccountUsed = await setLastAccountUsed();
     } catch (e) {
       throw HttpException(e.toString());
     }
   }
 
-  Account get getlastAccountUsed => _lastAccountUsed;
+  Account? get getlastAccountUsed => _lastAccountUsed;
 
-  Future<Account> setlastAccountUsed() async {
-    final currAccount = await RsAccounts.getCurrentAccountId(_authToken);
-    for (final Account account in _accountsList) {
+  Future<Account?> setLastAccountUsed() async {
+    if (_authToken == null) {
+      return null;
+    }
+    final currAccount = await RsAccounts.getCurrentAccountId(_authToken!);
+    for (final account in _accountsList) {
       if (account.locationId == currAccount) return account;
     }
-
-    return null;
+    // Return the first account if available, otherwise throw
+    if (_accountsList.isNotEmpty) {
+      return _accountsList.first;
+    }
+    throw Exception('No account found for setLastAccountUsed');
   }
 
   Future<bool> getinitializeAuth(String locationId, String password) async {
     _authToken = AuthToken(locationId, password);
-    final bool success = await RsJsonApi.checkExistingAuthTokens(
-          locationId,
-          password,
-          _authToken,
-        ) ??
-        false;
+    final success = await RsJsonApi.checkExistingAuthTokens(
+      locationId,
+      password,
+      _authToken!,
+    );
     return success;
   }
 
-  Future<bool> checkisvalidAuthToken() {
-    return RsJsonApi.isAuthTokenValid(_authToken);
+  Future<bool> checkIsValidAuthToken() async {
+    return _authToken == null ? false : RsJsonApi.isAuthTokenValid(_authToken!);
   }
 
   Future<void> login(Account currentAccount, String password) async {
@@ -70,7 +80,7 @@ class AccountCredentials with ChangeNotifier {
     logginAccount = currentAccount;
     // Login success 0, already logged in 1
     if (resp == 0 || resp == 1) {
-      final bool isAuthTokenValid =
+      final isAuthTokenValid =
           await getinitializeAuth(currentAccount.locationName, password);
       if (!isAuthTokenValid) {
         throw const HttpException('AUTHTOKEN FAILED');
@@ -83,17 +93,20 @@ class AccountCredentials with ChangeNotifier {
 
   Future<void> signup(String username, String password, String nodename) async {
     final resp = await RsLoginHelper.requestAccountCreation(username, password);
-    final Account account =
-        Account(resp['locationId'], resp['pgpId'], username, username);
-    final Tuple2<bool, Account> accountCreate = Tuple2<bool, Account>(
-      resp['retval']['errorNumber'] != 0 ? false : true,
-      account,
+    final account = (
+      resp['retval']['errorNumber'] == 0,
+      Account(
+        locationId: resp['locationId'],
+        pgpId: resp['pgpId'],
+        locationName: username,
+        pgpName: username,
+      ),
     );
-    if (accountCreate != null && accountCreate.item1) {
-      _accountsList.add(accountCreate.item2);
-      logginAccount = accountCreate.item2;
-      final bool isAuthTokenValid =
-          await getinitializeAuth(accountCreate.item2.locationName, password);
+    if (account.$1) {
+      _accountsList.add(account.$2);
+      logginAccount = account.$2;
+      final isAuthTokenValid =
+          await getinitializeAuth(account.$2.locationName, password);
       if (!isAuthTokenValid) throw const HttpException('AUTHTOKEN FAILED');
 
       notifyListeners();

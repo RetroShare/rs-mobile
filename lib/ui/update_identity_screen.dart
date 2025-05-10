@@ -1,35 +1,36 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/bottom_bar.dart';
+import 'package:retroshare/common/color_loader_3.dart';
 import 'package:retroshare/common/image_picker_dialog.dart';
 import 'package:retroshare/common/show_dialog.dart';
 import 'package:retroshare/common/styles.dart';
-import 'package:retroshare/provider/Idenity.dart';
+import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
-import '../common/color_loader_3.dart';
-
 class UpdateIdentityScreen extends StatefulWidget {
-  const UpdateIdentityScreen({this.curr});
+  const UpdateIdentityScreen({super.key, this.curr});
   final dynamic curr;
 
   @override
-  _UpdateIdentityScreenState createState() => _UpdateIdentityScreenState();
+  UpdateIdentityScreenState createState() => UpdateIdentityScreenState();
 }
 
-class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
+class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
   TextEditingController nameController = TextEditingController();
-  RsGxsImage _image;
+  RsGxsImage _image = RsGxsImage();
   bool _showError = false;
   bool _requestCreateIdentity = false;
   @override
   void initState() {
     super.initState();
-    nameController = TextEditingController(text: widget.curr.name);
-    if (widget.curr.avatar != null) {
-      _image = RsGxsImage(base64.decode(widget.curr.avatar));
+    final curr = widget.curr;
+    nameController = TextEditingController(text: curr?.name ?? '');
+    if (curr != null && curr.avatar != null) {
+      _image = RsGxsImage(mData: base64.decode(curr.avatar));
     }
   }
 
@@ -39,31 +40,31 @@ class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
     super.dispose();
   }
 
-  Future<void> _setImage(File image) async {
+  Future<void> _setImage(File? image) async {
     Navigator.pop(context);
     setState(() {
-      if (image != null) {
-        _image = RsGxsImage(image.readAsBytesSync());
-      }
+      _image = RsGxsImage(mData: image?.readAsBytesSync());
     });
   }
 
   // Validate the Name
   bool _validate(text) {
-    return nameController.text.length < 3 ? false : true;
+    return nameController.text.length >= 3;
   }
 
   @override
   Widget build(BuildContext context) {
     Future<void> _updateIdentity() async {
       try {
+        final curr = widget.curr;
         await Provider.of<Identities>(context, listen: false)
             .updateIdentity(
           Identity(
-            widget.curr.mId,
-            widget.curr.signed,
-            nameController.text,
-            _image?.base64String,
+            mId: curr?.mId ?? '',
+            signed: curr?.signed ?? false,
+            isContact: curr?.isContact ?? false,
+            name: nameController.text,
+            avatar: _image.base64String,
           ),
           _image,
         )
@@ -71,7 +72,7 @@ class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
           Navigator.pop(context);
         });
       } catch (e) {
-        showDialog(
+        await showDialog(
           context: context,
           builder: (BuildContext context) {
             return Dialog(
@@ -115,7 +116,7 @@ class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                       padding: EdgeInsets.zero,
                       child: Text(
                         'Update identity',
-                        style: Theme.of(context).textTheme.bodyText1,
+                        style: Theme.of(context).textTheme.bodyLarge,
                       ),
                     ),
                   ),
@@ -127,23 +128,25 @@ class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                     icon: const Icon(Icons.more_vert),
                     itemBuilder: (BuildContext context) {
                       return [
-                        PopupMenuItem(
+                        const PopupMenuItem(
                           value: 'delete',
-                          child: Row(children: [
-                            const Icon(
-                              Icons.delete,
-                              size: 20,
-                            ),
-                            const SizedBox(
-                              width: 7,
-                            ),
-                            const Text(
-                              'Delete',
-                              style: TextStyle(
-                                fontSize: 12,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.delete,
+                                size: 20,
                               ),
-                            )
-                          ]),
+                              SizedBox(
+                                width: 7,
+                              ),
+                              Text(
+                                'Delete',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ];
                     },
@@ -178,7 +181,7 @@ class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                                   child: Container(
                                     height: 300 * 0.7,
                                     width: 300 * 0.7,
-                                    decoration: _image?.mData == null
+                                    decoration: _image.mData == null
                                         ? null
                                         : BoxDecoration(
                                             borderRadius: BorderRadius.circular(
@@ -186,13 +189,12 @@ class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                                             ),
                                             image: DecorationImage(
                                               fit: BoxFit.fill,
-                                              image: MemoryImage(_image.mData),
+                                              image: MemoryImage(_image.mData!),
                                             ),
                                           ),
                                     child: Visibility(
-                                      visible: _image != null
-                                          ? _image?.mData?.isEmpty
-                                          : true,
+                                      visible: _image.mData == null ||
+                                          _image.mData!.isEmpty,
                                       child: const Center(
                                         child: Icon(
                                           Icons.person,
@@ -229,25 +231,25 @@ class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                                         icon: Icon(
                                           Icons.person_outline,
                                           color: Color(0xFF9E9E9E),
-                                          size: 22.0,
+                                          size: 22,
                                         ),
                                         hintText: 'Name',
                                       ),
                                       style:
-                                          Theme.of(context).textTheme.bodyText1,
+                                          Theme.of(context).textTheme.bodyLarge,
                                     ),
                                   ),
                                 ),
                                 Visibility(
                                   visible: _showError,
-                                  child: SizedBox(
+                                  child: const SizedBox(
                                     width: double.infinity,
                                     child: Row(
                                       children: <Widget>[
-                                        const SizedBox(
+                                        SizedBox(
                                           width: 52,
                                         ),
-                                        const SizedBox(
+                                        SizedBox(
                                           height: 25,
                                           child: Align(
                                             alignment: Alignment.centerRight,
@@ -284,7 +286,7 @@ class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                   child: SizedBox(
                     height: 2 * appBarHeight / 3,
                     child: Builder(
-                      builder: (context) => FlatButton(
+                      builder: (context) => ElevatedButton(
                         onPressed: () async {
                           setState(() {
                             _showError = !_validate(nameController.text);
@@ -297,9 +299,6 @@ class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                             await _updateIdentity();
                           }
                         },
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0 + personDelegateHeight * 0.04,
-                        ),
                         child: SizedBox(
                           width: double.infinity,
                           child: Container(
@@ -310,14 +309,14 @@ class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                                   Color(0xFF00FFFF),
                                   Color(0xFF29ABE2),
                                 ],
-                                begin: Alignment(-1.0, -4.0),
-                                end: Alignment(1.0, 4.0),
+                                begin: Alignment(-1, -4),
+                                end: Alignment(1, 4),
                               ),
                             ),
-                            padding: const EdgeInsets.all(10.0),
+                            padding: const EdgeInsets.all(10),
                             child: Text(
                               'Update Identity',
-                              style: Theme.of(context).textTheme.button,
+                              style: Theme.of(context).textTheme.labelLarge,
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -331,10 +330,10 @@ class _UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
             Visibility(
               visible: _requestCreateIdentity,
               child: const ColorLoader3(
-                radius: 15.0,
-                dotRadius: 6.0,
+                radius: 15,
+                dotRadius: 6,
               ),
-            )
+            ),
           ],
         ),
       ),

@@ -1,43 +1,57 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:retroshare/common/drawer.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-class MyWebView extends StatefulWidget {
+class AboutScreen extends StatefulWidget {
+  const AboutScreen({super.key});
+
   @override
-  _MyWebViewState createState() => _MyWebViewState();
+  AboutScreenState createState() => AboutScreenState();
 }
 
-class _MyWebViewState extends State<MyWebView> {
-  final Completer<WebViewController> _controller =
-      Completer<WebViewController>();
+class AboutScreenState extends State<AboutScreen> {
+  late final WebViewController _controller;
+  int _stackToView = 1;
 
-  num _stackToView = 1;
-
-  void _handleLoad(String value) {
-    setState(() {
-      _stackToView = 0;
-    });
+  @override
+  void initState() {
+    super.initState();
+    // Required for Android: initialize the platform.
+    // (No-op on iOS, safe to call on all platforms.)
+    // See: https://pub.dev/packages/webview_flutter#platform-initialization
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (String url) {
+            if (!mounted) return;
+            setState(() {
+              _stackToView = 0;
+            });
+          },
+          onWebResourceError: (WebResourceError error) {
+            if (!mounted) return;
+            debugPrint('WebView error: ${error.description}');
+            // Optionally, display an error message to the user here.
+          },
+        ),
+      )
+      ..loadRequest(
+          Uri.parse('https://retrosharedocs.readthedocs.io/en/latest/'));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: appBar('About', context),
+      appBar: AppBar(
+        title: const Text('About'),
+      ),
       body: IndexedStack(
         index: _stackToView,
         children: [
-          WebView(
-            javascriptMode: JavascriptMode.unrestricted,
-            initialUrl: 'https://retrosharedocs.readthedocs.io/en/latest/',
-            onWebViewCreated: (WebViewController webViewController) {
-              _controller.complete(webViewController);
-            },
-            onPageFinished: _handleLoad,
-          ),
-          Container(
+          WebViewWidget(controller: _controller),
+          const ColoredBox(
             color: Colors.white,
-            child: const Center(
+            child: Center(
               child: CircularProgressIndicator(),
             ),
           ),

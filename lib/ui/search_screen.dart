@@ -1,27 +1,29 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/person_delegate.dart';
 import 'package:retroshare/common/sliver_persistent_header.dart';
 import 'package:retroshare/common/styles.dart';
-import 'package:retroshare/provider/Idenity.dart';
+import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({Key key, this.initialTab}) : super(key: key);
+  const SearchScreen({super.key, required this.initialTab});
   final int initialTab;
 
   @override
-  _SearchScreenState createState() => _SearchScreenState();
+  SearchScreenState createState() => SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen>
+class SearchScreenState extends State<SearchScreen>
     with SingleTickerProviderStateMixin {
-  TabController _tabController;
-  TextEditingController _searchBoxFilter = new TextEditingController();
-  Animation<Color> _leftTabIconColor;
-  Animation<Color> _rightTabIconColor;
+  late TabController _tabController;
+  final TextEditingController _searchBoxFilter = TextEditingController();
+  late Animation<Color?> _leftTabIconColor;
+  late Animation<Color?> _rightTabIconColor;
   bool _init = true;
   String _searchContent = '';
   List<Identity> allIds = [];
@@ -32,8 +34,6 @@ class _SearchScreenState extends State<SearchScreen>
   List<Chat> filteredSubscribedChats = [];
   List<VisibleChatLobbyRecord> publicChats = [];
   List<VisibleChatLobbyRecord> filteredPublicChats = [];
-
-  var _tapPosition;
 
   @override
   void initState() {
@@ -61,10 +61,12 @@ class _SearchScreenState extends State<SearchScreen>
       }
     });
 
-    _leftTabIconColor = ColorTween(begin: Color(0xFFF5F5F5), end: Colors.white)
-        .animate(_tabController.animation);
-    _rightTabIconColor = ColorTween(begin: Colors.white, end: Color(0xFFF5F5F5))
-        .animate(_tabController.animation);
+    _leftTabIconColor =
+        ColorTween(begin: const Color(0xFFF5F5F5), end: Colors.white)
+            .animate(_tabController.animation!);
+    _rightTabIconColor =
+        ColorTween(begin: Colors.white, end: const Color(0xFFF5F5F5))
+            .animate(_tabController.animation!);
   }
 
   @override
@@ -73,8 +75,9 @@ class _SearchScreenState extends State<SearchScreen>
       final friendIdentity = Provider.of<RoomChatLobby>(context, listen: false);
       final chatLobby = Provider.of<ChatLobby>(context, listen: false);
       friendIdentity.fetchAndUpdate();
-      chatLobby.fetchAndUpdate();
-      chatLobby.fetchAndUpdateUnsubscribed();
+      chatLobby
+        ..fetchAndUpdate()
+        ..fetchAndUpdateUnsubscribed();
       allIds = friendIdentity.notContactIds;
       contactsIds = friendIdentity.friendsIdsList;
       subscribedChats = chatLobby.subscribedlist;
@@ -84,14 +87,21 @@ class _SearchScreenState extends State<SearchScreen>
     super.didChangeDependencies();
   }
 
-  Future<void> _goToChat(lobby) async {
+  Future<void> _goToChat(Chat lobby) async {
     final curr =
         Provider.of<Identities>(context, listen: false).currentIdentity;
-    Navigator.pushNamed(context, '/room', arguments: {
-      'isRoom': true,
-      'chatData': Provider.of<RoomChatLobby>(context, listen: false)
-          .getChat(curr, lobby)
-    });
+    if (curr == null) {
+      return;
+    }
+    await Navigator.pushNamed(
+      context,
+      '/room',
+      arguments: {
+        'isRoom': true,
+        'chatData': Provider.of<RoomChatLobby>(context, listen: false)
+            .getChat(curr, lobby),
+      },
+    );
   }
 
   @override
@@ -142,8 +152,10 @@ class _SearchScreenState extends State<SearchScreen>
                             children: <Widget>[
                               Icon(
                                 Icons.search,
-                                color:
-                                    Theme.of(context).textTheme.bodyText1.color,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
                               ),
                               const SizedBox(
                                 width: 8,
@@ -156,7 +168,7 @@ class _SearchScreenState extends State<SearchScreen>
                                     border: InputBorder.none,
                                     hintText: 'Type text...',
                                   ),
-                                  style: Theme.of(context).textTheme.bodyText1,
+                                  style: Theme.of(context).textTheme.bodyLarge,
                                 ),
                               ),
                             ],
@@ -169,73 +181,71 @@ class _SearchScreenState extends State<SearchScreen>
                 ],
               ),
             ),
-            Container(
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  bottom: (appBarHeight - 40) / 2,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    AnimatedBuilder(
-                      animation: _tabController.animation,
-                      builder: (BuildContext context, Widget widget) {
-                        return GestureDetector(
-                          onTap: () {
-                            _tabController.animateTo(0);
-                          },
-                          child: Container(
-                            width: 2 * appBarHeight,
-                            decoration: BoxDecoration(
-                              color: _leftTabIconColor.value,
-                              borderRadius:
-                                  BorderRadius.circular(appBarHeight / 2),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Center(
-                                child: Text(
-                                  'Chats',
-                                  style: Theme.of(context).textTheme.bodyText1,
-                                ),
+            Padding(
+              padding: const EdgeInsets.only(
+                bottom: (appBarHeight - 40) / 2,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  AnimatedBuilder(
+                    animation: _tabController.animation!,
+                    builder: (BuildContext context, Widget? child) {
+                      return GestureDetector(
+                        onTap: () {
+                          _tabController.animateTo(0);
+                        },
+                        child: Container(
+                          width: 2 * appBarHeight,
+                          decoration: BoxDecoration(
+                            color: _leftTabIconColor.value,
+                            borderRadius:
+                                BorderRadius.circular(appBarHeight / 2),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Center(
+                              child: Text(
+                                'Chats',
+                                style: Theme.of(context).textTheme.bodyLarge,
                               ),
                             ),
                           ),
-                        );
-                      },
-                    ),
-                    const SizedBox(
-                      width: 10,
-                    ),
-                    AnimatedBuilder(
-                      animation: _tabController.animation,
-                      builder: (BuildContext context, Widget widget) {
-                        return GestureDetector(
-                          onTap: () {
-                            _tabController.animateTo(1);
-                          },
-                          child: Container(
-                            width: 2 * appBarHeight,
-                            decoration: BoxDecoration(
-                              color: _rightTabIconColor.value,
-                              borderRadius:
-                                  BorderRadius.circular(appBarHeight / 2),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Center(
-                                child: Text(
-                                  'People',
-                                  style: Theme.of(context).textTheme.bodyText1,
-                                ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(
+                    width: 10,
+                  ),
+                  AnimatedBuilder(
+                    animation: _tabController.animation!,
+                    builder: (BuildContext context, Widget? child) {
+                      return GestureDetector(
+                        onTap: () {
+                          _tabController.animateTo(1);
+                        },
+                        child: Container(
+                          width: 2 * appBarHeight,
+                          decoration: BoxDecoration(
+                            color: _rightTabIconColor.value,
+                            borderRadius:
+                                BorderRadius.circular(appBarHeight / 2),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Center(
+                              child: Text(
+                                'People',
+                                style: Theme.of(context).textTheme.bodyLarge,
                               ),
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -247,10 +257,7 @@ class _SearchScreenState extends State<SearchScreen>
                     children: <Widget>[
                       _buildChatsList(),
                       Visibility(
-                        visible: filteredSubscribedChats?.isEmpty ??
-                            // ignore: null_aware_in_logical_operator
-                            true && filteredPublicChats?.isEmpty ??
-                            true,
+                        visible: filteredSubscribedChats.isEmpty,
                         child: Center(
                           child: SingleChildScrollView(
                             child: SizedBox(
@@ -259,14 +266,16 @@ class _SearchScreenState extends State<SearchScreen>
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: <Widget>[
                                   Image.asset(
-                                      'assets/icons8/sport-yoga-reading-1.png'),
+                                    'assets/icons8/sport-yoga-reading-1.png',
+                                  ),
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 25),
+                                      vertical: 25,
+                                    ),
                                     child: Text(
                                       'Nothing was found',
                                       style:
-                                          Theme.of(context).textTheme.bodyText1,
+                                          Theme.of(context).textTheme.bodyLarge,
                                     ),
                                   ),
                                 ],
@@ -282,10 +291,8 @@ class _SearchScreenState extends State<SearchScreen>
                     children: <Widget>[
                       _buildPeopleList(),
                       Visibility(
-                        visible: (filteredAllIds == null ||
-                                filteredAllIds.isEmpty) &&
-                            (filteredContactsIds == null ||
-                                filteredContactsIds.isEmpty),
+                        visible: (filteredAllIds.isEmpty) &&
+                            (filteredContactsIds.isEmpty),
                         child: Center(
                           child: SingleChildScrollView(
                             child: SizedBox(
@@ -294,14 +301,16 @@ class _SearchScreenState extends State<SearchScreen>
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: <Widget>[
                                   Image.asset(
-                                      'assets/icons8/virtual-reality.png'),
+                                    'assets/icons8/virtual-reality.png',
+                                  ),
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 25),
+                                      vertical: 25,
+                                    ),
                                     child: Text(
                                       'Nothing was found',
                                       style:
-                                          Theme.of(context).textTheme.bodyText1,
+                                          Theme.of(context).textTheme.bodyLarge,
                                     ),
                                   ),
                                 ],
@@ -322,25 +331,25 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildChatsList() {
-    if (_searchContent?.isNotEmpty ?? false) {
-      List<Chat> tempChatsList = [];
-      for (int i = 0; i < subscribedChats.length; i++) {
-        if (subscribedChats[i]
-            .chatName
-            .toLowerCase()
-            .contains(_searchContent.toLowerCase())) {
-          tempChatsList.add(subscribedChats[i]);
+    if (_searchContent.isNotEmpty) {
+      final tempChatsList = <Chat>[];
+      for (final chat in subscribedChats) {
+        if (chat.chatName
+                ?.toLowerCase()
+                .contains(_searchContent.toLowerCase()) ??
+            false) {
+          tempChatsList.add(chat);
         }
       }
       filteredSubscribedChats = tempChatsList;
 
-      List<VisibleChatLobbyRecord> tempList = [];
-      for (int i = 0; i < publicChats.length; i++) {
-        if (publicChats[i]
-            .lobbyName
-            .toLowerCase()
-            .contains(_searchContent.toLowerCase())) {
-          tempList.add(publicChats[i]);
+      final tempList = <VisibleChatLobbyRecord>[];
+      for (final lobby in publicChats) {
+        if (lobby.lobbyName
+                ?.toLowerCase()
+                .contains(_searchContent.toLowerCase()) ??
+            false) {
+          tempList.add(lobby);
         }
       }
       filteredPublicChats = tempList;
@@ -349,190 +358,231 @@ class _SearchScreenState extends State<SearchScreen>
       filteredPublicChats = publicChats;
     }
 
+    final combinedList = [...filteredSubscribedChats, ...filteredPublicChats];
+
     return Visibility(
-      visible: filteredSubscribedChats?.isNotEmpty ??
-          false || filteredPublicChats?.isNotEmpty ??
-          false,
+      visible: combinedList.isNotEmpty,
       child: CustomScrollView(
+        key: UniqueKey(),
         slivers: <Widget>[
-          sliverPersistentHeader('Subscribed chats', context),
-          SliverFixedExtentList(
-            itemExtent: personDelegateHeight,
-            delegate: SliverChildBuilderDelegate(
-              (BuildContext context, int index) {
-                // Todo: DRY
-                return PersonDelegate(
-                  data: PersonDelegateData.ChatData(
-                      filteredSubscribedChats[index]),
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/room', arguments: {
-                      'isRoom': true,
-                      'chatData': filteredSubscribedChats[index]
-                    });
+          if (filteredSubscribedChats.isNotEmpty)
+            sliverPersistentHeader('Subscribed Chats', context),
+          if (filteredSubscribedChats.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.only(
+                left: 8,
+                top: 8,
+                right: 16,
+                bottom: 8,
+              ),
+              sliver: SliverFixedExtentList(
+                itemExtent: personDelegateHeight,
+                delegate: SliverChildBuilderDelegate(
+                  (BuildContext context, int index) {
+                    final chat = filteredSubscribedChats[index];
+                    final delegateData = PersonDelegateData(
+                      name: chat.chatName ?? 'Unknown Chat',
+                      message: chat.lobbyTopic ?? '',
+                      mId: chat.chatId?.toString(),
+                      isRoom: true,
+                      isMessage: true,
+                      icon: (chat.isPublic) ? Icons.public : Icons.lock,
+                      isUnread: (chat.unreadCount) > 0,
+                    );
+                    return GestureDetector(
+                      child: PersonDelegate(
+                        data: delegateData,
+                        onPressed: () => _goToChat(chat),
+                      ),
+                    );
                   },
-                );
-              },
-              childCount: filteredSubscribedChats?.length ?? 0,
+                  childCount: filteredSubscribedChats.length,
+                ),
+              ),
             ),
-          ),
-          sliverPersistentHeader('Public chats', context),
-          SliverFixedExtentList(
-            itemExtent: personDelegateHeight,
-            delegate: SliverChildBuilderDelegate(
-              (BuildContext context, int index) {
-                return GestureDetector(
-                  onTap: () {
-                    _goToChat(filteredPublicChats[index]);
+          if (filteredPublicChats.isNotEmpty)
+            sliverPersistentHeader('Public Chats', context),
+          if (filteredPublicChats.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.only(
+                left: 8,
+                top: 8,
+                right: 16,
+                bottom: 8,
+              ),
+              sliver: SliverFixedExtentList(
+                itemExtent: personDelegateHeight,
+                delegate: SliverChildBuilderDelegate(
+                  (BuildContext context, int index) {
+                    final lobby = filteredPublicChats[index];
+                    final delegateData = PersonDelegateData(
+                      name: lobby.lobbyName ?? 'Unknown Lobby',
+                      message: (lobby.lobbyTopic ?? '') +
+                          (lobby.totalNumberOfPeers != null &&
+                                  (lobby.totalNumberOfPeers ?? 0) != 0
+                              ? ' Total: ${lobby.totalNumberOfPeers ?? 0}'
+                              : ' ') +
+                          (lobby.participatingFriends.isNotEmpty
+                              ? ' Friends: ${lobby.participatingFriends.length}'
+                              : ''),
+                      mId: lobby.lobbyId?.xstr64,
+                      isRoom: true,
+                      isMessage: true,
+                      icon: (Chat.isPublicChat(lobby.lobbyFlags ?? 0))
+                          ? Icons.public
+                          : Icons.lock,
+                    );
+                    return GestureDetector(
+                      child: PersonDelegate(
+                        data: delegateData,
+                        onPressed: () {
+                          print('Tapped public chat: ${lobby.lobbyName}');
+                        },
+                      ),
+                    );
                   },
-                  child: PersonDelegate(
-                    data: PersonDelegateData.PublicChatData(
-                        filteredPublicChats[index]),
-                    onPressed: () {
-                      _goToChat(filteredPublicChats[index]);
-                    },
-                  ),
-                );
-              },
-              childCount: filteredPublicChats?.length ?? 0,
+                  childCount: filteredPublicChats.length,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  void _toggleContacts(String gxsId, bool type) {
-    Provider.of<RoomChatLobby>(context, listen: false)
-        .toggleContacts(gxsId, type);
-  }
-
-  void _storePosition(TapDownDetails details) {
-    _tapPosition = details.globalPosition;
-  }
-
   Widget _buildPeopleList() {
     if (_searchContent.isNotEmpty) {
-      List<Identity> tempContactsList = [];
-      for (int i = 0; i < contactsIds.length; i++) {
-        if (contactsIds[i]
-            .name
-            .toLowerCase()
-            .contains(_searchContent.toLowerCase())) {
-          tempContactsList.add(contactsIds[i]);
+      final tempAllIdsList = <Identity>[];
+      for (final id in allIds) {
+        if (id.name?.toLowerCase().contains(_searchContent.toLowerCase()) ??
+            false) {
+          tempAllIdsList.add(id);
+        }
+      }
+      filteredAllIds = tempAllIdsList;
+
+      final tempContactsList = <Identity>[];
+      for (final id in contactsIds) {
+        if (id.name?.toLowerCase().contains(_searchContent.toLowerCase()) ??
+            false) {
+          tempContactsList.add(id);
         }
       }
       filteredContactsIds = tempContactsList;
-
-      List<Identity> tempList = [];
-      for (int i = 0; i < allIds.length; i++) {
-        if (allIds[i]
-            .name
-            .toLowerCase()
-            .contains(_searchContent.toLowerCase())) {
-          tempList.add(allIds[i]);
-        }
-      }
-      filteredAllIds = tempList;
     } else {
-      filteredContactsIds = contactsIds;
       filteredAllIds = allIds;
+      filteredContactsIds = contactsIds;
     }
 
     return Visibility(
-//      visible: (filteredAllIds?.isNotEmpty
-//?? false || filteredContactsIds.isNotEmpty ),
-      visible: (filteredAllIds != null && filteredAllIds.isNotEmpty) ||
-          (filteredContactsIds != null && filteredContactsIds.isNotEmpty),
+      visible: filteredContactsIds.isNotEmpty || filteredAllIds.isNotEmpty,
       child: CustomScrollView(
+        key: UniqueKey(),
         slivers: <Widget>[
-          sliverPersistentHeader('Contacts', context),
-          SliverFixedExtentList(
-            itemExtent: personDelegateHeight,
-            delegate: SliverChildBuilderDelegate(
-              (BuildContext context, int index) {
-                return GestureDetector(
-                  onTapDown: _storePosition,
-                  // Todo: DRY
-                  child: PersonDelegate(
-                    data: PersonDelegateData.IdentityData(
-                        filteredContactsIds[index], context),
-                    onLongPress: (Offset tapPosition) {
-                      showCustomMenu(
-                          'Remove from contacts',
-                          const Icon(
-                            Icons.delete,
-                            color: Colors.black,
-                          ),
-                          () =>
-                              _toggleContacts(filteredAllIds[index].mId, false),
-                          tapPosition,
-                          context);
-                    },
-                    onPressed: () {
-                      final curr =
-                          Provider.of<Identities>(context, listen: false)
-                              .currentIdentity;
-                      Navigator.pushNamed(
-                        context,
-                        '/room',
-                        arguments: {
-                          'isRoom': false,
-                          'chatData':
+          if (filteredContactsIds.isNotEmpty)
+            sliverPersistentHeader('Contacts', context),
+          if (filteredContactsIds.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.only(
+                left: 8,
+                top: 8,
+                right: 16,
+                bottom: 8,
+              ),
+              sliver: SliverFixedExtentList(
+                itemExtent: personDelegateHeight,
+                delegate: SliverChildBuilderDelegate(
+                  (BuildContext context, int index) {
+                    final id = filteredContactsIds[index];
+                    final currentIdenInfo =
+                        Provider.of<Identities>(context, listen: false)
+                            .currentIdentity;
+                    final delegateData = PersonDelegateData(
+                      name: id.name ?? 'Unknown Identity',
+                      mId: id.mId,
+                      image: id.avatar != null && id.avatar!.isNotEmpty
+                          ? MemoryImage(base64Decode(id.avatar!))
+                          : null,
+                      isMessage: true,
+                      isUnread: currentIdenInfo != null &&
+                          Provider.of<RoomChatLobby>(context, listen: false)
+                                  .getUnreadCount(id, currentIdenInfo) >
+                              0,
+                    );
+                    return GestureDetector(
+                      child: PersonDelegate(
+                        data: delegateData,
+                        onPressed: () {
+                          final curr =
+                              Provider.of<Identities>(context, listen: false)
+                                  .currentIdentity;
+                          if (curr == null) {
+                            return;
+                          }
+                          final chat =
                               Provider.of<RoomChatLobby>(context, listen: false)
-                                  .getChat(curr, filteredContactsIds[index])
+                                  .getChat(curr, id);
+                          _goToChat(chat!);
                         },
-                      );
-                    },
-                  ),
-                );
-              },
-              childCount: filteredContactsIds?.length ?? 0,
+                      ),
+                    );
+                  },
+                  childCount: filteredContactsIds.length,
+                ),
+              ),
             ),
-          ),
-          sliverPersistentHeader('People', context),
-          SliverFixedExtentList(
-            itemExtent: personDelegateHeight,
-            delegate: SliverChildBuilderDelegate(
-              (BuildContext context, int index) {
-                return GestureDetector(
-                  onTapDown: _storePosition,
-                  // Todo: DRY
-                  child: PersonDelegate(
-                    data: PersonDelegateData.IdentityData(
-                        filteredAllIds[index], context),
-                    onLongPress: (Offset tapPosition) {
-                      showCustomMenu(
-                          'Add to contacts',
-                          const Icon(
-                            Icons.person_add,
-                            color: Colors.black,
-                          ),
-                          () =>
-                              _toggleContacts(filteredAllIds[index].mId, true),
-                          tapPosition,
-                          context);
-                    },
-                    onPressed: () {
-                      final curr =
-                          Provider.of<Identities>(context, listen: false)
-                              .currentIdentity;
-                      Navigator.pushNamed(
-                        context,
-                        '/room',
-                        arguments: {
-                          'isRoom': false,
-                          'chatData':
+          if (filteredAllIds.isNotEmpty)
+            sliverPersistentHeader('Other People', context),
+          if (filteredAllIds.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.only(
+                left: 8,
+                top: 8,
+                right: 16,
+                bottom: 8,
+              ),
+              sliver: SliverFixedExtentList(
+                itemExtent: personDelegateHeight,
+                delegate: SliverChildBuilderDelegate(
+                  (BuildContext context, int index) {
+                    final id = filteredAllIds[index];
+                    final currentIdenInfo =
+                        Provider.of<Identities>(context, listen: false)
+                            .currentIdentity;
+                    final delegateData = PersonDelegateData(
+                      name: id.name ?? 'Unknown Identity',
+                      mId: id.mId,
+                      image: id.avatar != null && id.avatar!.isNotEmpty
+                          ? MemoryImage(base64Decode(id.avatar!))
+                          : null,
+                      isMessage: true,
+                      isUnread: currentIdenInfo != null &&
+                          Provider.of<RoomChatLobby>(context, listen: false)
+                                  .getUnreadCount(id, currentIdenInfo) >
+                              0,
+                    );
+                    return GestureDetector(
+                      child: PersonDelegate(
+                        data: delegateData,
+                        onPressed: () {
+                          final curr =
+                              Provider.of<Identities>(context, listen: false)
+                                  .currentIdentity;
+                          if (curr == null) {
+                            return;
+                          }
+                          final chat =
                               Provider.of<RoomChatLobby>(context, listen: false)
-                                  .getChat(curr, filteredAllIds[index])
+                                  .getChat(curr, id);
+                          _goToChat(chat!);
                         },
-                      );
-                    },
-                  ),
-                );
-              },
-              childCount: filteredAllIds?.length ?? 0,
+                      ),
+                    );
+                  },
+                  childCount: filteredAllIds.length,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );

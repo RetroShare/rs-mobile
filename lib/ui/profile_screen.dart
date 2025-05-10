@@ -6,18 +6,18 @@ import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key key, this.curr}) : super(key: key);
+  const ProfileScreen({super.key, required this.curr});
 
   final Identity curr;
 
   @override
-  _ProfileScreenState createState() => _ProfileScreenState();
+  ProfileScreenState createState() => ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
-    final Account lastAccount =
+    final lastAccount =
         Provider.of<AccountCredentials>(context, listen: false).loggedinAccount;
     return Scaffold(
       appBar: appBar('Identity Info', context),
@@ -38,11 +38,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       border: Border.all(),
                       image: DecorationImage(
                         fit: BoxFit.fill,
-                        image: MemoryImage(base64.decode(widget.curr.avatar)),
+                        image: MemoryImage(base64.decode(widget.curr.avatar!)),
                       ),
                     ),
               child: Visibility(
-                visible: widget.curr?.avatar == null,
+                visible: widget.curr.avatar == null,
                 child: const Center(
                   child: Icon(
                     Icons.person,
@@ -59,20 +59,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Form(
                 child: Column(
                   children: [
-                    textField(widget.curr.name, 'Identity Name'),
+                    textField(widget.curr.name ?? '', 'Identity Name'),
                     const SizedBox(height: 20),
                     textField(widget.curr.mId, 'Identity ID'),
                     const SizedBox(height: 20),
                     textField(
-                        widget.curr.signed ? 'signed' : 'unsigned', 'Type'),
+                      widget.curr.signed ? 'signed' : 'unsigned',
+                      'Type',
+                    ),
                     const SizedBox(height: 20),
-                    textField(lastAccount.pgpName, 'Node Name'),
-                    const SizedBox(height: 20),
-                    textField(lastAccount.locationId, 'Node ID'),
-                    const SizedBox(height: 20),
+                    if (lastAccount != null)
+                      Column(
+                        children: [
+                          textField(lastAccount.pgpName, 'Node Name'),
+                          const SizedBox(height: 20),
+                          textField(lastAccount.locationId, 'Node ID'),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
                     InkWell(
                       onTap: () async {
-                        Navigator.of(context).pushReplacementNamed(
+                        await Navigator.of(context).pushReplacementNamed(
                           '/updateIdentity',
                           arguments: {'id': widget.curr},
                         );
@@ -87,12 +94,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Color(0xFF00FFFF),
                               Color(0xFF29ABE2),
                             ],
-                            begin: Alignment(-1.0, -4.0),
-                            end: Alignment(1.0, 4.0),
+                            begin: Alignment(-1, -4),
+                            end: Alignment(1, 4),
                           ),
                         ),
                         padding: const EdgeInsets.symmetric(
-                            vertical: 10.0, horizontal: 6),
+                          vertical: 10,
+                          horizontal: 6,
+                        ),
                         child: const Text(
                           'Edit Identity',
                           style:
@@ -104,7 +113,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
-            )
+            ),
           ],
         ),
       ),

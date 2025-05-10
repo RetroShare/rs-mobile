@@ -10,11 +10,11 @@ void setControlCallbacks() {
 
 class RsServiceControl {
   static Future<bool> startRetroshare() async {
-    int attempts = 20;
+    var attempts = 20;
     for (; attempts >= 0; attempts--) {
       print('Starting Retroshare Service. Attempts countdown $attempts');
       try {
-        final bool isUp = await isRetroshareRunning();
+        final isUp = await isRetroshareRunning();
         if (isUp) return true;
 
         await rsPlatform.invokeMethod('start');
@@ -34,7 +34,7 @@ class RsServiceControl {
       await rsPlatform.invokeMethod('stop');
 
       await Future.delayed(const Duration(milliseconds: 3000));
-      final bool isUp = await isRetroshareRunning();
+      final isUp = await isRetroshareRunning();
       if (isUp) throw Exception('The service did not stop after a while');
     } catch (err) {
       throw Exception('The service could not be stopped');
@@ -46,7 +46,7 @@ class RsServiceControl {
       await rsPlatform.invokeMethod('restart');
 
       await Future.delayed(const Duration(milliseconds: 300));
-      bool isUp = await isRetroshareRunning();
+      final isUp = await isRetroshareRunning();
       if (!isUp) throw Exception('The service did not restart after a while');
     } catch (err) {
       throw Exception('The service could not be restarted');

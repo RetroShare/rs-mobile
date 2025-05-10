@@ -1,282 +1,447 @@
 import 'package:flutter/cupertino.dart';
 import 'package:retroshare/model/http_exception.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
-import 'package:tuple/tuple.dart';
+
+// Helper function for distant chat ID
+String _generateDistantChatId(String id1, String id2) {
+  return id1.compareTo(id2) < 0 ? '${id1}_$id2' : '${id2}_$id1';
+}
 
 class RoomChatLobby with ChangeNotifier {
-  Map<String, List<Identity>> _lobbyParticipants;
+  // Lobby participants by lobby ID
+  Map<String, List<Identity>> _lobbyParticipants = {};
+  // Distant chats by chat ID
   Map<String, Chat> _distanceChat = {};
-  Chat _currentChat;
-  Map<String, Chat> get distanceChat => {..._distanceChat};
+  // Currently selected chat
+  Chat? _currentChat;
+  // Messages by chat ID
   Map<String, List<ChatMessage>> _messagesList = {};
-  Map<String, List<ChatMessage>> get messagesList => {..._messagesList};
-  Map<String, List<Identity>> get lobbyParticipants => {..._lobbyParticipants};
-  Map<String, Identity> _allIdentity = {};
-  List<Identity> _friendsIdsList = [];
-  List<Identity> _notContactIds = [];
-  List<Identity> _friendsSignedIdsList = [];
-  Map<String, Identity> get allIdentity => {..._allIdentity};
-  List<Identity> get friendsIdsList => [..._friendsIdsList];
-  List<Identity> get notContactIds => [..._notContactIds];
-  List<Identity> get friendsSignedIdsList => [..._friendsSignedIdsList];
-  AuthToken _authToken;
 
+  /// Returns a copy of the lobby participants map.
+  Map<String, List<Identity>> get lobbyParticipants => {..._lobbyParticipants};
+
+  /// Returns a copy of the distant chat map.
+  Map<String, Chat> get distanceChat => {..._distanceChat};
+
+  /// Returns a copy of the messages list map.
+  Map<String, List<ChatMessage>> get messagesList => {..._messagesList};
+
+  // All known identities by ID
+  Map<String, Identity> _allIdentity = {};
+  // Friends (contact) identities
+  List<Identity> _friendsIdsList = [];
+  // Not-contact identities
+  List<Identity> _notContactIds = [];
+  // Signed friends identities
+  List<Identity> _friendsSignedIdsList = [];
+
+  /// Returns a copy of all known identities.
+  Map<String, Identity> get allIdentity => {..._allIdentity};
+
+  /// Returns a copy of the friends IDs list.
+  List<Identity> get friendsIdsList => [..._friendsIdsList];
+
+  /// Returns a copy of the not-contact IDs list.
+  List<Identity> get notContactIds => [..._notContactIds];
+
+  /// Returns a copy of the signed friends IDs list.
+  List<Identity> get friendsSignedIdsList => [..._friendsSignedIdsList];
+
+  late AuthToken _authToken;
+
+  /// Sets the authentication token for API calls.
   set authToken(AuthToken authToken) {
     _authToken = authToken;
-    notifyListeners();
   }
 
+  /// Returns the current authentication token.
   AuthToken get authToken => _authToken;
 
   Future<void> fetchAndUpdate() async {
-    Tuple3<List<Identity>, List<Identity>, List<Identity>> tupleIds =
-        await getAllIdentities(_authToken);
-    _friendsSignedIdsList = tupleIds.item1;
-    _friendsIdsList = tupleIds.item2;
-    _notContactIds = tupleIds.item3;
-
-    _allIdentity = {
-      for (var id in [tupleIds.item1, tupleIds.item2, tupleIds.item3]
-          .expand((x) => x)
-          .toList())
-        id.mId: id
-    };
-
-    notifyListeners();
-  }
-
-  Future<void> setAllIds(Chat chat) async {
-    await fetchAndUpdate();
-    if (_allIdentity[chat.interlocutorId] == null) {
-      _allIdentity = Map.from(_allIdentity)
-        ..[chat.interlocutorId] = Identity(chat.interlocutorId);
-    }
-    notifyListeners();
-  }
-
-  Future<void> toggleContacts(String gxsId, bool type) async {
     try {
-      final bool success = await RsIdentity.setContact(gxsId, type, _authToken);
-      await fetchAndUpdate();
-      if (!success) throw HttpException('CHECK CONNECTIVITY');
+      final tupleIds = await getAllIdentities(_authToken);
+      _friendsSignedIdsList = tupleIds.$1;
+      _friendsIdsList = tupleIds.$2;
+      _notContactIds = tupleIds.$3;
+      _allIdentity = {
+        for (final id in [tupleIds.$1, tupleIds.$2, tupleIds.$3]
+            .expand((x) => x)
+            .toList())
+          id.mId: id,
+      };
+      notifyListeners();
     } catch (e) {
+      debugPrint('Error in fetchAndUpdate: $e');
       rethrow;
     }
   }
 
-  Chat get currentChat => _currentChat;
-
-  Future<void> updateParticipants(String lobbyId) async {
-    List<Identity> participants = [];
-    var gxsIds = await RsMsgs.getLobbyParticipants(lobbyId, _authToken);
-    for (int i = 0; i < gxsIds.length; i++) {
-      bool success = true;
-      Identity id;
-      do {
-        Tuple2<bool, Identity> tuple =
-            await getIdDetails(gxsIds[i]['key'], _authToken);
-        success = tuple.item1;
-        id = tuple.item2;
-      } while (!success);
-      participants.add(id);
+  Future<void> setAllIds(Chat chat) async {
+    final interlocutorId = chat.interlocutorId;
+    if (_allIdentity[interlocutorId] == null) {
+      _allIdentity = Map.from(_allIdentity)
+        ..[interlocutorId] = Identity(
+          mId: interlocutorId,
+          signed: false,
+          isContact: false,
+        );
+      notifyListeners();
     }
-    _lobbyParticipants =
-        Map.from(_lobbyParticipants ?? <String, List<Identity>>{})
-          ..putIfAbsent(lobbyId, () => [])
-          ..[lobbyId] = participants;
-    notifyListeners();
   }
 
-  void updateCurrentChat(Chat chat) {
-    _currentChat = chat;
-    notifyListeners();
+  Future<void> toggleContacts(String gxsId, bool type) async {
+    try {
+      final success = await RsIdentity.setContact(gxsId, type, _authToken);
+      if (!success) {
+        throw HttpException('Failed to toggle contact status.');
+      } else {
+        await fetchAndUpdate();
+      }
+    } catch (e) {
+      debugPrint('Error in toggleContacts: $e');
+      rethrow;
+    }
+  }
+
+  /// Returns the currently selected chat.
+  Chat? get currentChat => _currentChat;
+
+  Future<void> updateParticipants(String lobbyId) async {
+    try {
+      final participants = <Identity>[];
+      final gxsIds = await RsMsgs.getLobbyParticipants(lobbyId, _authToken);
+
+      for (var i = 0; i < gxsIds.length; i++) {
+        final key = gxsIds[i]?['key'] as String?;
+        if (key == null) continue;
+
+        try {
+          var success = false;
+          Identity? id;
+          var retries = 3;
+          do {
+            final tuple = await getIdDetails(key, _authToken);
+            success = tuple.item1;
+            id = tuple.item2;
+            if (!success)
+              await Future.delayed(const Duration(milliseconds: 200));
+            retries--;
+          } while (!success && retries > 0);
+
+          participants.add(id);
+        } catch (e) {
+          debugPrint('Error fetching details for participant key $key: $e');
+        }
+      }
+      _lobbyParticipants = Map.from(_lobbyParticipants)
+        ..[lobbyId] = participants;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error in updateParticipants for lobby $lobbyId: $e');
+      rethrow;
+    }
+  }
+
+  void updateCurrentChat(Chat? chat) {
+    if (_currentChat?.chatId != chat?.chatId) {
+      _currentChat = chat;
+      notifyListeners();
+    }
   }
 
   void addDistanceChat(Chat distantChat) {
-    _distanceChat = Map.from(_distanceChat ?? <String, Chat>{})
-      ..addAll({distantChat.chatId: distantChat});
-    _messagesList = Map.from(_messagesList ?? <String, List<ChatMessage>>{})
-      ..addAll({
-        distantChat.chatId: [],
-      });
-  }
+    final chatId = distantChat.chatId;
+    if (chatId == null) return;
 
-// Insert the sent meesage
-  void addChatMessage(ChatMessage message, String chatId) {
-    _messagesList = Map.from(_messagesList ?? <String, List<ChatMessage>>{})
-      ..putIfAbsent(chatId, () => []);
-    if (message != null) _messagesList[chatId].add(message);
+    _distanceChat = Map.from(_distanceChat)..[chatId] = distantChat;
+    _messagesList = Map.from(_messagesList)..putIfAbsent(chatId, () => []);
     notifyListeners();
   }
 
-// Get the unreadcount of chatLobbies
-  int getUnreadCount(Identity iden, Identity idToUse) {
-    return _distanceChat != null
-        ? _distanceChat[Chat.getDistantChatId(iden.mId, idToUse.mId)]
-                ?.unreadCount ??
-            0
-        : 0;
+  void addChatMessage(ChatMessage message, String chatId) {
+    final currentList = _messagesList[chatId] ?? [];
+    _messagesList = Map.from(_messagesList)
+      ..[chatId] = [...currentList, message];
+    notifyListeners();
   }
 
-// Send the chat messsage to the lobby & Peers
-  Future<void> sendMessage(String chatId, String msgTxt,
-      [ChatIdType type = ChatIdType.number2_]) async {
-    RsMsgs.sendMessage(chatId, msgTxt, _authToken, type).then((bool res) {
+  int getUnreadCount(Identity iden, Identity idToUse) {
+    final idenId = iden.mId;
+    final idToUseId = idToUse.mId;
+    if (idToUseId == null) return 0;
+
+    final key = _generateDistantChatId(idenId, idToUseId);
+    return _distanceChat[key]?.unreadCount ?? 0;
+  }
+
+  Future<void> sendMessage(
+    String chatId,
+    String msgTxt, [
+    ChatIdType type = ChatIdType.type2,
+  ]) async {
+    try {
+      final res = await RsMsgs.sendMessage(chatId, msgTxt, _authToken, type);
       if (res) {
-        //final store = StoreProvider.of<AppState>(context);
-        final ChatMessage message = ChatMessage()
-          ..chat_id = ChatId()
-          ..chat_id.distantChatId = chatId
-          ..chat_id.type = type
-          ..msg = msgTxt
-          ..incoming = false
-          ..sendTime = DateTime.now().millisecondsSinceEpoch ~/ 1000
-          ..recvTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-        // chatMiddleware(message, context);
+        final message = ChatMessage(
+          chatId: ChatId(
+            distantChatId: chatId,
+            type: type,
+          ),
+          msg: msgTxt,
+          incoming: false,
+          sendTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          recvTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        );
         addChatMessage(message, chatId);
       } else {
-        throw HttpException('You are not the member of the chat Lobby');
+        throw HttpException('Failed to send message (API returned false).');
       }
-    });
+    } catch (e) {
+      debugPrint('Error in sendMessage: $e');
+      rethrow;
+    }
   }
 
   void chatActionMiddleware(Chat distancechat) {
-    if (_allIdentity[distancechat?.interlocutorId] == null) {
-      var identity = Identity(distancechat?.interlocutorId);
-      identity?.name = distancechat?.chatName;
+    final interlocutorId = distancechat.interlocutorId;
+    if (_allIdentity[interlocutorId] == null) {
+      final identity = Identity(
+        mId: interlocutorId,
+        signed: false,
+        isContact: false,
+        name: distancechat.chatName,
+      );
       callrequestIdentity(identity);
     }
   }
 
   String getChatSenderName(ChatMessage message) {
     if (message.isLobbyMessage()) {
-      return _lobbyParticipants[message.chat_id.lobbyId.xstr64]
-              .firstWhere(
-                (id) => id.mId == message.lobby_peer_gxs_id,
-                orElse: () => null,
-              )
-              ?.name ??
-          message.lobby_peer_gxs_id;
-    }
-    final Identity id = _allIdentity[
-        _distanceChat[message.chat_id.distantChatId].interlocutorId];
-    if (id == null) {
-      callrequestIdentity(Identity(
-          _distanceChat[message.chat_id.distantChatId].interlocutorId));
-      return _distanceChat[message.chat_id.distantChatId].interlocutorId;
-    }
-    return id.name.isEmpty ? id.mId : id.name;
-  }
+      final lobbyPeerGxsId = message.lobbyPeerGxsId;
+      if (lobbyPeerGxsId == null) return 'Unknown Lobby User';
 
-  // Intitate the distance chat
-  Future<void> initiateDistantChat(Chat chat) async {
-    final String to = chat.interlocutorId;
-    final String from = chat.ownIdToUse;
-    final resp = await RsMsgs.c(chat, _authToken);
-    if (resp['retval'] == true) {
-      chat.chatId = resp['pid'];
-      Chat.addDistantChat(to, from, resp['pid']);
-      chatActionMiddleware(chat);
-      setAllIds(chat);
-      addDistanceChat(chat);
+      final lobbyId = message.chatId?.lobbyId?.xstr64;
+      if (lobbyId != null) {
+        final participants = _lobbyParticipants[lobbyId];
+        Identity? identity;
+        if (participants != null) {
+          for (final id in participants) {
+            if (id.mId == lobbyPeerGxsId) {
+              identity = id;
+              break;
+            }
+          }
+        }
+        return identity?.name ?? lobbyPeerGxsId;
+      }
+      return lobbyPeerGxsId;
     } else {
-      throw Exception('Error on initiateDistantChat()');
+      final distantChatId = message.chatId?.distantChatId;
+      if (distantChatId == null) return 'Unknown User';
+
+      final chatInfo = _distanceChat[distantChatId];
+      final interlocutorIdFromChat = chatInfo?.interlocutorId;
+      if (interlocutorIdFromChat == null) return 'Unknown User';
+
+      final identity = _allIdentity[interlocutorIdFromChat];
+      if (identity == null) {
+        callrequestIdentity(
+          Identity(
+            mId: interlocutorIdFromChat,
+            signed: false,
+            isContact: false,
+          ),
+        );
+        return interlocutorIdFromChat;
+      }
+      return identity.name ?? identity.mId ?? 'Unknown User';
     }
   }
 
-  // Get the chat lobby
-  Chat getChat(
-    Identity currentIdentity,
-    dynamic to, {
-    String from,
-  }) {
-    Chat chat;
+  Future<String?> initiateDistantChat(Chat chat) async {
+    final toId = chat.interlocutorId;
+    final fromId = chat.ownIdToUse;
+    if (fromId == null) {
+      throw Exception(
+        'Missing interlocutorId or ownIdToUse for initiating chat',
+      );
+    }
 
-    final String currentId = from ?? currentIdentity.mId;
-    if (to != null && to is Identity) {
-      final String distantChatId = Chat.getDistantChatId(to.mId, currentId);
-      if (Chat.distantChatExistsStore(distantChatId, distanceChat)) {
+    try {
+      final resp = await RsMsgs.c(chat, _authToken);
+      if (resp['retval'] == true && resp['pid'] is String) {
+        final newChatId = resp['pid'] as String;
+        chatActionMiddleware(chat);
+        return newChatId;
+      } else {
+        throw Exception(
+          'API error initiating distant chat: ${resp['retval'] ?? 'Unknown'}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error in initiateDistantChat: $e');
+      rethrow;
+    }
+  }
+
+  Chat? getChat(
+    Identity currentIdentity,
+    dynamic to,
+  ) {
+    Chat? chat;
+    final currentId = currentIdentity.mId;
+
+    if (to is Identity) {
+      final toId = to.mId;
+
+      final distantChatId = _generateDistantChatId(toId, currentId);
+      if (_distanceChat.containsKey(distantChatId)) {
         chat = _distanceChat[distantChatId];
       } else {
-        chat = Chat(
-          interlocutorId: to.mId,
+        final initialChat = Chat(
+          interlocutorId: toId,
           isPublic: false,
           chatName: to.name,
           numberOfParticipants: 1,
           ownIdToUse: currentId,
         );
-        initiateDistantChat(chat);
+        initiateDistantChat(initialChat).then((newChatId) {
+          if (newChatId != null) {
+            try {
+              final finalChat = initialChat.copyWith(chatId: newChatId);
+              addDistanceChat(finalChat);
+            } catch (e) {
+              debugPrint(
+                'Error using copyWith on Chat: $e. Is it a freezed class?',
+              );
+            }
+          }
+        }).catchError((e) {
+          debugPrint('Failed to auto-initiate chat: $e');
+        });
+        chat = initialChat;
       }
-    } else if (to != null && (to is VisibleChatLobbyRecord)) {
-      chat = Chat.fromVisibleChatLobbyRecord(to);
-      joinChatLobby(chat, currentIdentity.mId);
-    } else if (to != null && (to is Chat)) {
+    } else if (to is VisibleChatLobbyRecord) {
+      final lobbyId = to.lobbyId?.xstr64;
+      if (lobbyId == null) {
+        throw Exception('VisibleChatLobbyRecord has null ID');
+      }
+      if (_distanceChat.containsKey(lobbyId)) {
+        chat = _distanceChat[lobbyId];
+      } else {
+        chat = Chat(
+          chatId: lobbyId,
+          chatName: to.lobbyName,
+          isPublic: Chat.isPublicChat(to.lobbyFlags ?? 0),
+          lobbyTopic: to.lobbyTopic,
+          numberOfParticipants: to.totalNumberOfPeers,
+          ownIdToUse: currentId,
+          interlocutorId: '',
+        );
+        joinChatLobby(chat, currentId).catchError((e) {
+          debugPrint('Failed to auto-join lobby $lobbyId: $e');
+        });
+        addDistanceChat(chat);
+      }
+    } else if (to is Chat) {
       chat = to;
-      joinChatLobby(to, currentIdentity.mId);
+      if (chat.isPublic ?? false) {
+        joinChatLobby(chat, currentId).catchError((e) {
+          debugPrint('Failed to auto-join lobby ${chat?.chatId}: $e');
+        });
+      }
+    } else if (to != null) {
+      throw Exception("Invalid type for 'to' parameter: ${to.runtimeType}");
+    } else {
+      throw Exception("Invalid 'to' parameter in getChat: cannot be null");
     }
     return chat;
   }
 
-  // Join ChatLobby for the give lobby_id
-  Future<void> joinChatLobby(Chat lobby, String idTouse) async {
-    await RsMsgs.joinChatLobby(lobby.chatId, idTouse, _authToken);
+  Future<void> joinChatLobby(Chat lobby, String idToUse) async {
+    final lobbyId = lobby.chatId;
+    if (lobbyId == null) {
+      throw Exception('Lobby ID is null, cannot join');
+    }
+    try {
+      await RsMsgs.joinChatLobby(lobbyId, idToUse, _authToken);
+    } catch (e) {
+      debugPrint('Error joining lobby $lobbyId: $e');
+      rethrow;
+    }
   }
 
-// call for creation of new Identity
   Future<void> callrequestIdentity(Identity unknownId) async {
-    await RsIdentity.requestIdentity(unknownId.mId, _authToken);
+    final idToRequest = unknownId.mId;
+    try {
+      await RsIdentity.requestIdentity(idToRequest, _authToken);
+    } catch (e) {
+      debugPrint('Error requesting identity $idToRequest: $e');
+    }
   }
-
-  ///  Get distance chat status of connected  Peer
 
   Future<void> getDistanceChatStatus(ChatMessage msg) async {
-    !Chat.distantChatExistsStore(msg.chat_id.distantChatId, _distanceChat)
-        ? RsMsgs.getDistantChatStatus(authToken, msg.chat_id.distantChatId, msg)
-            .then((DistantChatPeerInfo res) {
-            // Create the chat and add it to the store
-            Chat chat = Chat(
-              interlocutorId: res.toId,
-              isPublic: false,
-              numberOfParticipants: 1,
-              ownIdToUse: res.ownId,
-              chatId: msg.chat_id.distantChatId,
-            );
-            Chat.addDistantChat(res.toId, res.ownId, res.peerId);
-            chatActionMiddleware(chat);
-            addDistanceChat(chat);
-            setAllIds(chat);
-            // Finally send AddChatMessageAction
-            addChatMessage(msg, msg.chat_id.distantChatId);
-          })
-        : addChatMessage(msg, msg.chat_id.distantChatId);
+    final distantId = msg.chatId?.distantChatId;
+    if (distantId == null) return;
+
+    if (!_distanceChat.containsKey(distantId)) {
+      try {
+        final res =
+            await RsMsgs.getDistantChatStatus(authToken, distantId, msg);
+        final toId = res.toId;
+        final ownId = res.ownId;
+        if (toId == null || ownId == null) {
+          throw Exception(
+            'Missing required info from getDistantChatStatus response',
+          );
+        }
+        final chat = Chat(
+          interlocutorId: toId,
+          ownIdToUse: ownId,
+          chatId: distantId,
+          isPublic: false,
+          chatName: res.toId ?? 'Unknown Peer',
+        );
+        addDistanceChat(chat);
+        addChatMessage(msg, distantId);
+      } catch (e) {
+        debugPrint('Error in getDistanceChatStatus: $e');
+      }
+    } else {
+      addChatMessage(msg, distantId);
+    }
   }
 
-  // Check if the sender exists, if not request the identity
-  // Also a dummy identity could be added when distant chat
-  // connection is started (id where name and mId are the same)
-  // To dispatch the action, check if is dummy identity.
   Future<void> chatIdentityCheck(ChatMessage message) async {
-    if (message != null && message.msg.isNotEmpty && message.incoming) {
-      if (message.isLobbyMessage() &&
-          (_allIdentity[message.lobby_peer_gxs_id] == null ||
-              _allIdentity[message.lobby_peer_gxs_id].mId ==
-                  _allIdentity[message.lobby_peer_gxs_id].name)) {
-        await callrequestIdentity(Identity(message.lobby_peer_gxs_id));
-      } else if (!message.isLobbyMessage() &&
-          (_allIdentity[_distanceChat[message.chat_id.distantChatId]
-                      ?.interlocutorId] ==
-                  null ||
-              _allIdentity[_distanceChat[message.chat_id.distantChatId]
-                          ?.interlocutorId]
-                      ?.mId ==
-                  _allIdentity[_distanceChat[message.chat_id.distantChatId]
-                          ?.interlocutorId]
-                      ?.name)) {
-        await callrequestIdentity(
-          Identity(
-            _distanceChat[message.chat_id.distantChatId]?.interlocutorId,
-          ),
-        );
+    if (message.msg?.isNotEmpty == true && (message.incoming ?? false)) {
+      final lobbyPeerId = message.lobbyPeerGxsId;
+      final distantChatId = message.chatId?.distantChatId;
+      final interlocutorId = distantChatId != null
+          ? _distanceChat[distantChatId]?.interlocutorId
+          : null;
+
+      if (message.isLobbyMessage() && lobbyPeerId != null) {
+        final identity = _allIdentity[lobbyPeerId];
+        if (identity == null || identity.mId == identity.name) {
+          await callrequestIdentity(
+            Identity(
+              mId: lobbyPeerId,
+              signed: false,
+              isContact: false,
+            ),
+          );
+        }
+      } else if (!message.isLobbyMessage() && interlocutorId != null) {
+        final identity = _allIdentity[interlocutorId];
+        if (identity == null || identity.mId == identity.name) {
+          await callrequestIdentity(
+            Identity(
+              mId: interlocutorId,
+              signed: false,
+              isContact: false,
+            ),
+          );
+        }
       }
     }
   }

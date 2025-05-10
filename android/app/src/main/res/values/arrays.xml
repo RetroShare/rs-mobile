@@ -1,0 +1,23 @@
+<resources>
+    <string-array name="qt_sources">
+        <item>source1</item>
+        <item>source2</item>
+    </string-array>
+    <string-array name="qt_libs">
+        <item>libQt5Core.so</item>
+        <item>libQt5Gui.so</item>
+        <item>libQt5Network.so</item>
+    </string-array>
+    <string-array name="bundled_libs">
+        <item>libcrypto.so</item>
+        <item>libssl.so</item>
+    </string-array>
+    <string-array name="bundled_in_lib">
+        <item>libextra1.so</item>
+        <item>libextra2.so</item>
+    </string-array>
+    <string-array name="bundled_in_assets">
+        <item>asset1</item>
+        <item>asset2</item>
+    </string-array>
+</resources>

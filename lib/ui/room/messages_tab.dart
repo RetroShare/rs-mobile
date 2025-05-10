@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as emoji_picker;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -13,27 +13,46 @@ import 'package:retroshare/ui/room/message_delegate.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class MessagesTab extends StatefulWidget {
-  const MessagesTab({this.chat, this.isRoom});
+  const MessagesTab({super.key, required this.chat, this.isRoom = false});
   final Chat chat;
-  final bool isRoom;
+  final bool? isRoom;
 
   @override
-  _MessagesTabState createState() => _MessagesTabState();
+  MessagesTabState createState() => MessagesTabState();
 }
 
-class _MessagesTabState extends State<MessagesTab> {
-  TextEditingController msgController = TextEditingController();
+class MessagesTabState extends State<MessagesTab> {
+  final TextEditingController msgController = TextEditingController();
   final double _bottomBarHeight = appBarHeight;
-  FocusScopeNode _focusNode;
+  late final FocusNode _focusNode;
 
-  bool isShowSticker = false;
+  bool _showEmojiPicker = false;
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+    _showEmojiPicker = false;
+    _focusNode.addListener(() {
+      if (_focusNode.hasFocus && _showEmojiPicker) {
+        if (mounted) {
+          setState(() {
+            _showEmojiPicker = false;
+          });
+        }
+      }
+    });
+  }
+
   @override
   void dispose() {
     msgController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
-  void _onEmojiSelected(Emoji emoji) {
+  void _onEmojiSelected(emoji_picker.Emoji emoji) {
     msgController
       ..text += emoji.emoji
       ..selection = TextSelection.fromPosition(
@@ -50,91 +69,100 @@ class _MessagesTabState extends State<MessagesTab> {
   }
 
   Future<void> _sendImage() async {
-    final File image = await ImagePicker.pickImage(
+    final imageXFile = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 40,
       maxWidth: 250,
       maxHeight: 250,
     );
-    final bytes = image.readAsBytesSync().lengthInBytes;
-    final kb = bytes / 1024;
-    final mb = kb / 1024;
-    if (mb < 3 && image != null) {
-      var text = base64.encode(image.readAsBytesSync());
-      text = "<img alt='Red dot (png)' src='data:image/png;base64,$text'/>";
-      // ignore: use_build_context_synchronously
-      try {
+
+    if (imageXFile == null) {
+      debugPrint('Image selection cancelled.');
+      return;
+    }
+
+    final imageFile = File(imageXFile.path);
+
+    try {
+      final imageBytes = await imageFile.readAsBytes();
+      final bytes = imageBytes.lengthInBytes;
+      final kb = bytes / 1024;
+      final mb = kb / 1024;
+
+      if (mb < 3) {
+        var text = base64.encode(imageBytes);
+        text = "<img alt='Image' src='data:image/png;base64,$text'/>";
+
+        if (!mounted) return;
         await Provider.of<RoomChatLobby>(context, listen: false).sendMessage(
-          widget.chat?.chatId,
+          widget.chat.chatId!,
           text,
-          widget.isRoom ? ChatIdType.number3_ : ChatIdType.number2_,
+          (widget.isRoom ?? false) ? ChatIdType.type3 : ChatIdType.type2,
         );
-      } catch (e) {
-        // ignore: use_build_context_synchronously
-        errorShowDialog(
-            'Error', 'You are not the member of the chat Lobby', context);
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image Size is too large!'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    } else {
-      showFlutterToast('Image Size is too large !', Colors.red);
+    } catch (e) {
+      debugPrint('Error sending image: $e');
+      if (!mounted) return;
+      await errorShowDialog(
+        'Error Sending Image',
+        'Could not send the image: $e',
+        context,
+      );
     }
-  }
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    isShowSticker = false;
-  }
-
-  Future<bool> onBackPress() {
-    if (isShowSticker) {
-      setState(() {
-        isShowSticker = false;
-      });
-    } else {
-      Navigator.pop(context);
-    }
-
-    return Future.value(false);
   }
 
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: onBackPress,
+      onWillPop: () {
+        if (_showEmojiPicker) {
+          setState(() {
+            _showEmojiPicker = false;
+          });
+          return Future.value(false);
+        }
+        return Future.value(true);
+      },
       child: Column(
         children: <Widget>[
           Expanded(
             child: Consumer<RoomChatLobby>(
               builder: (context, messagesList, _) {
-                dynamic msgList = (widget.chat?.chatId == null ||
-                        messagesList.messagesList == null ||
-                        messagesList.messagesList[widget.chat?.chatId] == null)
-                    ? []
-                    : messagesList.messagesList[widget.chat?.chatId].reversed
+                final msgList = (widget.chat.chatId == null ||
+                        messagesList.messagesList[widget.chat.chatId] == null)
+                    ? <ChatMessage>[]
+                    : messagesList.messagesList[widget.chat.chatId]!.reversed
                         .toList();
+
                 return Stack(
                   children: <Widget>[
                     ListView.builder(
                       reverse: true,
-                      padding: const EdgeInsets.all(16.0),
-                      itemCount: msgList == null ? 0 : msgList.length,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: msgList.length,
                       itemBuilder: (BuildContext context, int index) {
+                        final message = msgList[index];
+                        final key = UniqueKey();
                         return MessageDelegate(
-                          data: msgList[index],
-                          key: UniqueKey(),
-                          bubbleTitle: widget.isRoom &&
-                                  (msgList[index] != null) &&
-                                  (msgList[index].incoming == true)
-                              // Why msgList[index]?.incoming ?? false is
-                              //not working??
-                              ? messagesList.getChatSenderName(msgList[index])
-                              : null,
+                          key: key,
+                          data: message,
+                          bubbleTitle: (widget.isRoom ?? false) &&
+                                  (message.incoming ?? false)
+                              ? (messagesList.getChatSenderName(message))
+                              : '',
                         );
                       },
                     ),
                     Visibility(
-                      visible: msgList?.isEmpty ?? true,
+                      visible: msgList.isEmpty,
                       child: Center(
                         child: SingleChildScrollView(
                           child: SizedBox(
@@ -143,14 +171,16 @@ class _MessagesTabState extends State<MessagesTab> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: <Widget>[
                                 Image.asset(
-                                    'assets/icons8/pluto-no-messages-1.png'),
+                                  'assets/icons8/pluto-no-messages-1.png',
+                                ),
                                 Padding(
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 25),
                                   child: Text(
-                                    'It seems like there is no messages',
+                                    'It seems like there are no messages',
                                     style:
-                                        Theme.of(context).textTheme.bodyText1,
+                                        Theme.of(context).textTheme.bodyLarge,
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
                               ],
@@ -168,85 +198,86 @@ class _MessagesTabState extends State<MessagesTab> {
             minHeight: _bottomBarHeight,
             maxHeight: _bottomBarHeight * 2.5,
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(8),
               child: Row(
                 children: <Widget>[
                   IconButton(
-                    icon: const Icon(
-                      Icons.insert_emoticon,
+                    icon: Icon(
+                      _showEmojiPicker ? Icons.keyboard : Icons.insert_emoticon,
                     ),
+                    tooltip: _showEmojiPicker
+                        ? 'Show keyboard'
+                        : 'Show emoji picker',
                     onPressed: () {
-                      FocusScope.of(context).unfocus();
-                      Future.delayed(const Duration(milliseconds: 15));
-                      setState(() {
-                        isShowSticker = !isShowSticker;
-                      });
+                      if (!_showEmojiPicker) {
+                        _focusNode.unfocus();
+                      }
+                      if (mounted) {
+                        setState(() {
+                          _showEmojiPicker = !_showEmojiPicker;
+                        });
+                      }
+                      if (!_showEmojiPicker) {}
                     },
                   ),
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
-                        color: const Color(0xFFF5F5F5),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 15),
                       child: TextField(
-                        readOnly: isShowSticker,
                         onTap: () {
-                          if (isShowSticker) {
-                            setState(() {
-                              isShowSticker = false;
-                              Future.delayed(const Duration(milliseconds: 15));
-                            });
+                          if (_showEmojiPicker) {
+                            if (mounted) {
+                              setState(() {
+                                _showEmojiPicker = false;
+                              });
+                            }
                           }
-                          ;
+                          _focusNode.requestFocus();
                         },
                         controller: msgController,
                         keyboardType: TextInputType.multiline,
                         maxLines: null,
                         focusNode: _focusNode,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           border: InputBorder.none,
                           hintText: 'Type text...',
+                          hintStyle:
+                              TextStyle(color: Theme.of(context).hintColor),
                         ),
-                        style: Theme.of(context).textTheme.bodyText1,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.image,
-                    ),
-                    onPressed: () async {
-                      await _sendImage();
-                    },
+                    icon: const Icon(Icons.image),
+                    tooltip: 'Send image',
+                    onPressed: _sendImage,
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.send,
-                    ),
-                    onPressed: () {
-                      if (msgController.text.isNotEmpty) {
-                        Provider.of<RoomChatLobby>(context, listen: false)
-                            .sendMessage(
-                                widget.chat?.chatId,
-                                msgController.text,
-                                widget.isRoom
-                                    ? ChatIdType.number3_
-                                    : ChatIdType.number2_);
-                      }
-                      msgController.clear();
-                    },
+                    icon: const Icon(Icons.send),
+                    tooltip: 'Send message',
+                    onPressed: _sendMessage,
                   ),
                 ],
               ),
             ),
           ),
           Offstage(
-            offstage: !isShowSticker,
+            offstage: !_showEmojiPicker,
             child: SizedBox(
               height: 250,
-              child: buildSticker(),
+              child: emoji_picker.EmojiPicker(
+                onEmojiSelected: (category, emoji) => _onEmojiSelected(emoji),
+                onBackspacePressed: _onBackspacePressed,
+              ),
             ),
           ),
         ],
@@ -254,12 +285,23 @@ class _MessagesTabState extends State<MessagesTab> {
     );
   }
 
-  Widget buildSticker() {
-    return EmojiPicker(
-      onEmojiSelected: (Category category, Emoji emoji) {
-        _onEmojiSelected(emoji);
-      },
-      onBackspacePressed: _onBackspacePressed,
-    );
+  Future<void> _sendMessage() async {
+    final isRoomChat = widget.isRoom ?? false;
+    if (msgController.text.isNotEmpty && widget.chat.chatId != null) {
+      try {
+        await Provider.of<RoomChatLobby>(context, listen: false).sendMessage(
+          widget.chat.chatId!,
+          msgController.text,
+          isRoomChat ? ChatIdType.type3 : ChatIdType.type2,
+        );
+        msgController.clear();
+      } catch (e) {
+        debugPrint('Error sending message: $e');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send message: $e')),
+        );
+      }
+    }
   }
 }

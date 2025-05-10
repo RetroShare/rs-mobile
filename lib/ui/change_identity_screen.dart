@@ -6,14 +6,16 @@ import 'package:retroshare/common/drawer.dart';
 import 'package:retroshare/common/person_delegate.dart';
 import 'package:retroshare/common/shimmer.dart';
 import 'package:retroshare/common/styles.dart';
-import 'package:retroshare/provider/Idenity.dart';
+import 'package:retroshare/provider/identity.dart';
 
 class ChangeIdentityScreen extends StatefulWidget {
+  const ChangeIdentityScreen({super.key});
+
   @override
-  _ChangeIdentityScreenState createState() => _ChangeIdentityScreenState();
+  ChangeIdentityScreenState createState() => ChangeIdentityScreenState();
 }
 
-class _ChangeIdentityScreenState extends State<ChangeIdentityScreen> {
+class ChangeIdentityScreenState extends State<ChangeIdentityScreen> {
   @override
   void initState() {
     super.initState();
@@ -29,21 +31,20 @@ class _ChangeIdentityScreenState extends State<ChangeIdentityScreen> {
       appBar: appBar('Change Identity', context),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(8),
           child: FutureBuilder(
             future: Provider.of<Identities>(context, listen: false)
                 .fetchOwnidenities(),
             builder: (context, snapshot) {
               return snapshot.connectionState == ConnectionState.done
                   ? ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: Provider.of<Identities>(context, listen: false)
-                              .ownIdentity
-                              ?.length ??
-                          0,
+                          .ownIdentity
+                          .length,
                       itemBuilder: (BuildContext context, int index) {
                         return PersonDelegate(
-                          data: PersonDelegateData.IdentityData(
+                          data: PersonDelegateData.identityData(
                             Provider.of<Identities>(context, listen: false)
                                 .ownIdentity[index],
                             context,
@@ -59,7 +60,7 @@ class _ChangeIdentityScreenState extends State<ChangeIdentityScreen> {
                         );
                       },
                     )
-                  : ChangeIdentityShimmer();
+                  : changeIdentityShimmer();
             },
           ),
         ),
@@ -68,10 +69,10 @@ class _ChangeIdentityScreenState extends State<ChangeIdentityScreen> {
         child: Center(
           child: SizedBox(
             height: 2 * appBarHeight / 3,
-            child: FlatButton(
+            child: ElevatedButton(
               onPressed: () {
                 Provider.of<Identities>(context, listen: false)
-                    .updatecurrentIdentity();
+                    .updateCurrentIdentity();
                 Navigator.pop(context);
               },
               child: Padding(
@@ -88,14 +89,14 @@ class _ChangeIdentityScreenState extends State<ChangeIdentityScreen> {
                           Color(0xFF00FFFF),
                           Color(0xFF29ABE2),
                         ],
-                        begin: Alignment(-1.0, -4.0),
-                        end: Alignment(1.0, 4.0),
+                        begin: Alignment(-1, -4),
+                        end: Alignment(1, 4),
                       ),
                     ),
-                    padding: const EdgeInsets.all(10.0),
+                    padding: const EdgeInsets.all(10),
                     child: Text(
                       'Change Identity',
-                      style: Theme.of(context).textTheme.button,
+                      style: Theme.of(context).textTheme.labelLarge,
                       textAlign: TextAlign.center,
                     ),
                   ),

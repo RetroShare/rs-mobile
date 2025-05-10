@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,218 +5,251 @@ import 'package:provider/provider.dart';
 import 'package:retroshare/common/notifications.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
-import 'package:share/share.dart';
 
 class GetInvite extends StatefulWidget {
-  const GetInvite({Key key, this.settype}) : super(key: key);
-
-  final settype;
+  const GetInvite({super.key});
 
   @override
-  _GetInviteState createState() => _GetInviteState();
+  GetInviteState createState() => GetInviteState();
 }
 
-class _GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
-  bool check;
-  TextEditingController ownCertController = TextEditingController();
-  TabController tabController;
+class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
+  bool _isShortInvite = true;
+  late final TextEditingController ownCertController;
+  late final TabController tabController;
 
-  Animation<double> _leftHeaderFadeAnimation;
-  Animation<double> _leftHeaderScaleAnimation;
-  Animation<double> _rightHeaderFadeAnimation;
-  Animation<double> _rightHeaderScaleAnimation;
+  late final Animation<double> _leftHeaderFadeAnimation;
+  late final Animation<double> _leftHeaderScaleAnimation;
+  late final Animation<double> _rightHeaderFadeAnimation;
+  late final Animation<double> _rightHeaderScaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    check = true;
+    _isShortInvite = true;
+    ownCertController = TextEditingController();
     tabController = TabController(vsync: this, length: 2);
 
-    _leftHeaderFadeAnimation = Tween(
-      begin: 1.0,
-      end: 0.0,
-    ).animate(tabController.animation);
+    _leftHeaderFadeAnimation = Tween<double>(
+      begin: 1,
+      end: 0,
+    ).animate(tabController.animation ?? kAlwaysDismissedAnimation);
 
-    _leftHeaderScaleAnimation = Tween(
-      begin: 1.0,
+    _leftHeaderScaleAnimation = Tween<double>(
+      begin: 1,
       end: 0.5,
-    ).animate(tabController.animation);
+    ).animate(tabController.animation ?? kAlwaysDismissedAnimation);
 
-    _rightHeaderFadeAnimation = Tween(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(tabController.animation);
+    _rightHeaderFadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(tabController.animation ?? kAlwaysDismissedAnimation);
 
-    _rightHeaderScaleAnimation = Tween(
+    _rightHeaderScaleAnimation = Tween<double>(
       begin: 0.5,
-      end: 1.0,
-    ).animate(tabController.animation);
+      end: 1,
+    ).animate(tabController.animation ?? kAlwaysDismissedAnimation);
+  }
+
+  @override
+  void dispose() {
+    ownCertController.dispose();
+    tabController.dispose();
+    super.dispose();
   }
 
   Future<String> _getCert() async {
     String ownCert;
     final authToken =
         Provider.of<AccountCredentials>(context, listen: false).authtoken;
-    if (!check) {
-      ownCert = (await RsPeers.getOwnCert(authToken)).replaceAll('\n', '');
-    } else {
-      ownCert = await RsPeers.getShortInvite(authToken);
+    if (authToken == null) {
+      throw 'authToken null';
     }
-    Future.delayed(Duration(milliseconds: 60));
-    return ownCert;
+    try {
+      if (!_isShortInvite) {
+        ownCert = (await RsPeers.getOwnCert(authToken)).replaceAll('\n', '');
+      } else {
+        ownCert = await RsPeers.getShortInvite(authToken);
+      }
+      return ownCert;
+    } catch (e) {
+      debugPrint('Error fetching certificate: $e');
+      rethrow;
+    }
   }
 
-  Widget getHeaderBuilder() {
-    return Container(
-      child: Stack(
-        children: <Widget>[
-          ScaleTransition(
-            scale: _leftHeaderScaleAnimation,
-            child: FadeTransition(
-              opacity: _leftHeaderFadeAnimation,
-              child: const Text(
-                'Short Invite',
-                style: TextStyle(fontSize: 15, fontFamily: 'Oxygen'),
+  Widget buildAnimatedHeader() {
+    return AnimatedBuilder(
+      animation: tabController.animation ?? kAlwaysDismissedAnimation,
+      builder: (context, child) {
+        return Stack(
+          alignment: Alignment.center,
+          children: <Widget>[
+            ScaleTransition(
+              scale: _leftHeaderScaleAnimation,
+              child: FadeTransition(
+                opacity: _leftHeaderFadeAnimation,
+                child: Text(
+                  'Short Invite',
+                  style: GoogleFonts.oxygen(fontSize: 15),
+                ),
               ),
             ),
-          ),
-          ScaleTransition(
-            scale: _rightHeaderScaleAnimation,
-            child: FadeTransition(
-              opacity: _rightHeaderFadeAnimation,
-              child: const Text(
-                'Long Invite',
-                style: TextStyle(fontSize: 15),
+            ScaleTransition(
+              scale: _rightHeaderScaleAnimation,
+              child: FadeTransition(
+                opacity: _rightHeaderFadeAnimation,
+                child: Text(
+                  'Long Invite',
+                  style: GoogleFonts.oxygen(fontSize: 15),
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 
   Widget getinvitelink() {
-    return FutureBuilder(
-        future: _getCert(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done &&
-              snapshot.hasData) {
-            String val = snapshot.data;
-            ownCertController.text = val;
-            return Stack(
-              alignment: AlignmentDirectional.center,
-              children: [
-                Opacity(
-                  opacity: .2,
-                  child: TextFormField(
-                    key: UniqueKey(),
-                    readOnly: true,
-                    initialValue: val,
-                    maxLines: 10,
-                    minLines: 10,
-                    style: GoogleFonts.oxygen(
-                        textStyle:
-                            TextStyle(fontSize: 12, color: Colors.black)),
-                    textAlign: TextAlign.center,
-                    textAlignVertical: TextAlignVertical.center,
-                    decoration: InputDecoration(
-                        prefix: const SizedBox(
-                          width: 10,
-                        ),
-                        filled: true,
-                        fillColor: Colors.black.withOpacity(.2),
-                        labelStyle: const TextStyle(fontSize: 12),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6))),
+    return FutureBuilder<String>(
+      future: _getCert(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Stack(
+            alignment: AlignmentDirectional.center,
+            children: [
+              Opacity(
+                opacity: .2,
+                child: Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(6),
                   ),
                 ),
-                Container(
-                    child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                        onPressed: () async {
-                          await Clipboard.setData(
-                              ClipboardData(text: ownCertController.text));
-                          await showInviteCopyNotification();
-                        },
-                        icon: Icon(
-                          Icons.copy,
-                          color: Colors.blueAccent[200],
-                        )),
-                    const Text(
-                      'Tap to copy',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Oxygen',
-                          color: Colors.blueAccent),
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error, color: Colors.grey[600], size: 30),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Could not load invite',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                      fontFamily: 'Oxygen',
                     ),
-                  ],
-                ))
-              ],
-            );
-          }
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Stack(
+            alignment: AlignmentDirectional.center,
+            children: [
+              Opacity(
+                opacity: .2,
+                child: Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 15),
+                  Text(
+                    'Loading...',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueAccent[100],
+                      fontFamily: 'Oxygen',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
+
+        if (snapshot.hasData) {
+          final val = snapshot.data!;
+          ownCertController.text = val;
           return Stack(
             alignment: AlignmentDirectional.center,
             children: [
               Opacity(
                 opacity: .2,
                 child: TextFormField(
+                  controller: ownCertController,
                   readOnly: true,
-                  initialValue: ownCertController.text,
                   maxLines: 10,
                   minLines: 10,
                   style: GoogleFonts.oxygen(
-                      textStyle: const TextStyle(
-                    fontSize: 12,
-                  )),
+                    textStyle:
+                        const TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
                   textAlign: TextAlign.center,
                   textAlignVertical: TextAlignVertical.center,
                   decoration: InputDecoration(
-                      prefix: const SizedBox(
-                        width: 10,
-                      ),
-                      labelStyle: TextStyle(fontSize: 12),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(6))),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 15, vertical: 10),
+                    filled: true,
+                    fillColor: Colors.black.withOpacity(.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
               ),
-              // ignore: prefer_if_elements_to_conditional_expressions
-              snapshot.connectionState == ConnectionState.waiting
-                  ? Container(
-                      child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                            onPressed: () async {},
-                            icon: const Icon(Icons.refresh)),
-                        const Text(
-                          'Loading',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blueAccent),
-                        ),
-                      ],
-                    ))
-                  : Container(
-                      child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                            onPressed: () async {},
-                            icon: const Icon(
-                              Icons.error,
-                              color: Colors.grey,
-                            )),
-                        const Text('something went wrong !',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey)),
-                      ],
-                    ))
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () async {
+                      if (ownCertController.text.isNotEmpty) {
+                        await Clipboard.setData(
+                          ClipboardData(text: ownCertController.text),
+                        );
+                        await showInviteCopyNotification();
+                      }
+                    },
+                    icon: Icon(
+                      Icons.copy,
+                      color: Colors.blueAccent[200],
+                      size: 30,
+                    ),
+                    tooltip: 'Copy Invite',
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Tap to copy',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Oxygen',
+                      fontSize: 12,
+                      color: Colors.blueAccent[100],
+                    ),
+                  ),
+                ],
+              ),
             ],
           );
-        });
+        }
+
+        return const SizedBox.shrink();
+      },
+    );
   }
 
   @override
@@ -226,62 +258,28 @@ class _GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 14),
-        const Text(
-          'Retroshare Invite :',
-          style: TextStyle(fontSize: 16, fontFamily: 'Oxygen'),
+        Text(
+          'Retroshare Invite:',
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontFamily: 'Oxygen'),
         ),
         const SizedBox(height: 8),
         getinvitelink(),
         const SizedBox(height: 6),
         SwitchListTile(
-          value: check,
-          title: getHeaderBuilder(),
+          value: _isShortInvite,
+          title: buildAnimatedHeader(),
           onChanged: (newval) {
             setState(() {
-              check = newval;
+              _isShortInvite = newval;
             });
-            check ? tabController.animateTo(0) : tabController.animateTo(1);
           },
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+          activeColor: Colors.blueAccent,
         ),
-        FlatButton(
-          onPressed: () async {
-            Share.share(ownCertController.text);
-          },
-          textColor: Colors.white,
-          padding: EdgeInsets.zero,
-          child: Center(
-            child: SizedBox(
-              width: 120,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  gradient: const LinearGradient(
-                    colors: <Color>[
-                      Color(0xFF00FFFF),
-                      Color(0xFF29ABE2),
-                    ],
-                    begin: Alignment(-1.0, -4.0),
-                    end: Alignment(1.0, 4.0),
-                  ),
-                ),
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    const Icon(Icons.share, size: 17),
-                    const SizedBox(
-                      width: 3,
-                    ),
-                    const Text(
-                      'Tap to Share',
-                      style: TextStyle(fontSize: 13),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        )
+        const SizedBox(height: 10),
       ],
     );
   }

@@ -1,34 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:retroshare/common/drawer.dart';
 import 'package:retroshare/ui/add_friend/add_friend_text.dart';
-import 'add_friends_utils.dart';
+import 'package:retroshare/ui/add_friend/add_friends_utils.dart';
 
 class AddFriendScreen extends StatefulWidget {
+  const AddFriendScreen({super.key});
+
   @override
-  _AddFriendScreenState createState() => _AddFriendScreenState();
+  AddFriendScreenState createState() => AddFriendScreenState();
 }
 
-class _AddFriendScreenState extends State<AddFriendScreen> {
+class AddFriendScreenState extends State<AddFriendScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        resizeToAvoidBottomInset: false,
-        appBar: appBar('Add Friend', context),
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                GetAddfriend(),
-                const GetInvite(),
-                const SizedBox(
-                  height: 20,
-                ),
-              ],
-            ),
+      resizeToAvoidBottomInset: false,
+      appBar: appBar('Add Friend', context),
+      backgroundColor: Colors.white,
+      body: const SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              GetAddfriend(),
+              GetInvite(),
+              SizedBox(
+                height: 20,
+              ),
+            ],
           ),
-        ));
+        ),
+      ),
+    );
   }
 }

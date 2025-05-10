@@ -1,0 +1,5 @@
+<resources>
+    <string name="ministro_not_found_msg">Ministro was not found. Please install Ministro to continue.</string>
+    <string name="ministro_needed_msg">Ministro is required to run this Qt application.</string>
+    <string name="fatal_error_msg">A fatal error has occurred. Please restart the application.</string>
+</resources>

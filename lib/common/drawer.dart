@@ -1,10 +1,11 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/show_dialog.dart';
-import 'package:retroshare/provider/Idenity.dart';
 import 'package:retroshare/provider/auth.dart';
+import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 Widget drawerWidget(BuildContext ctx) {
@@ -21,10 +22,10 @@ Widget drawerWidget(BuildContext ctx) {
             Icon(
               icon,
               size: 30,
-              color: Theme.of(ctx).textTheme.bodyText1.color,
+              color: Theme.of(ctx).textTheme.bodyLarge?.color,
             ),
             const SizedBox(
-              width: 15.0,
+              width: 15,
             ),
             Text(
               title,
@@ -44,76 +45,90 @@ Widget drawerWidget(BuildContext ctx) {
     child: Column(
       children: [
         Container(
-            alignment: Alignment.center,
-            margin: const EdgeInsets.only(top: 2),
-            height: MediaQuery.of(ctx).size.height * .35,
-            child: Stack(children: [
+          alignment: Alignment.center,
+          margin: const EdgeInsets.only(top: 2),
+          height: MediaQuery.of(ctx).size.height * .35,
+          child: Stack(
+            children: [
               Center(
-                child: Consumer<Identities>(builder: (context, curr, _) {
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      InkWell(
-                        onTap: () {
-                          Navigator.of(context).pushNamed('/profile',
-                              arguments: {'id': curr.currentIdentity});
-                        },
-                        child: Container(
-                          height: 100,
-                          width: 100,
-                          decoration: (curr.currentIdentity.avatar == null)
-                              ? BoxDecoration(
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(color: Colors.black38))
-                              : BoxDecoration(
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(color: Colors.black38),
-                                  image: DecorationImage(
-                                    fit: BoxFit.fill,
-                                    image: MemoryImage(base64
-                                        .decode(curr.currentIdentity.avatar)),
+                child: Consumer<Identities>(
+                  builder: (context, curr, _) {
+                    if (curr.currentIdentity == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            Navigator.of(context).pushNamed(
+                              '/profile',
+                              arguments: {'id': curr.currentIdentity},
+                            );
+                          },
+                          child: Container(
+                            height: 100,
+                            width: 100,
+                            decoration: (curr.currentIdentity!.avatar == null)
+                                ? BoxDecoration(
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(color: Colors.black38),
+                                  )
+                                : BoxDecoration(
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(color: Colors.black38),
+                                    image: DecorationImage(
+                                      fit: BoxFit.fill,
+                                      image: MemoryImage(
+                                        base64.decode(
+                                          curr.currentIdentity!.avatar ?? '',
+                                        ),
+                                      ),
+                                    ),
                                   ),
+                            child: Visibility(
+                              visible: curr.currentIdentity!.avatar == null ||
+                                  curr.currentIdentity!.avatar!.isEmpty,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.person,
+                                  size: 80,
                                 ),
-                          child: Visibility(
-                            visible: curr.currentIdentity?.avatar == null,
-                            child: const Center(
-                              child: Icon(
-                                Icons.person,
-                                size: 80,
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(
-                        height: 6,
-                      ),
-                      FittedBox(
-                        child: Text(
-                          curr.currentIdentity.name,
-                          style: const TextStyle(
-                            fontFamily: 'Vollkorn',
-                            fontSize: 25,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                        const SizedBox(
+                          height: 6,
                         ),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          IconButton(
+                        FittedBox(
+                          child: Text(
+                            curr.currentIdentity!.name ?? 'Unknown Identity',
+                            style: const TextStyle(
+                              fontFamily: 'Vollkorn',
+                              fontSize: 25,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
                               onPressed: () {
                                 Navigator.of(context).pushNamed(
-                                    '/updateIdentity',
-                                    arguments: {'id': curr.currentIdentity});
+                                  '/updateIdentity',
+                                  arguments: {'id': curr.currentIdentity},
+                                );
                               },
                               icon: const Icon(
-                                FontAwesomeIcons.userEdit,
+                                FontAwesomeIcons.userPen,
                                 size: 18,
                                 color: Colors.blue,
-                              )),
-                          IconButton(
+                              ),
+                            ),
+                            IconButton(
                               onPressed: () {
                                 showdeleteDialog(context);
                               },
@@ -121,14 +136,18 @@ Widget drawerWidget(BuildContext ctx) {
                                 FontAwesomeIcons.trash,
                                 size: 18,
                                 color: Colors.red,
-                              ))
-                        ],
-                      )
-                    ],
-                  );
-                }),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
-            ])),
+            ],
+          ),
+        ),
         const Divider(),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -153,7 +172,7 @@ Widget drawerWidget(BuildContext ctx) {
               }),
               buildNavList(Icons.info_rounded, 'About', () {
                 Navigator.pushNamed(ctx, '/about');
-              })
+              }),
             ],
           ),
         ),
@@ -168,7 +187,7 @@ Widget drawerWidget(BuildContext ctx) {
         ),
         const SizedBox(
           height: 30,
-        )
+        ),
       ],
     ),
   );
@@ -192,43 +211,54 @@ AppBar appBar(String title, BuildContext context) {
 }
 
 class NotificationIcon extends StatefulWidget {
+  const NotificationIcon({super.key});
+
   @override
-  _NotificationIconState createState() => _NotificationIconState();
+  NotificationIconState createState() => NotificationIconState();
 }
 
-class _NotificationIconState extends State<NotificationIcon> {
+class NotificationIconState extends State<NotificationIcon> {
   Future<dynamic> _inviteList() async {
-    final AuthToken authToken =
+    final authToken =
         Provider.of<AccountCredentials>(context, listen: false).authtoken;
-    return RsMsgs.getPendingChatLobbyInvites(authToken);
+    return authToken == null
+        ? null
+        : RsMsgs.getPendingChatLobbyInvites(authToken);
   }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        Icon(Icons.notifications,
-            color: Theme.of(context).primaryColor, size: 28),
+        Icon(
+          Icons.notifications,
+          color: Theme.of(context).primaryColor,
+          size: 28,
+        ),
         Positioned(
-            top: 1,
-            right: 1,
-            child: CircleAvatar(
-                backgroundColor: Colors.purple,
-                radius: 7,
-                child: FutureBuilder(
-                  future: _inviteList(),
-                  builder: (context, snapshot) {
-                    return snapshot.connectionState == ConnectionState.done &&
-                            snapshot.hasData
-                        ? FittedBox(
-                            child: Text(
-                            snapshot.data.length.toString(),
-                            style: const TextStyle(fontSize: 8),
-                          ))
-                        : const FittedBox(
-                            child: Text('0', style: TextStyle(fontSize: 8)));
-                  },
-                ))),
+          top: 1,
+          right: 1,
+          child: CircleAvatar(
+            backgroundColor: Colors.purple,
+            radius: 7,
+            child: FutureBuilder(
+              future: _inviteList(),
+              builder: (context, snapshot) {
+                return snapshot.connectionState == ConnectionState.done &&
+                        snapshot.hasData
+                    ? FittedBox(
+                        child: Text(
+                          snapshot.data.length.toString(),
+                          style: const TextStyle(fontSize: 8),
+                        ),
+                      )
+                    : const FittedBox(
+                        child: Text('0', style: TextStyle(fontSize: 8)),
+                      );
+              },
+            ),
+          ),
+        ),
       ],
     );
   }

@@ -1,44 +1,46 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_chips_input/flutter_chips_input.dart';
+import 'package:multi_select_flutter/multi_select_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/person_delegate.dart';
 import 'package:retroshare/common/show_dialog.dart';
 import 'package:retroshare/common/styles.dart';
-import 'package:retroshare/provider/Idenity.dart';
 import 'package:retroshare/provider/friend_location.dart';
+import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class CreateRoomScreen extends StatefulWidget {
+  const CreateRoomScreen({super.key});
+
   @override
-  _CreateRoomScreenState createState() => _CreateRoomScreenState();
+  CreateRoomScreenState createState() => CreateRoomScreenState();
 }
 
-class _CreateRoomScreenState extends State<CreateRoomScreen>
+class CreateRoomScreenState extends State<CreateRoomScreen>
     with TickerProviderStateMixin {
   final TextEditingController _inviteFriendsController =
       TextEditingController();
   final TextEditingController _roomNameController = TextEditingController();
   final TextEditingController _roomTopicController = TextEditingController();
-  bool isPublic;
-  bool isAnonymous;
+  bool isPublic = true;
+  bool isAnonymous = true;
 
-  bool _isRoomCreation;
-  bool _blockCreation; //Used to prevent double click on room creation
-  Animation<double> _fadeAnimation;
-  Animation<double> _heightAnimation;
-  Animation<double> _buttonHeightAnimation;
-  Animation<double> _buttonFadeAnimation;
-  AnimationController _animationController;
+  bool _isRoomCreation = false;
+  bool _blockCreation = false; //Used to prevent double click on room creation
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _heightAnimation;
+  late Animation<double> _buttonHeightAnimation;
+  late Animation<double> _buttonFadeAnimation;
+  late AnimationController _animationController;
 
-  Animation<Color> _doneButtonColor;
-  AnimationController _doneButtonController;
+  late Animation<Color?> _doneButtonColor;
+  late AnimationController _doneButtonController;
 
-  List<Identity> _friendsList;
-  List<Identity> _suggestionsList;
-  List<Location> _locationsList;
-  List<Location> _selectedLocations;
+  late List<Identity> _friendsList;
+  late List<Identity> _suggestionsList;
+  late List<Location> _locationsList;
+  late List<Location> _selectedLocations;
   bool _init = true;
   @override
   void initState() {
@@ -67,22 +69,22 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
       }
     });
 
-    _fadeAnimation = Tween(
-      begin: 0.0,
-      end: 1.0,
+    _fadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
     ).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: const Interval(
           0.5,
-          1.0,
+          1,
           curve: Curves.easeInOut,
         ),
       ),
     );
 
-    _heightAnimation = Tween(
-      begin: 40.0,
+    _heightAnimation = Tween<double>(
+      begin: 40,
       end: 5 * 40.0 + 3 * 8.0,
     ).animate(
       CurvedAnimation(
@@ -91,23 +93,23 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
       ),
     );
 
-    _buttonHeightAnimation = Tween(
+    _buttonHeightAnimation = Tween<double>(
       begin: personDelegateHeight - 15,
-      end: 0.0,
+      end: 0,
     ).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: Curves.easeInOut,
       ),
     );
-    _buttonFadeAnimation = Tween(
-      begin: 1.0,
-      end: 0.0,
+    _buttonFadeAnimation = Tween<double>(
+      begin: 1,
+      end: 0,
     ).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: const Interval(
-          0.0,
+          0,
           0.75,
           curve: Curves.easeInOut,
         ),
@@ -164,11 +166,13 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
   Future<void> _createChat() async {
     if (_isRoomCreation && !_blockCreation) {
       _blockCreation = true;
-      _doneButtonController.reverse();
-      final id =
-          Provider.of<Identities>(context, listen: false).currentIdentity.mId;
+      await _doneButtonController.reverse();
+      final currentIdentity =
+          Provider.of<Identities>(context, listen: false).currentIdentity;
+      if (currentIdentity == null) return;
+      final id = currentIdentity.mId;
       try {
-        Provider.of<ChatLobby>(context, listen: false)
+        await Provider.of<ChatLobby>(context, listen: false)
             .createChatlobby(
           _roomNameController.text,
           id,
@@ -181,10 +185,10 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
           Navigator.of(context).pop();
         });
       } catch (e) {
-        errorShowDialog('Error', 'Try to retart the app!', context);
+        await errorShowDialog('Error', 'Try to retart the app!', context);
       }
 
-      _doneButtonController.forward();
+      await _doneButtonController.forward();
       _blockCreation = false;
     }
   }
@@ -197,10 +201,13 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () {
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (bool didPop) {
+        if (didPop) {
+          return;
+        }
         _onGoBack();
-        return Future.value(false);
       },
       child: Scaffold(
         body: SafeArea(
@@ -208,7 +215,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
             children: <Widget>[
               Container(
                 color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
@@ -220,17 +227,15 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                           Icons.arrow_back,
                           size: 25,
                         ),
-                        onPressed: () {
-                          _onGoBack();
-                        },
+                        onPressed: _onGoBack,
                       ),
                     ),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
                         child: AnimatedBuilder(
                           animation: _animationController,
-                          builder: (BuildContext context, Widget widget) {
+                          builder: (BuildContext context, Widget? child) {
                             return SizedBox(
                               height: _heightAnimation.value + 10,
                               child: Stack(
@@ -247,7 +252,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                               MainAxisAlignment.end,
                                           children: <Widget>[
                                             const SizedBox(
-                                              height: 8.0,
+                                              height: 8,
                                             ),
                                             Visibility(
                                               visible: _heightAnimation.value >=
@@ -283,7 +288,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                                           style:
                                                               Theme.of(context)
                                                                   .textTheme
-                                                                  .bodyText1,
+                                                                  .bodyLarge,
                                                         ),
                                                       ),
                                                     ],
@@ -292,7 +297,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                               ),
                                             ),
                                             const SizedBox(
-                                              height: 8.0,
+                                              height: 8,
                                             ),
                                             Visibility(
                                               visible: _heightAnimation.value >=
@@ -328,7 +333,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                                           style:
                                                               Theme.of(context)
                                                                   .textTheme
-                                                                  .bodyText1,
+                                                                  .bodyLarge,
                                                         ),
                                                       ),
                                                     ],
@@ -337,7 +342,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                               ),
                                             ),
                                             const SizedBox(
-                                              height: 8.0,
+                                              height: 8,
                                             ),
                                             SizedBox(
                                               width: double.infinity,
@@ -362,9 +367,10 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                                       Checkbox(
                                                         value: isPublic,
                                                         onChanged:
-                                                            (bool value) {
+                                                            (bool? value) {
                                                           setState(() {
-                                                            isPublic = value;
+                                                            isPublic =
+                                                                value ?? true;
                                                           });
                                                         },
                                                       ),
@@ -373,8 +379,8 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                                         'Public',
                                                         style: Theme.of(context)
                                                             .textTheme
-                                                            .bodyText1,
-                                                      )
+                                                            .bodyLarge,
+                                                      ),
                                                     ],
                                                   ),
                                                 ),
@@ -403,9 +409,10 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                                       Checkbox(
                                                         value: isAnonymous,
                                                         onChanged:
-                                                            (bool value) {
+                                                            (bool? value) {
                                                           setState(() {
-                                                            isAnonymous = value;
+                                                            isAnonymous =
+                                                                value ?? true;
                                                           });
                                                         },
                                                       ),
@@ -414,8 +421,8 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                                         'Accessible to anonymous',
                                                         style: Theme.of(context)
                                                             .textTheme
-                                                            .bodyText1,
-                                                      )
+                                                            .bodyLarge,
+                                                      ),
                                                     ],
                                                   ),
                                                 ),
@@ -426,114 +433,38 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                       ),
                                     ),
                                   ),
-                                  // *********** Start of
-                                  // chips input ***********
-                                  ChipsInput(
-                                    decoration: InputDecoration(
-                                      hintText: _isRoomCreation
+                                  MultiSelectDialogField<Location>(
+                                    items: _locationsList
+                                        .map(
+                                          (loc) => MultiSelectItem<Location>(
+                                            loc,
+                                            loc.accountName,
+                                          ),
+                                        )
+                                        .toList(),
+                                    initialValue: _selectedLocations,
+                                    searchable: true,
+                                    title: const Text('Invite friends'),
+                                    buttonText: Text(
+                                      _isRoomCreation
                                           ? 'Invite friends'
                                           : 'Search',
-                                      isDense: true,
                                     ),
-                                    findSuggestions: (String query) {
-                                      if (query.isNotEmpty) {
-                                        final lowercaseQuery =
-                                            query.toLowerCase();
-                                        // If is room creation,
-                                        // open suggestion box and
-                                        //find it on locations list
-                                        if (_isRoomCreation) {
-                                          var results =
-                                              _locationsList.where((profile) {
-                                            return profile.locationName
-                                                    .toLowerCase()
-                                                    .contains(
-                                                        query.toLowerCase()) ||
-                                                profile.accountName
-                                                    .toLowerCase()
-                                                    .contains(
-                                                      query.toLowerCase(),
-                                                    );
-                                          }).toList(growable: false)
-                                                ..sort(
-                                                  (a, b) => a.locationName
-                                                      .toLowerCase()
-                                                      .indexOf(lowercaseQuery)
-                                                      .compareTo(
-                                                        b.locationName
-                                                            .toLowerCase()
-                                                            .indexOf(
-                                                              lowercaseQuery,
-                                                            ),
-                                                      ),
-                                                );
-
-                                          return results;
-                                        }
-                                        // Otherwise the suggestions will
-                                        // be on friends list and showed on a
-                                        // widget using the
-                                        //_updateSuggestions function.
-                                        // The suggestion box is not
-                                        //open because it
-                                        //return always an empty list
-                                        final results = _friendsList.where(
-                                            (profile) {
-                                          return profile.name
-                                              .toLowerCase()
-                                              .contains(query.toLowerCase());
-                                        }).toList(growable: false)
-                                          ..sort((a, b) => a.name
-                                              .toLowerCase()
-                                              .indexOf(lowercaseQuery)
-                                              .compareTo(b.name
-                                                  .toLowerCase()
-                                                  .indexOf(lowercaseQuery)));
-                                        _updateSuggestions(results);
-                                        return _isRoomCreation
-                                            ? results
-                                            : const <Location>[];
-                                      } else {
-                                        _updateSuggestions(_friendsList);
-                                        return const <Location>[];
-                                      }
+                                    listType: MultiSelectListType.CHIP,
+                                    onConfirm: (values) {
+                                      setState(() {
+                                        _selectedLocations =
+                                            List<Location>.from(values);
+                                      });
                                     },
-                                    onChanged: (data) {},
-                                    chipBuilder: (context, state, profile) {
-                                      if (!_selectedLocations
-                                          .contains(profile)) {
-                                        _selectedLocations.add(profile);
-                                      }
-                                      return InputChip(
-                                        key: ObjectKey(profile),
-                                        label: Text(profile.accountName),
-                                        // avatar: CircleAvatar(
-                                        // backgroundImage:
-                                        // NetworkImage(profile.imageUrl),
-                                        //),
-                                        onDeleted: () {
-                                          _selectedLocations.removeWhere(
-                                            (location) =>
-                                                location.rsPeerId ==
-                                                profile.rsPeerId,
-                                          );
-                                          state.deleteChip(profile);
-                                        },
-                                        materialTapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      );
-                                    },
-                                    suggestionBuilder:
-                                        (context, state, profile) {
-                                      return Expanded(
-                                        child: PersonDelegate(
-                                          data: PersonDelegateData.LocationData(
-                                            profile,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  )
+                                    chipDisplay: MultiSelectChipDisplay(
+                                      onTap: (value) {
+                                        setState(() {
+                                          _selectedLocations.remove(value);
+                                        });
+                                      },
+                                    ),
+                                  ),
                                 ],
                               ),
                             );
@@ -545,16 +476,14 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                       height: appBarHeight,
                       child: AnimatedBuilder(
                         animation: _doneButtonController,
-                        builder: (BuildContext context, Widget widget) {
+                        builder: (BuildContext context, Widget? child) {
                           return IconButton(
                             icon: const Icon(
                               Icons.done,
                               size: 25,
                             ),
-                            color: _doneButtonColor.value,
-                            onPressed: () {
-                              _createChat();
-                            },
+                            color: _doneButtonColor.value ?? Colors.grey,
+                            onPressed: _createChat,
                           );
                         },
                       ),
@@ -565,7 +494,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
               // ***********  Start of Discover public chats button ***********
               AnimatedBuilder(
                 animation: _animationController,
-                builder: (BuildContext context, Widget widget) {
+                builder: (BuildContext context, Widget? child) {
                   return GestureDetector(
                     onTap: () {
                       Navigator.of(context).pushNamed('/discover_chats');
@@ -590,9 +519,10 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                 child: Icon(
                                   Icons.language,
                                   color: Theme.of(context)
-                                      .textTheme
-                                      .bodyText1
-                                      .color,
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.color ??
+                                      Colors.black,
                                 ),
                               ),
                             ),
@@ -602,7 +532,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                     const EdgeInsets.symmetric(horizontal: 8),
                                 child: Text(
                                   'Discover public chats',
-                                  style: Theme.of(context).textTheme.bodyText1,
+                                  style: Theme.of(context).textTheme.bodyLarge,
                                 ),
                               ),
                             ),
@@ -629,7 +559,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                         if (index == 0) {
                           return AnimatedBuilder(
                             animation: _animationController,
-                            builder: (BuildContext context, Widget widget) {
+                            builder: (BuildContext context, Widget? child) {
                               return GestureDetector(
                                 onTap: () {
                                   _animationController.forward();
@@ -651,9 +581,10 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                             child: Icon(
                                               Icons.add,
                                               color: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyText1
-                                                  .color,
+                                                      .textTheme
+                                                      .bodyLarge
+                                                      ?.color ??
+                                                  Colors.black,
                                             ),
                                           ),
                                         ),
@@ -666,7 +597,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                               'Create new room',
                                               style: Theme.of(context)
                                                   .textTheme
-                                                  .bodyText1,
+                                                  .bodyLarge,
                                             ),
                                           ),
                                         ),
@@ -681,15 +612,16 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                         index -= 1;
                         // Todo: DRY
                         return PersonDelegate(
-                          data: PersonDelegateData.IdentityData(
+                          data: PersonDelegateData.identityData(
                             _suggestionsList[index],
                             context,
                           ),
-                          onPressed: () {
+                          onPressed: () async {
                             final curr =
                                 Provider.of<Identities>(context, listen: false)
                                     .currentIdentity;
-                            Navigator.pushNamed(
+                            if (curr == null) return;
+                            await Navigator.pushNamed(
                               context,
                               '/room',
                               arguments: {
@@ -697,7 +629,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                 'chatData': Provider.of<RoomChatLobby>(
                                   context,
                                   listen: false,
-                                ).getChat(curr, _suggestionsList[index])
+                                ).getChat(curr, _suggestionsList[index]),
                               },
                             );
                           },
@@ -705,7 +637,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                       },
                     ),
                     Visibility(
-                      visible: _friendsList?.isEmpty ?? false,
+                      visible: _friendsList.isEmpty,
                       child: Center(
                         child: SingleChildScrollView(
                           child: SizedBox(
@@ -725,7 +657,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                   child: Text(
                                     'Looks like an empty space',
                                     style:
-                                        Theme.of(context).textTheme.bodyText1,
+                                        Theme.of(context).textTheme.bodyLarge,
                                     textAlign: TextAlign.center,
                                   ),
                                 ),
@@ -735,7 +667,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen>
                                   child: Text(
                                     'You can add friends in the menu',
                                     style:
-                                        Theme.of(context).textTheme.bodyText1,
+                                        Theme.of(context).textTheme.bodyLarge,
                                     textAlign: TextAlign.center,
                                   ),
                                 ),

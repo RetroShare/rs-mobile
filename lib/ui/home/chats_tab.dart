@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/person_delegate.dart';
 import 'package:retroshare/common/styles.dart';
-import 'package:retroshare/provider/Idenity.dart';
+import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/provider/subscribed.dart';
 
 class ChatsTab extends StatelessWidget {
+  const ChatsTab({super.key});
+
   Future<void> _unsubscribeChatLobby(lobbyId, context) async {
-    Provider.of<ChatLobby>(context, listen: false).unsubscribed(lobbyId);
+    await Provider.of<ChatLobby>(context, listen: false).unsubscribed(lobbyId);
   }
 
   @override
@@ -18,8 +20,7 @@ class ChatsTab extends StatelessWidget {
       bottom: false,
       child: Consumer<ChatLobby>(
         builder: (context, chatsList, _) {
-          if (chatsList.subscribedlist != null &&
-              chatsList.subscribedlist.isNotEmpty) {
+          if (chatsList.subscribedlist.isNotEmpty) {
             return CustomScrollView(
               slivers: <Widget>[
                 SliverPadding(
@@ -35,13 +36,15 @@ class ChatsTab extends StatelessWidget {
                       (BuildContext context, int index) {
                         // Todo: DRY
                         return PersonDelegate(
-                          data: PersonDelegateData.ChatData(
-                              chatsList.subscribedlist[index]),
-                          onPressed: () {
+                          data: PersonDelegateData.chatData(
+                            chatsList.subscribedlist[index],
+                          ),
+                          onPressed: () async {
                             final curr =
                                 Provider.of<Identities>(context, listen: false)
                                     .currentIdentity;
-                            Navigator.pushNamed(
+                            if (curr == null) return;
+                            await Navigator.pushNamed(
                               context,
                               '/room',
                               arguments: {
@@ -52,7 +55,7 @@ class ChatsTab extends StatelessWidget {
                                 ).getChat(
                                   curr,
                                   chatsList.subscribedlist[index],
-                                )
+                                ),
                               },
                             );
                           },
@@ -73,10 +76,10 @@ class ChatsTab extends StatelessWidget {
                           },
                         );
                       },
-                      childCount: chatsList.subscribedlist?.length ?? 0,
+                      childCount: chatsList.subscribedlist.length,
                     ),
                   ),
-                )
+                ),
               ],
             );
           }
@@ -92,7 +95,7 @@ class ChatsTab extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 25),
                     child: Text(
                       "Looks like there aren't any subscribed chats",
-                      style: Theme.of(context).textTheme.bodyText1,
+                      style: Theme.of(context).textTheme.bodyLarge,
                       textAlign: TextAlign.center,
                     ),
                   ),

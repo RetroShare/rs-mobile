@@ -5,7 +5,7 @@ import 'package:retroshare_api_wrapper/retroshare.dart';
 class FriendLocations with ChangeNotifier {
   List<Location> _friendlist = [];
   List<Location> get friendlist => _friendlist;
-  AuthToken _authToken;
+  late AuthToken _authToken;
 
   set authToken(AuthToken authToken) {
     _authToken = authToken;
@@ -16,8 +16,8 @@ class FriendLocations with ChangeNotifier {
 
   Future<void> fetchfriendLocation() async {
     final sslIds = await RsPeers.getFriendList(_authToken);
-    final List<Location> locations = [];
-    for (int i = 0; i < sslIds.length; i++) {
+    final locations = <Location>[];
+    for (var i = 0; i < sslIds.length; i++) {
       locations.add(await RsPeers.getPeerFriendDetails(sslIds[i], _authToken));
     }
     _friendlist = locations;
@@ -25,8 +25,8 @@ class FriendLocations with ChangeNotifier {
   }
 
   Future<void> addFriendLocation(String base64Payload) async {
-    bool isAdded = false;
-    if (base64Payload != null && base64Payload.length < 100) {
+    var isAdded = false;
+    if (base64Payload.length < 100) {
       isAdded = await RsPeers.acceptShortInvite(_authToken, base64Payload);
     } else {
       isAdded = await RsPeers.acceptInvite(
@@ -36,7 +36,7 @@ class FriendLocations with ChangeNotifier {
     }
 
     if (!isAdded) throw HttpException('WRONG Certi');
-    RsIdentity.setAutoAddFriendIdsAsContact(true, _authToken);
-    fetchfriendLocation();
+    await RsIdentity.setAutoAddFriendIdsAsContact(true, _authToken);
+    await fetchfriendLocation();
   }
 }

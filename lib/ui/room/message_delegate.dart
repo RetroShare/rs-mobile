@@ -1,106 +1,107 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class MessageDelegate extends StatelessWidget {
-  const MessageDelegate({this.data, this.bubbleTitle, this.key});
-  final key;
+  const MessageDelegate({
+    super.key,
+    required this.data,
+    required this.bubbleTitle,
+  });
+
   final String bubbleTitle;
   final ChatMessage data;
 
-  bool isMessageType(String msg) {
-    final regexp =
-        RegExp(r'^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$');
-
-// find the first match though you could also do `allMatches`
-    final match = regexp.hasMatch(msg);
-    return match;
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Visibility(
-      key: key,
-      visible: data != null,
-      child: GestureDetector(
-        child: FractionallySizedBox(
-          alignment:
-              !data.incoming ? Alignment.centerRight : Alignment.centerLeft,
-          widthFactor: 0.7,
-          child: Card(
-            color: !data.incoming ? Colors.white : Colors.white70,
-            child: Column(
+    final timeStampMillis = (data.recvTime ?? data.sendTime ?? 0) * 1000;
+    final messageTime = DateTime.fromMillisecondsSinceEpoch(timeStampMillis);
+    final formattedTime =
+        '${messageTime.hour.toString().padLeft(2, '0')}:${messageTime.minute.toString().padLeft(2, '0')}';
+
+    final messageContent = data.msg ?? '';
+
+    final isIncoming = data.incoming ?? true;
+
+    return FractionallySizedBox(
+      alignment: isIncoming ? Alignment.centerLeft : Alignment.centerRight,
+      widthFactor: 0.7,
+      child: Card(
+        color: !isIncoming
+            ? Theme.of(context).colorScheme.primaryContainer
+            : Theme.of(context).colorScheme.secondaryContainer,
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (bubbleTitle.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 12, top: 8, right: 8),
+                child: Text(
+                  bubbleTitle,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: !isIncoming
+                        ? Theme.of(context).colorScheme.onPrimaryContainer
+                        : Theme.of(context).colorScheme.onSecondaryContainer,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            Stack(
               children: <Widget>[
-                Visibility(
-                  visible: bubbleTitle?.isNotEmpty ?? false,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 8.0, top: 6.0),
-                      child: Text(
-                        bubbleTitle ?? '',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: 12,
+                    right: 45,
+                    bottom: 8,
+                    top: bubbleTitle.isNotEmpty ? 4 : 10,
+                  ),
+                  child: Html(
+                    data: messageContent,
+                    style: {
+                      'body': Style(
+                        margin: Margins.zero,
+                        padding: HtmlPaddings.zero,
+                        fontSize: FontSize(
+                          Theme.of(context).textTheme.bodyMedium?.fontSize ??
+                              14,
+                        ),
+                        color: !isIncoming
+                            ? Theme.of(context).colorScheme.onPrimaryContainer
+                            : Theme.of(context)
+                                .colorScheme
+                                .onSecondaryContainer,
                       ),
+                      'img': Style(
+                        width: Width.auto(),
+                        height: Height(150),
+                      ),
+                    },
+                  ),
+                ),
+                Positioned(
+                  right: 8,
+                  bottom: 4,
+                  child: Text(
+                    formattedTime,
+                    style: TextStyle(
+                      color: !isIncoming
+                          ? Theme.of(context)
+                              .colorScheme
+                              .onPrimaryContainer
+                              .withOpacity(0.6)
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSecondaryContainer
+                              .withOpacity(0.6),
+                      fontSize: 11,
                     ),
                   ),
                 ),
-                Stack(
-                  children: <Widget>[
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 8.0,
-                        right: 8.0,
-                        bottom: 8.0,
-                        top: 4.0,
-                      ),
-                      child: !isMessageType(data.msg)
-                          ? Html(
-                              data:
-                                  '${data.msg}<span> &nbsp;&nbsp;&nbsp;</span>' // Todo: add some white space to don't overlap the time
-                              )
-                          : FadeInImage(
-                              alignment: Alignment.centerLeft,
-                              imageErrorBuilder: (
-                                BuildContext context,
-                                Object exception,
-                                StackTrace stackTrace,
-                              ) {
-                                return Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    data.msg,
-                                    textAlign: TextAlign.left,
-                                  ),
-                                );
-                              },
-                              placeholder: const NetworkImage(
-                                'http://via.placeholder.com/10x10',
-                              ),
-                              image: MemoryImage(base64.decode(data.msg)),
-                              fit: BoxFit.fill,
-                            ),
-                    ),
-                    //real additionalInfo
-                    Positioned(
-                      right: 8.0,
-                      bottom: 4.0,
-                      child: Text(
-                        '${DateTime.fromMillisecondsSinceEpoch((data.recvTime ?? data.recvTime) * 1000).hour
-                            // ignore: lines_longer_than_80_chars
-                            .toStringAsFixed(0)}:${DateTime.fromMillisecondsSinceEpoch((data.sendTime ?? data.recvTime) * 1000).minute.toString().padLeft(2, '0')}',
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 11.0,
-                        ),
-                      ),
-                    )
-                  ],
-                ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );

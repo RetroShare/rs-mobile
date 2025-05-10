@@ -3,18 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:retroshare/common/styles.dart';
 
 class Button extends StatelessWidget {
-  const Button({this.name, this.buttonIcon, this.onPressed});
+  const Button({
+    super.key,
+    required this.name,
+    required this.buttonIcon,
+    required this.labelLargeIcon,
+    required this.onPressed,
+  });
 
   final String name;
   final IconData buttonIcon;
-  final Function onPressed;
+  final IconData labelLargeIcon;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        if (onPressed != null) onPressed();
-      },
+      onTap: onPressed,
       child: Container(
         color: Colors.white,
         height: buttonHeight,
@@ -26,7 +31,7 @@ class Button extends StatelessWidget {
               child: Center(
                 child: Icon(
                   buttonIcon,
-                  color: Theme.of(context).textTheme.bodyText1.color,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
             ),
@@ -39,7 +44,7 @@ class Button extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       name,
-                      style: Theme.of(context).textTheme.bodyText1,
+                      style: Theme.of(context).textTheme.bodyLarge,
                     ),
                   ],
                 ),

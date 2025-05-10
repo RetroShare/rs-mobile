@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:rxdart/rxdart.dart';
 
-NotificationAppLaunchDetails notificationAppLaunchDetails;
+NotificationAppLaunchDetails? notificationAppLaunchDetails;
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
-final BehaviorSubject<String> selectNotificationSubject =
-    BehaviorSubject<String>();
+final BehaviorSubject<String?> selectNotificationSubject =
+    BehaviorSubject<String?>();
 
 Future<void> initializeNotifications() async {
   notificationAppLaunchDetails =
@@ -15,44 +15,57 @@ Future<void> initializeNotifications() async {
   const initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_notification');
   const initializationSettings =
-      InitializationSettings(initializationSettingsAndroid, null);
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings,
-      onSelectNotification: (String payload) async {
-    if (payload != null) {}
-    selectNotificationSubject.add(payload);
-  });
+      InitializationSettings(android: initializationSettingsAndroid);
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse:
+        (NotificationResponse notificationResponse) async {
+      final payload = notificationResponse.payload;
+      if (payload != null) {}
+      selectNotificationSubject.add(payload);
+    },
+  );
 }
 
-void configureSelectNotificationSubject(context) {
-  selectNotificationSubject.stream.listen((String payload) async {
-//    await Navigator.push(
-//      context,
-//      MaterialPageRoute(builder: (context) => SecondScreen(payload)),
-//    );
+void configureSelectNotificationSubject(BuildContext context) {
+  selectNotificationSubject.stream.listen((String? payload) async {
+    // Handle notification selection here if needed
+    // Example: Navigate to a specific screen based on payload
+    // if (payload != null) {
+    //   await Navigator.push(
+    //     context,
+    //     MaterialPageRoute(builder: (context) => SecondScreen(payload)),
+    //   );
+    // }
   });
 }
 
 Future<void> showChatNotification(
-    String chatId, String title, String body) async {
+  String chatId,
+  String title,
+  String body,
+) async {
   // For multiple messages check: inbox notification
   //  var largeIconPath = await _downloadAndSaveFile(
   //      'http://via.placeholder.com/128x128/00FF00/000000', 'largeIcon');
 
   const androidPlatformChannelSpecifics = AndroidNotificationDetails(
-    'RetroshareFlutter', 'RetroshareFlutter', 'Retroshare flutter app',
-    importance: Importance.Max,
-    priority: Priority.High,
+    'RetroshareFlutter',
+    'RetroshareFlutter',
+    channelDescription: 'Retroshare flutter app',
+    importance: Importance.max,
+    priority: Priority.high,
     ticker: 'ticker',
     color: Color.fromARGB(255, 35, 144, 191),
     ledColor: Color.fromARGB(255, 35, 144, 191),
     ledOnMs: 1000,
     ledOffMs: 500,
-//      largeIcon: FilePathAndroidBitmap(largeIconPath),
+    // largeIcon: FilePathAndroidBitmap(largeIconPath),
   );
   const platformChannelSpecifics =
-      NotificationDetails(androidPlatformChannelSpecifics, null);
+      NotificationDetails(android: androidPlatformChannelSpecifics);
   await flutterLocalNotificationsPlugin.show(
-    int.parse(chatId),
+    int.tryParse(chatId) ?? 0,
     title,
     body,
     platformChannelSpecifics,
@@ -64,14 +77,15 @@ Future<void> showInviteCopyNotification() async {
   const androidPlatformChannelSpecifics = AndroidNotificationDetails(
     'RetroshareFlutter',
     'RetroshareFlutter',
-    'Retroshare flutter app',
+    channelDescription: 'Retroshare flutter app',
     ticker: 'ticker',
   );
   const platformChannelSpecifics =
-      NotificationDetails(androidPlatformChannelSpecifics, null);
+      NotificationDetails(android: androidPlatformChannelSpecifics);
   await flutterLocalNotificationsPlugin.show(
-      1111,
-      'Invite copied!',
-      'Your RetroShare invite was copied to your clipboard',
-      platformChannelSpecifics);
+    1111,
+    'Invite copied!',
+    'Your RetroShare invite was copied to your clipboard',
+    platformChannelSpecifics,
+  );
 }

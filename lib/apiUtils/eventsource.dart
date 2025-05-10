@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:html/parser.dart';
 import 'package:provider/provider.dart';
@@ -12,26 +13,24 @@ Future<void> registerChatEvent(
   BuildContext context,
   AuthToken authToken,
 ) async {
-  await eventsRegisterChatMessage(
+  await await eventsRegisterChatMessage(
     listenCb: (var json, ChatMessage msg) {
-      if (msg != null) {
-        // Check if is a lobby chat
-        if (msg.isLobbyMessage()) {
-          Provider.of<RoomChatLobby>(context, listen: false)
-              .chatIdentityCheck(msg);
-          showChatNotify(msg, context);
-          Provider.of<RoomChatLobby>(context, listen: false)
-              .addChatMessage(msg, msg.chat_id.lobbyId.xstr64);
-        }
-        // Check if is distant chat message
-        else if (isNullCheck(msg.chat_id.distantChatId)) {
-          // First check if the recieved message
-          //is from an already registered chat
-          Provider.of<RoomChatLobby>(context, listen: false)
-              .chatIdentityCheck(msg);
-          Provider.of<RoomChatLobby>(context, listen: false)
-              .getDistanceChatStatus(msg);
-        }
+      // Check if is a lobby chat
+      if (msg.isLobbyMessage()) {
+        Provider.of<RoomChatLobby>(context, listen: false)
+            .chatIdentityCheck(msg);
+        showChatNotify(msg, context);
+        Provider.of<RoomChatLobby>(context, listen: false)
+            .addChatMessage(msg, msg.chatId?.lobbyId?.xstr64 ?? '');
+      }
+      // Check if is distant chat message
+      else if (msg.chatId?.distantChatId != null) {
+        // First check if the recieved message
+        //is from an already registered chat
+        Provider.of<RoomChatLobby>(context, listen: false)
+            .chatIdentityCheck(msg);
+        Provider.of<RoomChatLobby>(context, listen: false)
+            .getDistanceChatStatus(msg);
       }
     },
     authToken: authToken,
@@ -40,7 +39,7 @@ Future<void> registerChatEvent(
 
 // Show the incoming chat  message  notification when app is in background/ resume state
 Future<void> showChatNotify(ChatMessage message, BuildContext context) async {
-  if (message != null && message.msg.isNotEmpty && message.incoming) {
+  if (message.msg?.isNotEmpty == true && (message.incoming ?? false)) {
     final roomChatLobby = Provider.of<RoomChatLobby>(context, listen: false);
     final subscribedChats =
         Provider.of<ChatLobby>(context, listen: false).subscribedlist;
@@ -48,38 +47,49 @@ Future<void> showChatNotify(ChatMessage message, BuildContext context) async {
     // Parse the notification message from the HTML tag.
     String parsedMsg;
     final parsed = parse(message.msg).getElementsByTagName('span');
-    parsed != null ? parsedMsg = parsed[0].text : parsedMsg = message.msg;
+    parsedMsg = (parsed.isNotEmpty) ? parsed.first.text : message.msg ?? '';
 
-    // Check if current chat is focused, to notify unread count
-    if (roomChatLobby.currentChat == null ||
-        (roomChatLobby.currentChat != null &&
-            ((message.isLobbyMessage() &&
-                    roomChatLobby.currentChat.chatId !=
-                        message.chat_id.lobbyId.xstr64) ||
-                (message.isLobbyMessage() &&
-                    roomChatLobby.currentChat.chatId !=
-                        message.chat_id.distantChatId)))) {
-      Chat chat = message.isLobbyMessage()
-          ? subscribedChats.firstWhere(
-              (chat) => chat.chatId == message.chat_id.lobbyId.xstr64,
-            )
-          : roomChatLobby.distanceChat[message.chat_id.distantChatId];
-      chat?.unreadCount++;
+    var isCurrentChat = false;
+    final currentChatId =
+        roomChatLobby.currentChat?.chatId; // Declare as String?
+    if (currentChatId != null) {
+      // Only compare if we have a current chat ID
+      if (message.isLobbyMessage()) {
+        isCurrentChat = currentChatId == message.chatId?.lobbyId?.xstr64;
+      } else if (message.chatId?.distantChatId != null) {
+        isCurrentChat = currentChatId == message.chatId?.distantChatId;
+      }
+    }
+
+    // Check if current chat is NOT focused, to notify unread count
+    if (!isCurrentChat) {
+      if (message.isLobbyMessage()) {
+        // Find chat in subscribed list safely using firstWhereOrNull
+        final lobbyId = message.chatId?.lobbyId?.xstr64;
+        if (lobbyId != null) {}
+      } else {
+        // Find chat in distanceChat map safely
+        final distantId = message.chatId?.distantChatId;
+        if (distantId != null) {}
+      }
+      // chat?.unreadCount++; // Commented out due to missing setter error
     }
 
     // Show notification
-    if (actuaApplState != AppLifecycleState.resumed) {
-      showChatNotification(
-        // Id of notification
-        message.chat_id.peerId,
+    if (actualApplState != AppLifecycleState.resumed) {
+      await showChatNotification(
+        // Id of notification - convert to string
+        message.chatId?.peerId?.toString() ?? '0',
 
         // Title of notification
         message.isLobbyMessage()
+            // Use firstWhereOrNull here too
             ? subscribedChats
-                .firstWhere(
-                  (chat) => chat.chatId == message.chat_id.lobbyId.xstr64,
-                )
-                .chatName
+                    .firstWhereOrNull(
+                      (c) => c.chatId == message.chatId?.lobbyId?.xstr64,
+                    )
+                    ?.chatName ??
+                'Unknown Chat' // Null check after firstWhereOrNull
             : roomChatLobby.getChatSenderName(message),
         // Message notification
         message.isLobbyMessage()

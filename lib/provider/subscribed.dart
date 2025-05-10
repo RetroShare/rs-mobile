@@ -5,64 +5,66 @@ class ChatLobby with ChangeNotifier {
   List<Chat> _chatlist = [];
   List<VisibleChatLobbyRecord> _unsubscribedlist = [];
   List<Chat> get subscribedlist => _chatlist;
-  AuthToken _authToken;
-
-  set authToken(AuthToken authToken) {
-    _authToken = authToken;
-  }
-
-  AuthToken get authToken => _authToken;
+  AuthToken authToken = const AuthToken('', '');
 
   List<VisibleChatLobbyRecord> get unSubscribedlist => _unsubscribedlist;
 
   Future<void> fetchAndUpdate() async {
-    final list = await RsMsgs.getSubscribedChatLobbies(_authToken);
-    List<Chat> chatsList = [];
-    for (int i = 0; i < list.length; i++) {
+    final list = await RsMsgs.getSubscribedChatLobbies(authToken);
+    final chatsList = <Chat>[];
+    for (var i = 0; i < list.length; i++) {
       final chatItem =
-          await RsMsgs.getChatLobbyInfo(list[i]['xstr64'], _authToken);
+          await RsMsgs.getChatLobbyInfo(list[i]['xstr64'], authToken);
 
-      chatsList.add(Chat(
+      chatsList.add(
+        Chat(
           chatId: chatItem['lobby_id']['xstr64'],
           chatName: chatItem['lobby_name'],
           lobbyTopic: chatItem['lobby_topic'],
           ownIdToUse: chatItem['gxs_id'],
           autoSubscribe: await RsMsgs.getLobbyAutoSubscribe(
-              chatItem['lobby_id']['xstr64'], _authToken),
+            chatItem['lobby_id']['xstr64'],
+            authToken,
+          ),
           lobbyFlags: chatItem['lobby_flags'],
           isPublic:
-              chatItem['lobby_flags'] == 4 || chatItem['lobby_flags'] == 20
-                  ? true
-                  : false));
+              chatItem['lobby_flags'] == 4 || chatItem['lobby_flags'] == 20,
+          interlocutorId: chatItem['gxs_id'],
+        ),
+      );
     }
     _chatlist = chatsList;
     notifyListeners();
   }
 
   Future<void> fetchAndUpdateUnsubscribed() async {
-    _unsubscribedlist = await RsMsgs.getUnsubscribedChatLobbies(_authToken);
+    _unsubscribedlist = await RsMsgs.getUnsubscribedChatLobbies(authToken);
     notifyListeners();
   }
 
   Future<void> unsubscribed(String lobbyId) async {
-    await RsMsgs.unsubscribeChatLobby(lobbyId, _authToken);
-    final list = await RsMsgs.getSubscribedChatLobbies(_authToken);
-    List<Chat> chatsList = [];
-    for (int i = 0; i < list.length; i++) {
+    await RsMsgs.unsubscribeChatLobby(lobbyId, authToken);
+    final list = await RsMsgs.getSubscribedChatLobbies(authToken);
+    final chatsList = <Chat>[];
+    for (var i = 0; i < list.length; i++) {
       final chatItem =
-          await RsMsgs.getChatLobbyInfo(list[i]['xstr64'], _authToken);
-      chatsList.add(Chat(
+          await RsMsgs.getChatLobbyInfo(list[i]['xstr64'], authToken);
+      chatsList.add(
+        Chat(
           chatId: chatItem['lobby_id']['xstr64'],
           chatName: chatItem['lobby_name'],
           lobbyTopic: chatItem['lobby_topic'],
           ownIdToUse: chatItem['gxs_id'],
           autoSubscribe: await RsMsgs.getLobbyAutoSubscribe(
-              chatItem['lobby_id']['xstr64'], _authToken),
+            chatItem['lobby_id']['xstr64'],
+            authToken,
+          ),
           lobbyFlags: chatItem['lobby_flags'],
           isPublic:
-              chatItem['lobby_flags'] == 4 || chatItem['lobby_flags'] == 20
-                  ? true
-                  : false));
+              chatItem['lobby_flags'] == 4 || chatItem['lobby_flags'] == 20,
+          interlocutorId: chatItem['gxs_id'],
+        ),
+      );
     }
     _chatlist = chatsList;
     await fetchAndUpdateUnsubscribed();
@@ -77,8 +79,8 @@ class ChatLobby with ChangeNotifier {
     bool anonymous = true,
   }) async {
     try {
-      final bool success = await RsMsgs.createChatLobby(
-        _authToken,
+      final success = await RsMsgs.createChatLobby(
+        authToken,
         lobbyName,
         idToUse,
         lobbyTopic,
@@ -86,7 +88,7 @@ class ChatLobby with ChangeNotifier {
         anonymous: anonymous,
         public: public,
       );
-      if (success) fetchAndUpdate();
+      if (success) await fetchAndUpdate();
     } catch (e) {
       throw Exception(e.toString());
     }

@@ -3,17 +3,18 @@ import 'package:provider/provider.dart';
 import 'package:retroshare/common/person_delegate.dart';
 import 'package:retroshare/common/sliver_persistent_header.dart';
 import 'package:retroshare/common/styles.dart';
-import 'package:retroshare/provider/Idenity.dart';
+import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
-import 'package:tuple/tuple.dart';
 
 class FriendsTab extends StatefulWidget {
+  const FriendsTab({super.key});
+
   @override
-  _FriendsTabState createState() => _FriendsTabState();
+  FriendsTabState createState() => FriendsTabState();
 }
 
-class _FriendsTabState extends State<FriendsTab> {
+class FriendsTabState extends State<FriendsTab> {
   void _removeFromContacts(String gxsId) {
     Provider.of<RoomChatLobby>(context, listen: false)
         .toggleContacts(gxsId, false);
@@ -31,25 +32,26 @@ class _FriendsTabState extends State<FriendsTab> {
       bottom: false,
       child: Consumer<RoomChatLobby>(
         builder: (context, roomChat, _) {
-          final Tuple3<List<Identity>, List<Chat>, Map<String, Identity>>
-              friendsDistantAndIdsTuple =
-              Tuple3<List<Identity>, List<Chat>, Map<String, Identity>>(
+          final (
+            List<Identity> friendsList,
+            List<Chat> distantChats,
+            Map<String, Identity> allIdentities
+          ) = (
             roomChat.friendsIdsList,
-            roomChat.distanceChat?.values
-                    ?.toList()
-                    ?.where(
-                      (chat) =>
-                          roomChat.allIdentity[chat.interlocutorId] == null ||
-                          roomChat.allIdentity[chat.interlocutorId].isContact ==
-                              false,
-                    )
-                    ?.toSet()
-                    ?.toList() ??
-                [],
+            roomChat.distanceChat.values
+                .toList()
+                .where(
+                  (chat) =>
+                      roomChat.allIdentity[chat.interlocutorId] == null ||
+                      roomChat.allIdentity[chat.interlocutorId]!.isContact ==
+                          false,
+                )
+                .toSet()
+                .toList(),
             roomChat.allIdentity,
           );
 
-          if (friendsDistantAndIdsTuple.item1?.isNotEmpty ?? false) {
+          if (friendsList.isNotEmpty) {
             return CustomScrollView(
               slivers: <Widget>[
                 sliverPersistentHeader('Contacts', context),
@@ -58,11 +60,9 @@ class _FriendsTabState extends State<FriendsTab> {
                     left: 8,
                     top: 8,
                     right: 16,
-                    bottom:
-                        (friendsDistantAndIdsTuple.item2?.isEmpty != false ??
-                                true)
-                            ? homeScreenBottomBarHeight * 2
-                            : 8.0,
+                    bottom: (distantChats.isEmpty)
+                        ? homeScreenBottomBarHeight * 2
+                        : 8.0,
                   ),
                   sliver: SliverFixedExtentList(
                     itemExtent: personDelegateHeight,
@@ -71,8 +71,8 @@ class _FriendsTabState extends State<FriendsTab> {
                         return GestureDetector(
                           // Todo: DRY
                           child: PersonDelegate(
-                            data: PersonDelegateData.IdentityData(
-                              friendsDistantAndIdsTuple.item1[index],
+                            data: PersonDelegateData.identityData(
+                              friendsList[index],
                               context,
                             ),
                             onLongPress: (Offset tapPosition) {
@@ -83,19 +83,19 @@ class _FriendsTabState extends State<FriendsTab> {
                                   color: Colors.black,
                                 ),
                                 () => _removeFromContacts(
-                                  friendsDistantAndIdsTuple.item1[index].mId,
+                                  friendsList[index].mId,
                                 ),
                                 tapPosition,
                                 context,
                               );
                             },
-                            onPressed: () {
+                            onPressed: () async {
                               final curr = Provider.of<Identities>(
                                 context,
                                 listen: false,
                               ).currentIdentity;
-
-                              Navigator.pushNamed(
+                              if (curr == null) return;
+                              await Navigator.pushNamed(
                                 context,
                                 '/room',
                                 arguments: {
@@ -105,7 +105,7 @@ class _FriendsTabState extends State<FriendsTab> {
                                     listen: false,
                                   ).getChat(
                                     curr,
-                                    friendsDistantAndIdsTuple.item1[index],
+                                    friendsList[index],
                                   ),
                                 },
                               );
@@ -113,16 +113,15 @@ class _FriendsTabState extends State<FriendsTab> {
                           ),
                         );
                       },
-                      childCount: friendsDistantAndIdsTuple.item1?.length,
+                      childCount: friendsList.length,
                     ),
                   ),
                 ),
                 SliverOpacity(
-                  opacity: (friendsDistantAndIdsTuple.item2?.isNotEmpty ??
-                              false) &&
-                          (friendsDistantAndIdsTuple.item2.isNotEmpty ?? false)
-                      ? 1.0
-                      : 0.0,
+                  opacity:
+                      (distantChats.isNotEmpty) && (distantChats.isNotEmpty)
+                          ? 1.0
+                          : 0.0,
                   sliver: sliverPersistentHeader('People', context),
                 ),
                 SliverPadding(
@@ -136,19 +135,20 @@ class _FriendsTabState extends State<FriendsTab> {
                     itemExtent: personDelegateHeight,
                     delegate: SliverChildBuilderDelegate(
                       (BuildContext context, int index) {
-                        final Identity actualId =
-                            friendsDistantAndIdsTuple.item3[
-                                    friendsDistantAndIdsTuple
-                                        .item2[index]?.interlocutorId] ??
+                        final actualId =
+                            allIdentities[distantChats[index].interlocutorId] ??
                                 Identity(
-                                  friendsDistantAndIdsTuple
-                                      .item2[index].interlocutorId,
+                                  mId: distantChats[index].interlocutorId,
+                                  signed: false,
+                                  isContact: false,
                                 );
                         return GestureDetector(
                           // Todo: DRY
                           child: PersonDelegate(
-                            data: PersonDelegateData.IdentityData(
-                                actualId, context),
+                            data: PersonDelegateData.identityData(
+                              actualId,
+                              context,
+                            ),
                             onLongPress: (Offset tapPosition) {
                               showCustomMenu(
                                 'Add to contacts',
@@ -161,12 +161,13 @@ class _FriendsTabState extends State<FriendsTab> {
                                 context,
                               );
                             },
-                            onPressed: () {
+                            onPressed: () async {
                               final curr = Provider.of<Identities>(
                                 context,
                                 listen: false,
                               ).currentIdentity;
-                              Navigator.pushNamed(
+                              if (curr == null) return;
+                              await Navigator.pushNamed(
                                 context,
                                 '/room',
                                 arguments: {
@@ -181,8 +182,7 @@ class _FriendsTabState extends State<FriendsTab> {
                           ),
                         );
                       },
-                      childCount:
-                          friendsDistantAndIdsTuple.item2.toSet().length,
+                      childCount: distantChats.toSet().length,
                     ),
                   ),
                 ),
@@ -204,7 +204,7 @@ class _FriendsTabState extends State<FriendsTab> {
                     padding: const EdgeInsets.symmetric(vertical: 5),
                     child: Text(
                       'Looks like an empty space',
-                      style: Theme.of(context).textTheme.bodyText1,
+                      style: Theme.of(context).textTheme.bodyLarge,
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -212,7 +212,7 @@ class _FriendsTabState extends State<FriendsTab> {
                     padding: const EdgeInsets.symmetric(vertical: 5),
                     child: Text(
                       'You can add friends in the menu',
-                      style: Theme.of(context).textTheme.bodyText2,
+                      style: Theme.of(context).textTheme.bodyMedium,
                       textAlign: TextAlign.center,
                     ),
                   ),
