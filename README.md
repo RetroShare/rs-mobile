@@ -6,6 +6,7 @@
 # RetroShare Mobile App.
 
 [![style: lint](https://img.shields.io/badge/style-lint-4BC0F5.svg)](https://pub.dev/packages/lint)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/RetroShare/rs-mobile)
 
 RetroShare mobile client written in Flutter.
 
