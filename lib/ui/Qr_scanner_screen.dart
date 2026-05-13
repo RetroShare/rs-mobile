@@ -5,7 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:oktoast/oktoast.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -222,7 +222,7 @@ class QRScannerState extends State<QRScanner>
         }
         final pngBytes = byteData.buffer.asUint8List();
         final appDir = await getApplicationDocumentsDirectory();
-        await ImageGallerySaver.saveImage(Uint8List.fromList(pngBytes));
+        await ImageGallerySaverPlus.saveImage(Uint8List.fromList(pngBytes));
         await File('${appDir.path}/retroshare_qr_code.png').create();
         showToast(
           'Hey there! QR Image has successfully saved.',
