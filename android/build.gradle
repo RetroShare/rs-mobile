@@ -9,6 +9,8 @@ allprojects {
     }
 }
 
+rootProject.ext.kotlin_version = '2.1.0'
+
 rootProject.buildDir = "../build"
 // Start - Fix https://stackoverflow.com/questions/76300671/android-getting-error-namespace-not-specified
 subprojects {
