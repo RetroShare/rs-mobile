@@ -76,7 +76,7 @@ class GenericIdentityTabState extends State<GenericIdentityTab> {
           avatar: avatarBase64,
           isContact: false,
         ),
-        _image ?? const RsGxsImage(),
+        _image ?? RsGxsImage(),
       );
       if (!mounted) return;
       if (widget.isFirstId) {
@@ -218,7 +218,7 @@ class GenericIdentityTabState extends State<GenericIdentityTab> {
               visible: !_isLoading,
               child: BottomBar(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Center(
                     child: SizedBox(
                       height: 2 * appBarHeight / 3,
