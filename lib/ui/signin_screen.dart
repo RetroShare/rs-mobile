@@ -55,7 +55,7 @@ class SignInScreenState extends State<SignInScreen> {
         'isLoading': true,
         'spinner': true,
       },
-    ));
+    ),);
 
     try {
       if (!mounted) return;

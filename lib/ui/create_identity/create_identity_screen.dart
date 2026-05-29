@@ -91,7 +91,7 @@ class CreateIdentityScreenState extends State<CreateIdentityScreen>
                       isFirstId: widget.isFirstId,
                       isSignedIdentity: false,
                       buttonText: 'Create Pseudo Identity',
-                    )
+                    ),
                 ],
               ),
             ),

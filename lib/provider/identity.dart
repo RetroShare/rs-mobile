@@ -33,7 +33,7 @@ class Identities with ChangeNotifier {
 
   void updateCurrentIdentity() {
     if (_selected != null) {
-      _currentIdentity = _selected!;
+      _currentIdentity = _selected;
     }
     notifyListeners();
   }
@@ -89,7 +89,6 @@ class Identities with ChangeNotifier {
     if (!success) {
       throw 'Try Again';
     }
-    ;
     for (var i in _ownidentities) {
       if (i.mId == id.mId) {
         i = id;

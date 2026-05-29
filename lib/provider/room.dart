@@ -123,8 +123,9 @@ class RoomChatLobby with ChangeNotifier {
             final tuple = await getIdDetails(key, _authToken);
             success = tuple.item1;
             id = tuple.item2;
-            if (!success)
+            if (!success) {
               await Future.delayed(const Duration(milliseconds: 200));
+            }
             retries--;
           } while (!success && retries > 0);
 
@@ -168,7 +169,6 @@ class RoomChatLobby with ChangeNotifier {
   int getUnreadCount(Identity iden, Identity idToUse) {
     final idenId = iden.mId;
     final idToUseId = idToUse.mId;
-    if (idToUseId == null) return 0;
 
     final key = _generateDistantChatId(idenId, idToUseId);
     return _distanceChat[key]?.unreadCount ?? 0;
@@ -261,11 +261,6 @@ class RoomChatLobby with ChangeNotifier {
   Future<String?> initiateDistantChat(Chat chat) async {
     final toId = chat.interlocutorId;
     final fromId = chat.ownIdToUse;
-    if (fromId == null) {
-      throw Exception(
-        'Missing interlocutorId or ownIdToUse for initiating chat',
-      );
-    }
 
     try {
       final resp = await RsMsgs.c(chat, _authToken);

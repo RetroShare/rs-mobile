@@ -24,7 +24,6 @@
 
     <!--    Add by kon trying to mantain RS service up -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
@@ -74,35 +73,6 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-            
-        <service
-            android:name=".RetroShareServiceAndroid"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
-
-        <receiver
-            android:name=".ServiceStart"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="cc.retroshare.retroshare.start" />
-            </intent-filter>
-        </receiver>
-
-        <receiver
-            android:name=".ServiceStop"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="cc.retroshare.retroshare.stop" />
-            </intent-filter>
-        </receiver>
-
-        <receiver
-            android:name=".ServiceRestart"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="cc.retroshare.retroshare.restart" />
-            </intent-filter>
-        </receiver>
    
     </application>
     <!-- Required to query activities that can process text, see:
