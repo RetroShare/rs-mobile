@@ -1,20 +1,37 @@
 package cc.retroshare.retroshare
 
+import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
+import org.retroshare.service.RetroShareServiceAndroid as RsService
 
-class RetroShareServiceAndroid : Service() {
+class RetroShareServiceAndroid : RsService() {
 
     companion object {
-        const val CHANNEL_ID = "RetroShareServiceChannel"
+        const val ACTION_SHUTDOWN = "SHUTDOWN"
+        const val CHANNEL_ID = "cc.retroshare.retroshare/retroshare"
+        private const val WAKELOCK_TAG = "RetroShareServiceAndroid:Wakelock"
 
-        fun start(ctx: Context) {
+        private val JSON_API_PORT_KEY = RsService::class.java.canonicalName + "/JSON_API_PORT_KEY"
+        private val JSON_API_BIND_ADDRESS_KEY =
+            RsService::class.java.canonicalName + "/JSON_API_BIND_ADDRESS_KEY"
+
+        private var rsInitialized = false
+
+        fun start(
+            ctx: Context,
+            jsonApiPort: Int = DEFAULT_JSON_API_PORT,
+            jsonApiBindAddress: String = DEFAULT_JSON_API_BINDING_ADDRESS,
+        ) {
             val intent = Intent(ctx, RetroShareServiceAndroid::class.java)
-
+            intent.putExtra(JSON_API_PORT_KEY, jsonApiPort)
+            intent.putExtra(JSON_API_BIND_ADDRESS_KEY, jsonApiBindAddress)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 ctx.startForegroundService(intent)
             } else {
@@ -23,7 +40,9 @@ class RetroShareServiceAndroid : Service() {
         }
 
         fun stop(ctx: Context) {
-            ctx.stopService(Intent(ctx, RetroShareServiceAndroid::class.java))
+            val intent = Intent(ctx, RetroShareServiceAndroid::class.java)
+            intent.action = ACTION_SHUTDOWN
+            ctx.startService(intent)
         }
 
         fun isRunning(ctx: Context): Boolean {
@@ -37,37 +56,76 @@ class RetroShareServiceAndroid : Service() {
         }
     }
 
+    @SuppressLint("WakelockTimeout")
     override fun onCreate() {
-        super.onCreate()
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "RetroShare Service Channel",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_DEFAULT,
             )
-            notificationManager.createNotificationChannel(channel)
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .createNotificationChannel(channel)
         }
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("RetroShare")
-            .setContentText("RetroShare works on background.")
+            .setContentText("RetroShare works in the background.")
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .build()
 
+        (getSystemService(Context.POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG)
+            .apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            startForeground(
+                1,
+                notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
         } else {
             startForeground(1, notification)
         }
+
+        super.onCreate()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_SHUTDOWN) {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+            stopSelf()
+        } else if (!rsInitialized) {
+            rsInitialized = true
+            super.onStartCommand(intent, flags, startId)
+        }
         return START_STICKY
     }
 
-    override fun onBind(intent: Intent?): IBinder? {
-        return null
+    override fun onDestroy() {
+        rsInitialized = false
+        (getSystemService(Context.POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG)
+            .apply { if (isHeld) release() }
+        super.onDestroy()
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = super.onBind(intent)
+
+    override fun onTaskRemoved(rootIntent: Intent) {
+        val restartIntent = Intent(applicationContext, RetroShareServiceAndroid::class.java)
+            .also { it.setPackage(packageName) }
+        val pendingIntent = PendingIntent.getService(
+            this,
+            1,
+            restartIntent,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        (applicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager)
+            .set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1000, pendingIntent)
     }
 }

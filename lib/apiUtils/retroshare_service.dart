@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:retroshare_api_wrapper/retroshare.dart' as rs;
-import 'package:retroshare_api_wrapper/retroshare.dart';
 
 const rsPlatform = MethodChannel(rs.RETROSHARE_CHANNEL_NAME);
 
@@ -8,23 +8,47 @@ void setControlCallbacks() {
   rs.setStartCallback(RsServiceControl.startRetroshare);
 }
 
+// The wrapper's isRetroshareRunning() only accepts 2xx responses, but the RS
+// JSON API root returns a non-2xx status. Accept any HTTP response as proof
+// the service is up.
+Future<bool> _isRsApiReachable() async {
+  try {
+    await http
+        .get(Uri.parse('http://${rs.RETROSHARE_HOST}:${rs.RETROSHARE_PORT}'))
+        .timeout(const Duration(seconds: 3));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 class RsServiceControl {
-  static Future<bool> startRetroshare() async {
-    var attempts = 20;
-    for (; attempts >= 0; attempts--) {
+  static Future<bool>? _startFuture;
+
+  static Future<bool> startRetroshare() {
+    _startFuture ??= _doStartRetroshare().whenComplete(() {
+      _startFuture = null;
+    });
+    return _startFuture!;
+  }
+
+  static Future<bool> _doStartRetroshare() async {
+    try {
+      if (await _isRsApiReachable()) return true;
+    } catch (_) {}
+
+    try {
+      await rsPlatform.invokeMethod('start');
+    } catch (err) {
+      print('Failed to invoke RS start: $err');
+    }
+
+    for (var attempts = 20; attempts > 0; attempts--) {
       print('Starting Retroshare Service. Attempts countdown $attempts');
+      await Future.delayed(const Duration(seconds: 2));
       try {
-        final isUp = await isRetroshareRunning();
-        if (isUp) return true;
-
-        await rsPlatform.invokeMethod('start');
-
-        if (attempts == 0) {
-          return false;
-        }
-      } catch (err) {
-        await Future.delayed(const Duration(seconds: 2));
-      }
+        if (await _isRsApiReachable()) return true;
+      } catch (_) {}
     }
     return false;
   }
@@ -34,7 +58,7 @@ class RsServiceControl {
       await rsPlatform.invokeMethod('stop');
 
       await Future.delayed(const Duration(milliseconds: 3000));
-      final isUp = await isRetroshareRunning();
+      final isUp = await rs.isRetroshareRunning();
       if (isUp) throw Exception('The service did not stop after a while');
     } catch (err) {
       throw Exception('The service could not be stopped');
@@ -46,7 +70,7 @@ class RsServiceControl {
       await rsPlatform.invokeMethod('restart');
 
       await Future.delayed(const Duration(milliseconds: 300));
-      final isUp = await isRetroshareRunning();
+      final isUp = await rs.isRetroshareRunning();
       if (!isUp) throw Exception('The service did not restart after a while');
     } catch (err) {
       throw Exception('The service could not be restarted');
