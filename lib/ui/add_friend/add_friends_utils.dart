@@ -202,7 +202,7 @@ class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
                   textAlignVertical: TextAlignVertical.center,
                   decoration: InputDecoration(
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 15, vertical: 10),
+                        horizontal: 15, vertical: 10,),
                     filled: true,
                     fillColor: Colors.black.withOpacity(.05),
                     border: OutlineInputBorder(
@@ -277,7 +277,7 @@ class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
             });
           },
           contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-          activeColor: Colors.blueAccent,
+          activeThumbColor: Colors.blueAccent,
         ),
         const SizedBox(height: 10),
       ],

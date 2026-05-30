@@ -36,7 +36,7 @@ class AboutScreenState extends State<AboutScreen> {
         ),
       )
       ..loadRequest(
-          Uri.parse('https://retrosharedocs.readthedocs.io/en/latest/'));
+          Uri.parse('https://retrosharedocs.readthedocs.io/en/latest/'),);
   }
 
   @override

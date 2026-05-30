@@ -13,10 +13,12 @@ import 'package:retroshare/routes.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   //initializeNotifications();
-  runApp(App());
+  runApp(const App());
 }
 
 class App extends StatefulWidget {
+  const App({super.key});
+
   @override
   // ignore: unnecessary_new
   _AppState createState() => new _AppState();

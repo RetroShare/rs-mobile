@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
-import 'package:mobile_scanner/mobile_scanner.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:oktoast/oktoast.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -153,7 +154,7 @@ class QRScannerState extends State<QRScanner>
           height: MediaQuery.of(context).size.height * 0.75,
           child: MobileScanner(
             onDetect: (capture) {
-              final String? code = capture.barcodes.isNotEmpty
+              final code = capture.barcodes.isNotEmpty
                   ? capture.barcodes.first.rawValue
                   : null;
               if (code != null) {
@@ -208,10 +209,10 @@ class QRScannerState extends State<QRScanner>
   Future<void> onChanged(QRoperation val) async {
     if (val == QRoperation.save) {
       try {
-        final RenderRepaintBoundary boundary = _globalkey.currentContext!
+        final boundary = _globalkey.currentContext!
             .findRenderObject()! as RenderRepaintBoundary;
         final image = await boundary.toImage();
-        final ByteData? byteData =
+        final byteData =
             await image.toByteData(format: ImageByteFormat.png);
         if (byteData == null) {
           showToast(
