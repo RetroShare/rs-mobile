@@ -5,7 +5,8 @@ plugins {
 }
 
 dependencies {
-    implementation "org.retroshare.service:libretroshare-MinApiLevel21-release:72f8b7e8"
+//    implementation "org.retroshare.service:libretroshare-MinApiLevel21-release:72f8b7e8"
+    implementation "org.retroshare.service:libretroshare-MinApiLevel24-debug:f343db4c"
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }
 
