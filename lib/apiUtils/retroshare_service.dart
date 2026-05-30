@@ -10,21 +10,22 @@ void setControlCallbacks() {
 
 class RsServiceControl {
   static Future<bool> startRetroshare() async {
-    var attempts = 20;
-    for (; attempts >= 0; attempts--) {
+    try {
+      if (await isRetroshareRunning()) return true;
+    } catch (_) {}
+
+    try {
+      await rsPlatform.invokeMethod('start');
+    } catch (err) {
+      print('Failed to invoke RS start: $err');
+    }
+
+    for (var attempts = 20; attempts > 0; attempts--) {
       print('Starting Retroshare Service. Attempts countdown $attempts');
+      await Future.delayed(const Duration(seconds: 2));
       try {
-        final isUp = await isRetroshareRunning();
-        if (isUp) return true;
-
-        await rsPlatform.invokeMethod('start');
-
-        if (attempts == 0) {
-          return false;
-        }
-      } catch (err) {
-        await Future.delayed(const Duration(seconds: 2));
-      }
+        if (await isRetroshareRunning()) return true;
+      } catch (_) {}
     }
     return false;
   }
