@@ -66,7 +66,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
             child: MaterialApp(
               debugShowCheckedModeBanner: false,
               title: 'Retroshare',
-              initialRoute: '/profile',
+              initialRoute: '/',
               onGenerateRoute: RouteGenerator.generateRoute,
             ),
           );

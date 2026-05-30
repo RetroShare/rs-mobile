@@ -22,6 +22,8 @@ class RetroShareServiceAndroid : RsService() {
         private val JSON_API_BIND_ADDRESS_KEY =
             RsService::class.java.canonicalName + "/JSON_API_BIND_ADDRESS_KEY"
 
+        private var rsInitialized = false
+
         fun start(
             ctx: Context,
             jsonApiPort: Int = DEFAULT_JSON_API_PORT,
@@ -97,13 +99,15 @@ class RetroShareServiceAndroid : RsService() {
             @Suppress("DEPRECATION")
             stopForeground(true)
             stopSelf()
-        } else {
+        } else if (!rsInitialized) {
+            rsInitialized = true
             super.onStartCommand(intent, flags, startId)
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
+        rsInitialized = false
         (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG)
             .apply { if (isHeld) release() }
