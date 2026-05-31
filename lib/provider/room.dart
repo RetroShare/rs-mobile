@@ -184,8 +184,9 @@ class RoomChatLobby with ChangeNotifier {
       if (res) {
         final message = ChatMessage(
           chatId: ChatId(
-            distantChatId: chatId,
             type: type,
+            distantChatId: type == ChatIdType.type2 ? chatId : null,
+            lobbyId: type == ChatIdType.type3 ? ChatLobbyId(xstr64: chatId) : null,
           ),
           msg: msgTxt,
           incoming: false,

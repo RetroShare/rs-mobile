@@ -16,17 +16,27 @@ class HomeScreen extends StatefulWidget {
   HomeScreenState createState() => HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, RouteAware {
   late final TabController _tabController;
   bool _isInit = true;
   bool _isLoading = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  
+  // To handle auto-refresh when returning to this screen
+  final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
   @override
   void initState() {
     super.initState();
     _isInit = true;
     _tabController = TabController(vsync: this, length: 2);
+    
+    // Add listener to refresh data when tab changes
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        fetchdata(context);
+      }
+    });
   }
 
   @override
