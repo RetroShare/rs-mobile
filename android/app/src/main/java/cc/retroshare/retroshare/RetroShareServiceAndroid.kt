@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import org.retroshare.service.RetroShareServiceAndroid as RsService
 
@@ -17,6 +18,7 @@ class RetroShareServiceAndroid : RsService() {
         const val ACTION_SHUTDOWN = "SHUTDOWN"
         const val CHANNEL_ID = "cc.retroshare.retroshare/retroshare"
         private const val WAKELOCK_TAG = "RetroShareServiceAndroid:Wakelock"
+        private const val TAG = "RetroShareServiceAndroid"
 
         private val JSON_API_PORT_KEY = RsService::class.java.canonicalName + "/JSON_API_PORT_KEY"
         private val JSON_API_BIND_ADDRESS_KEY =
@@ -26,8 +28,8 @@ class RetroShareServiceAndroid : RsService() {
 
         fun start(
             ctx: Context,
-            jsonApiPort: Int = DEFAULT_JSON_API_PORT,
-            jsonApiBindAddress: String = DEFAULT_JSON_API_BINDING_ADDRESS,
+            jsonApiPort: Int = 9092,
+            jsonApiBindAddress: String = "127.0.0.1",
         ) {
             val intent = Intent(ctx, RetroShareServiceAndroid::class.java)
             intent.putExtra(JSON_API_PORT_KEY, jsonApiPort)
@@ -42,11 +44,16 @@ class RetroShareServiceAndroid : RsService() {
         fun stop(ctx: Context) {
             val intent = Intent(ctx, RetroShareServiceAndroid::class.java)
             intent.action = ACTION_SHUTDOWN
-            ctx.startService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ctx.startForegroundService(intent)
+            } else {
+                ctx.startService(intent)
+            }
         }
 
         fun isRunning(ctx: Context): Boolean {
             val manager = ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            @Suppress("DEPRECATION")
             for (service in manager.getRunningServices(Int.MAX_VALUE)) {
                 if (RetroShareServiceAndroid::class.java.name == service.service.className) {
                     return true
@@ -58,11 +65,12 @@ class RetroShareServiceAndroid : RsService() {
 
     @SuppressLint("WakelockTimeout")
     override fun onCreate() {
+        Log.i(TAG, "Service onCreate")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "RetroShare Service Channel",
-                NotificationManager.IMPORTANCE_DEFAULT,
+                NotificationManager.IMPORTANCE_LOW,
             )
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
                 .createNotificationChannel(channel)
@@ -70,8 +78,10 @@ class RetroShareServiceAndroid : RsService() {
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("RetroShare")
-            .setContentText("RetroShare works in the background.")
+            .setContentText("RetroShare service is active")
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
             .build()
 
         (getSystemService(Context.POWER_SERVICE) as PowerManager)
@@ -95,18 +105,33 @@ class RetroShareServiceAndroid : RsService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_SHUTDOWN) {
+        val workIntent = intent ?: Intent(this, RetroShareServiceAndroid::class.java)
+        
+        if (workIntent.action == ACTION_SHUTDOWN) {
+            Log.i(TAG, "Action Shutdown received")
             @Suppress("DEPRECATION")
             stopForeground(true)
             stopSelf()
+            return START_NOT_STICKY
         } else if (!rsInitialized) {
+            Log.i(TAG, "Initializing Native Core")
             rsInitialized = true
-            super.onStartCommand(intent, flags, startId)
+            
+            // Ensure required extras are present for the base class
+            if (!workIntent.hasExtra(JSON_API_PORT_KEY)) {
+                workIntent.putExtra(JSON_API_PORT_KEY, 9092)
+            }
+            if (!workIntent.hasExtra(JSON_API_BIND_ADDRESS_KEY)) {
+                workIntent.putExtra(JSON_API_BIND_ADDRESS_KEY, "127.0.0.1")
+            }
+            
+            super.onStartCommand(workIntent, flags, startId)
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
+        Log.i(TAG, "Service onDestroy")
         rsInitialized = false
         (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG)
