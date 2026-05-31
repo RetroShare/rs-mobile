@@ -8,7 +8,6 @@ import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare/ui/home/chats_tab.dart';
 import 'package:retroshare/ui/home/friends_tab.dart';
-import 'package:sliding_up_panel/sliding_up_panel.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,8 +18,6 @@ class HomeScreen extends StatefulWidget {
 
 class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late final TabController _tabController;
-  late final PanelController _panelController;
-  late final AnimationController _animationController;
   bool _isInit = true;
   bool _isLoading = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -30,12 +27,6 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.initState();
     _isInit = true;
     _tabController = TabController(vsync: this, length: 2);
-    _panelController = PanelController();
-
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
   }
 
   @override
@@ -91,16 +82,15 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _tabController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
   PreferredSizeWidget _appBar(double height) => PreferredSize(
-        preferredSize: Size.fromHeight(height + 80),
+        preferredSize: Size.fromHeight(150 + height),
         child: Stack(
           children: <Widget>[
             Container(
-              height: height + 75,
+              height: 140 + height / 2,
               width: MediaQuery.of(context).size.width,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -113,68 +103,90 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               child: Center(
-                child: Text(
-                  'Retroshare',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontFamily: 'Vollkorn',
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 50),
+                  child: Text(
+                    'Retroshare',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontFamily: 'Vollkorn',
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                  ),
                 ),
               ),
             ),
             Positioned(
-              top: 100,
+              top: 90,
               left: 20,
               right: 20,
-              child: AppBar(
-                backgroundColor: Colors.white,
-                leading: InkWell(
-                  onTap: () {
-                    _scaffoldKey.currentState?.openDrawer();
-                  },
-                  child: Icon(
-                    Icons.menu,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                primary: false,
-                title: const Text(
-                  'Search',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                  textAlign: TextAlign.start,
-                ),
-                actions: <Widget>[
-                  IconButton(
-                    icon: Icon(
-                      Icons.search,
-                      color: Theme.of(context).colorScheme.primary,
+              child: Column(
+                children: [
+                  AppBar(
+                    backgroundColor: Colors.white,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
                     ),
-                    onPressed: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/search',
-                        arguments: _tabController.index,
-                      ).then((value) async {
-                        await fetchdata(context);
-                      });
-                    },
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 14,
-                    ),
-                    child: InkWell(
+                    leading: InkWell(
                       onTap: () {
-                        Navigator.of(context)
-                            .pushNamed('/notification')
-                            .then((value) {
-                          fetchdata(context);
-                        });
+                        _scaffoldKey.currentState?.openDrawer();
                       },
-                      child: const NotificationIcon(),
+                      child: Icon(
+                        Icons.menu,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
+                    primary: false,
+                    title: const Text(
+                      'Search',
+                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                      textAlign: TextAlign.start,
+                    ),
+                    actions: <Widget>[
+                      IconButton(
+                        icon: Icon(
+                          Icons.search,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        onPressed: () {
+                          Navigator.pushNamed(
+                            context,
+                            '/search',
+                            arguments: _tabController.index,
+                          ).then((value) async {
+                            await fetchdata(context);
+                          });
+                        },
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 14,
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.of(context)
+                                .pushNamed('/notification')
+                                .then((value) {
+                              fetchdata(context);
+                            });
+                          },
+                          child: const NotificationIcon(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TabBar(
+                    controller: _tabController,
+                    indicatorColor: Colors.white,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.white70,
+                    tabs: const [
+                      Tab(text: 'Chats'),
+                      Tab(text: 'Friends'),
+                    ],
                   ),
                 ],
               ),
@@ -220,57 +232,40 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         bottomNavigationBar: BottomAppBar(
           shape: const CircularNotchedRectangle(),
           notchMargin: 7,
-          child: Stack(
-            children: <Widget>[
-              SizedBox(
-                height: homeScreenBottomBarHeight,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: <Widget>[
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          _tabController.animateTo(0);
-                        },
-                        child: const ColoredBox(
-                          color: Colors.white,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                          ),
-                        ),
-                      ),
+          child: SizedBox(
+            height: homeScreenBottomBarHeight,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: <Widget>[
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _tabController.animateTo(0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.chat_bubble_outline, 
+                          color: _tabController.index == 0 ? Colors.blue : Colors.grey),
+                        const Text('Chats', style: TextStyle(fontSize: 10)),
+                      ],
                     ),
-                    const SizedBox(width: 74),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          _tabController.animateTo(1);
-                        },
-                        child: const ColoredBox(
-                          color: Colors.white,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: _panelController.close,
-                child: Opacity(
-                  opacity: _animationController.value * 0.5,
-                  child: Container(
-                    height: 50,
-                    color:
-                        _animationController.value == 0.0 ? null : Colors.black,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 74),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _tabController.animateTo(1),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.people_outline,
+                          color: _tabController.index == 1 ? Colors.blue : Colors.grey),
+                        const Text('Friends', style: TextStyle(fontSize: 10)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         floatingActionButton: SizedBox(
