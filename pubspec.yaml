@@ -37,7 +37,7 @@ dependencies:
 
   retroshare_api_wrapper:
     git:
-      url: 'https://github.com/redDwarf03/Retroshare-Wrapper.git'
+      url: 'https://github.com/RetroShare/Retroshare-Wrapper.git'
       ref: master
 
   # Used to render chat messages
