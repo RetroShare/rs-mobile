@@ -64,7 +64,11 @@ class SignInScreenState extends State<SignInScreen> {
       await authProvider.login(currentAccount, password);
 
       if (!mounted) return;
-      final idsProvider = Provider.of<Identities>(context, listen: false);
+      final idsProvider = Provider.of<Identities>(context, listen: false)
+
+      // updating the authToken here of the idsProvider with that of the authProvider
+      ..authToken = authProvider.authtoken;
+
       await idsProvider.fetchOwnidenities();
 
       if (!mounted) return;
