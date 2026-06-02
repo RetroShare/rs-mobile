@@ -15,28 +15,62 @@ class FriendLocations with ChangeNotifier {
   AuthToken get authToken => _authToken;
 
   Future<void> fetchfriendLocation() async {
-    final sslIds = await RsPeers.getFriendList(_authToken);
-    final locations = <Location>[];
-    for (var i = 0; i < sslIds.length; i++) {
-      locations.add(await RsPeers.getPeerFriendDetails(sslIds[i], _authToken));
+    try {
+      // Give the native engine a moment to finish disk writes if a friend was just added
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      final sslIds = await RsPeers.getFriendList(_authToken);
+      debugPrint('Fetched ${sslIds.length} friend IDs');
+      
+      final locations = <Location>[];
+      for (var i = 0; i < sslIds.length; i++) {
+        try {
+          final details = await RsPeers.getPeerFriendDetails(sslIds[i], _authToken);
+          locations.add(details);
+        } catch (e) {
+          debugPrint('Error fetching details for friend ${sslIds[i]}: $e');
+        }
+      }
+      _friendlist = locations;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error in fetchfriendLocation: $e');
     }
-    _friendlist = locations;
-    notifyListeners();
   }
 
   Future<void> addFriendLocation(String base64Payload) async {
     var isAdded = false;
-    if (base64Payload.length < 100) {
-      isAdded = await RsPeers.acceptShortInvite(_authToken, base64Payload);
-    } else {
-      isAdded = await RsPeers.acceptInvite(
-        _authToken,
-        base64Payload,
-      );
+    try {
+      final inviteText = base64Payload.trim();
+      if (inviteText.length < 100) {
+        debugPrint('Adding short invite: $inviteText');
+        isAdded = await RsPeers.acceptShortInvite(_authToken, inviteText);
+      } else {
+        debugPrint('Adding long invite, length: ${inviteText.length}');
+        isAdded = await RsPeers.acceptInvite(
+          _authToken,
+          inviteText,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error in addFriendLocation native call: $e');
+      throw HttpException('Failed to add friend: $e');
     }
 
-    if (!isAdded) throw HttpException('WRONG Certi');
-    await RsIdentity.setAutoAddFriendIdsAsContact(true, _authToken);
+    if (!isAdded) {
+      debugPrint('Friend addition returned false');
+      throw HttpException('Invalid certificate or already added');
+    }
+    
+    try {
+      await RsIdentity.setAutoAddFriendIdsAsContact(true, _authToken);
+    } catch (e) {
+      debugPrint('Error setting auto-add contact: $e');
+    }
+
+    // Refresh the list multiple times as the core might take a few seconds to update
     await fetchfriendLocation();
+    Future.delayed(const Duration(seconds: 2), () => fetchfriendLocation());
+    Future.delayed(const Duration(seconds: 5), () => fetchfriendLocation());
   }
 }

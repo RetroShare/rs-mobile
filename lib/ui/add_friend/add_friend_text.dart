@@ -53,8 +53,15 @@ class GetAddfriendState extends State<GetAddfriend> {
                   _requestAddCert = true;
                 });
                 try {
+                  final inviteText = ownCertController.text.trim();
+                  if (inviteText.isEmpty) {
+                    setState(() {
+                      _requestAddCert = false;
+                    });
+                    return;
+                  }
                   await Provider.of<FriendLocations>(context, listen: false)
-                      .addFriendLocation(ownCertController.text)
+                      .addFriendLocation(inviteText)
                       .then((value) {
                     setState(() {
                       _requestAddCert = false;
@@ -64,18 +71,18 @@ class GetAddfriendState extends State<GetAddfriend> {
                   });
                   await Navigator.of(context)
                       .pushReplacementNamed('/friends_locations');
-                } on HttpException catch (_) {
+                } on HttpException catch (e) {
                   setState(() {
                     _requestAddCert = false;
                   });
                   await Fluttertoast.cancel();
-                  await showFlutterToast('Invalid certi', Colors.red);
+                  await showFlutterToast(e.message, Colors.red);
                 } catch (e) {
                   setState(() {
                     _requestAddCert = false;
                   });
                   await Fluttertoast.cancel();
-                  await showFlutterToast('something went wrong', Colors.red);
+                  await showFlutterToast('Error: $e', Colors.red);
                 }
               },
               child: SizedBox(
