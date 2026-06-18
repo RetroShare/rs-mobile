@@ -76,7 +76,7 @@ class GenericIdentityTabState extends State<GenericIdentityTab> {
           avatar: avatarBase64,
           isContact: false,
         ),
-        _image ?? RsGxsImage(base64String: ''),
+        _image ?? const RsGxsImage(base64String: ''),
       );
       if (!mounted) return;
       if (widget.isFirstId) {

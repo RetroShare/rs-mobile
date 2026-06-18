@@ -21,7 +21,7 @@ class UpdateIdentityScreen extends StatefulWidget {
 
 class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
   TextEditingController nameController = TextEditingController();
-  RsGxsImage _image = RsGxsImage(base64String: '');
+  RsGxsImage _image = const RsGxsImage(base64String: '');
   bool _showError = false;
   bool _requestCreateIdentity = false;
   @override
