@@ -82,6 +82,12 @@ class MessagesTabState extends State<MessagesTab> {
     }
 
     final imageFile = File(imageXFile.path);
+    final chatId = widget.chat.chatId;
+
+    if (chatId == null) {
+      debugPrint('Error: Chat ID is null.');
+      return;
+    }
 
     try {
       final imageBytes = await imageFile.readAsBytes();
@@ -90,13 +96,17 @@ class MessagesTabState extends State<MessagesTab> {
       final mb = kb / 1024;
 
       if (mb < 3) {
-        var text = base64.encode(imageBytes);
-        text = "<img alt='Image' src='data:image/png;base64,$text'/>";
+        final String base64Image = base64.encode(imageBytes);
+        final String extension = imageXFile.path.split('.').last.toLowerCase();
+        final String mimeType =
+            (extension == 'png') ? 'image/png' : 'image/jpeg';
+        final String htmlText =
+            "<img alt='Image' src='data:$mimeType;base64,$base64Image'/>";
 
         if (!mounted) return;
         await Provider.of<RoomChatLobby>(context, listen: false).sendMessage(
-          widget.chat.chatId!,
-          text,
+          chatId,
+          htmlText,
           (widget.isRoom ?? false) ? ChatIdType.type3 : ChatIdType.type2,
         );
       } else {
