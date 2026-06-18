@@ -621,15 +621,17 @@ class CreateRoomScreenState extends State<CreateRoomScreen>
                                 Provider.of<Identities>(context, listen: false)
                                     .currentIdentity;
                             if (curr == null) return;
+                            final chatData = await Provider.of<RoomChatLobby>(
+                              context,
+                              listen: false,
+                            ).getChat(curr, _suggestionsList[index]);
+                            if (!context.mounted) return;
                             await Navigator.pushNamed(
                               context,
                               '/room',
                               arguments: {
                                 'isRoom': false,
-                                'chatData': Provider.of<RoomChatLobby>(
-                                  context,
-                                  listen: false,
-                                ).getChat(curr, _suggestionsList[index]),
+                                'chatData': chatData,
                               },
                             );
                           },

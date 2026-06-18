@@ -5,6 +5,7 @@ import 'package:retroshare/common/styles.dart';
 import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/provider/subscribed.dart';
+import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class ChatsTab extends StatelessWidget {
   const ChatsTab({super.key});
@@ -18,9 +19,14 @@ class ChatsTab extends StatelessWidget {
     return SafeArea(
       top: false,
       bottom: false,
-      child: Consumer<ChatLobby>(
-        builder: (context, chatsList, _) {
-          if (chatsList.subscribedlist.isNotEmpty) {
+      child: Consumer2<ChatLobby, RoomChatLobby>(
+        builder: (context, chatLobby, roomChat, _) {
+          final List<Chat> allChats = [
+            ...chatLobby.subscribedlist,
+            ...roomChat.distanceChat.values.toSet().where((c) => !c.isPublic),
+          ];
+
+          if (allChats.isNotEmpty) {
             return CustomScrollView(
               slivers: <Widget>[
                 SliverPadding(
@@ -34,49 +40,63 @@ class ChatsTab extends StatelessWidget {
                     itemExtent: personDelegateHeight,
                     delegate: SliverChildBuilderDelegate(
                       (BuildContext context, int index) {
-                        // Todo: DRY
+                        final chat = allChats[index];
+                        final isRoom = chat.isPublic;
                         return PersonDelegate(
-                          data: PersonDelegateData.chatData(
-                            chatsList.subscribedlist[index],
-                          ),
+                          data: isRoom
+                              ? PersonDelegateData.chatData(chat)
+                              : PersonDelegateData.identityData(
+                                  roomChat.allIdentity[chat.interlocutorId] ??
+                                      Identity(
+                                        mId: chat.interlocutorId,
+                                        signed: false,
+                                        isContact: false,
+                                        name: chat.chatName,
+                                      ),
+                                  context,
+                                ),
                           onPressed: () async {
                             final curr =
                                 Provider.of<Identities>(context, listen: false)
                                     .currentIdentity;
                             if (curr == null) return;
+                            final chatData = await Provider.of<RoomChatLobby>(
+                              context,
+                              listen: false,
+                            ).getChat(
+                              curr,
+                              chat,
+                            );
+                            if (!context.mounted) return;
                             await Navigator.pushNamed(
                               context,
                               '/room',
                               arguments: {
-                                'isRoom': true,
-                                'chatData': Provider.of<RoomChatLobby>(
-                                  context,
-                                  listen: false,
-                                ).getChat(
-                                  curr,
-                                  chatsList.subscribedlist[index],
-                                ),
+                                'isRoom': isRoom,
+                                'chatData': chatData,
                               },
                             );
                           },
                           onLongPress: (Offset tapPosition) {
-                            showCustomMenu(
-                              'Unsubscribe chat lobby',
-                              const Icon(
-                                Icons.delete,
-                                color: Colors.black,
-                              ),
-                              () => _unsubscribeChatLobby(
-                                chatsList.subscribedlist[index].chatId,
+                            if (isRoom) {
+                              showCustomMenu(
+                                'Unsubscribe chat lobby',
+                                const Icon(
+                                  Icons.delete,
+                                  color: Colors.black,
+                                ),
+                                () => _unsubscribeChatLobby(
+                                  chat.chatId,
+                                  context,
+                                ),
+                                tapPosition,
                                 context,
-                              ),
-                              tapPosition,
-                              context,
-                            );
+                              );
+                            }
                           },
                         );
                       },
-                      childCount: chatsList.subscribedlist.length,
+                      childCount: allChats.length,
                     ),
                   ),
                 ),

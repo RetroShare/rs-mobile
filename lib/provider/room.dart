@@ -155,6 +155,14 @@ class RoomChatLobby with ChangeNotifier {
     if (chatId == null) return;
 
     _distanceChat = Map.from(_distanceChat)..[chatId] = distantChat;
+
+    // Also index by composite ID for distant chats to allow lookup by identities
+    if (!distantChat.isPublic) {
+      final compositeId =
+          _generateDistantChatId(distantChat.interlocutorId, distantChat.ownIdToUse);
+      _distanceChat[compositeId] = distantChat;
+    }
+
     _messagesList = Map.from(_messagesList)..putIfAbsent(chatId, () => []);
     notifyListeners();
   }
@@ -279,10 +287,10 @@ class RoomChatLobby with ChangeNotifier {
     }
   }
 
-  Chat? getChat(
+  Future<Chat?> getChat(
     Identity currentIdentity,
     dynamic to,
-  ) {
+  ) async {
     Chat? chat;
     final currentId = currentIdentity.mId;
 
@@ -300,21 +308,18 @@ class RoomChatLobby with ChangeNotifier {
           numberOfParticipants: 1,
           ownIdToUse: currentId,
         );
-        initiateDistantChat(initialChat).then((newChatId) {
+        try {
+          final newChatId = await initiateDistantChat(initialChat);
           if (newChatId != null) {
-            try {
-              final finalChat = initialChat.copyWith(chatId: newChatId);
-              addDistanceChat(finalChat);
-            } catch (e) {
-              debugPrint(
-                'Error using copyWith on Chat: $e. Is it a freezed class?',
-              );
-            }
+            chat = initialChat.copyWith(chatId: newChatId);
+            addDistanceChat(chat);
+          } else {
+            chat = initialChat;
           }
-        }).catchError((e) {
+        } catch (e) {
           debugPrint('Failed to auto-initiate chat: $e');
-        });
-        chat = initialChat;
+          chat = initialChat;
+        }
       }
     } else if (to is VisibleChatLobbyRecord) {
       final lobbyId = to.lobbyId?.xstr64;
@@ -333,17 +338,21 @@ class RoomChatLobby with ChangeNotifier {
           ownIdToUse: currentId,
           interlocutorId: '',
         );
-        joinChatLobby(chat, currentId).catchError((e) {
+        try {
+          await joinChatLobby(chat, currentId);
+        } catch (e) {
           debugPrint('Failed to auto-join lobby $lobbyId: $e');
-        });
+        }
         addDistanceChat(chat);
       }
     } else if (to is Chat) {
       chat = to;
-      if (chat.isPublic ?? false) {
-        joinChatLobby(chat, currentId).catchError((e) {
-          debugPrint('Failed to auto-join lobby ${chat?.chatId}: $e');
-        });
+      if (chat.isPublic) {
+        try {
+          await joinChatLobby(chat, currentId);
+        } catch (e) {
+          debugPrint('Failed to auto-join lobby ${chat.chatId}: $e');
+        }
       }
     } else if (to != null) {
       throw Exception("Invalid type for 'to' parameter: ${to.runtimeType}");
