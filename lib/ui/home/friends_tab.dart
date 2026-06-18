@@ -95,18 +95,20 @@ class FriendsTabState extends State<FriendsTab> {
                                 listen: false,
                               ).currentIdentity;
                               if (curr == null) return;
+                              final chatData = await Provider.of<RoomChatLobby>(
+                                context,
+                                listen: false,
+                              ).getChat(
+                                curr,
+                                friendsList[index],
+                              );
+                              if (!context.mounted) return;
                               await Navigator.pushNamed(
                                 context,
                                 '/room',
                                 arguments: {
                                   'isRoom': false,
-                                  'chatData': Provider.of<RoomChatLobby>(
-                                    context,
-                                    listen: false,
-                                  ).getChat(
-                                    curr,
-                                    friendsList[index],
-                                  ),
+                                  'chatData': chatData,
                                 },
                               );
                             },
@@ -167,15 +169,17 @@ class FriendsTabState extends State<FriendsTab> {
                                 listen: false,
                               ).currentIdentity;
                               if (curr == null) return;
+                              final chatData = await Provider.of<RoomChatLobby>(
+                                context,
+                                listen: false,
+                              ).getChat(curr, actualId);
+                              if (!context.mounted) return;
                               await Navigator.pushNamed(
                                 context,
                                 '/room',
                                 arguments: {
                                   'isRoom': false,
-                                  'chatData': Provider.of<RoomChatLobby>(
-                                    context,
-                                    listen: false,
-                                  ).getChat(curr, actualId),
+                                  'chatData': chatData,
                                 },
                               );
                             },

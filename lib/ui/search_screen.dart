@@ -93,13 +93,15 @@ class SearchScreenState extends State<SearchScreen>
     if (curr == null) {
       return;
     }
+    final chatData = await Provider.of<RoomChatLobby>(context, listen: false)
+        .getChat(curr, lobby);
+    if (!mounted) return;
     await Navigator.pushNamed(
       context,
       '/room',
       arguments: {
         'isRoom': true,
-        'chatData': Provider.of<RoomChatLobby>(context, listen: false)
-            .getChat(curr, lobby),
+        'chatData': chatData,
       },
     );
   }
@@ -512,7 +514,7 @@ class SearchScreenState extends State<SearchScreen>
                     return GestureDetector(
                       child: PersonDelegate(
                         data: delegateData,
-                        onPressed: () {
+                        onPressed: () async {
                           final curr =
                               Provider.of<Identities>(context, listen: false)
                                   .currentIdentity;
@@ -520,9 +522,9 @@ class SearchScreenState extends State<SearchScreen>
                             return;
                           }
                           final chat =
-                              Provider.of<RoomChatLobby>(context, listen: false)
+                              await Provider.of<RoomChatLobby>(context, listen: false)
                                   .getChat(curr, id);
-                          _goToChat(chat!);
+                          if (chat != null) _goToChat(chat);
                         },
                       ),
                     );
@@ -564,7 +566,7 @@ class SearchScreenState extends State<SearchScreen>
                     return GestureDetector(
                       child: PersonDelegate(
                         data: delegateData,
-                        onPressed: () {
+                        onPressed: () async {
                           final curr =
                               Provider.of<Identities>(context, listen: false)
                                   .currentIdentity;
@@ -572,9 +574,9 @@ class SearchScreenState extends State<SearchScreen>
                             return;
                           }
                           final chat =
-                              Provider.of<RoomChatLobby>(context, listen: false)
+                              await Provider.of<RoomChatLobby>(context, listen: false)
                                   .getChat(curr, id);
-                          _goToChat(chat!);
+                          if (chat != null) _goToChat(chat);
                         },
                       ),
                     );
