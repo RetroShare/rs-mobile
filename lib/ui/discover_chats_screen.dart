@@ -27,13 +27,15 @@ class DiscoverChatsScreenState extends State<DiscoverChatsScreen> {
     final curr =
         Provider.of<Identities>(context, listen: false).currentIdentity;
     if (curr == null) return;
+    final chatData = await Provider.of<RoomChatLobby>(context, listen: false)
+        .getChat(curr, lobby);
+    if (!mounted) return;
     await Navigator.pushNamed(
       context,
       '/room',
       arguments: {
         'isRoom': true,
-        'chatData': Provider.of<RoomChatLobby>(context, listen: false)
-            .getChat(curr, lobby),
+        'chatData': chatData,
       },
     );
   }

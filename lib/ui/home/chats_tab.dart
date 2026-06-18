@@ -44,18 +44,20 @@ class ChatsTab extends StatelessWidget {
                                 Provider.of<Identities>(context, listen: false)
                                     .currentIdentity;
                             if (curr == null) return;
+                            final chatData = await Provider.of<RoomChatLobby>(
+                              context,
+                              listen: false,
+                            ).getChat(
+                              curr,
+                              chatsList.subscribedlist[index],
+                            );
+                            if (!context.mounted) return;
                             await Navigator.pushNamed(
                               context,
                               '/room',
                               arguments: {
                                 'isRoom': true,
-                                'chatData': Provider.of<RoomChatLobby>(
-                                  context,
-                                  listen: false,
-                                ).getChat(
-                                  curr,
-                                  chatsList.subscribedlist[index],
-                                ),
+                                'chatData': chatData,
                               },
                             );
                           },
