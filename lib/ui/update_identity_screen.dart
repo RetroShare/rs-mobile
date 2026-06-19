@@ -45,9 +45,12 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
   Future<void> _setImage(File? image) async {
     Navigator.pop(context);
     setState(() {
-      final bytes = image?.readAsBytesSync();
-      final encodedString = bytes != null ? base64Encode(bytes) : null;
-      _image = RsGxsImage(mData: image?.readAsBytesSync(), base64String: encodedString);
+
+      if (image != null) {
+        _image = RsGxsImage.fromBytes(image.readAsBytesSync());
+      }
+
+
     });
   }
 
