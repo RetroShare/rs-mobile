@@ -13,6 +13,7 @@ import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class UpdateIdentityScreen extends StatefulWidget {
   const UpdateIdentityScreen({super.key, this.curr});
+
   final dynamic curr;
 
   @override
@@ -24,6 +25,7 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
   RsGxsImage _image = const RsGxsImage(base64String: '');
   bool _showError = false;
   bool _requestCreateIdentity = false;
+
   @override
   void initState() {
     super.initState();
@@ -43,7 +45,9 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
   Future<void> _setImage(File? image) async {
     Navigator.pop(context);
     setState(() {
-      _image = RsGxsImage(mData: image?.readAsBytesSync());
+      final bytes = image?.readAsBytesSync();
+      final encodedString = bytes != null ? base64Encode(bytes) : null;
+      _image = RsGxsImage(mData: image?.readAsBytesSync(), base64String: encodedString);
     });
   }
 
@@ -57,15 +61,18 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
     Future<void> _updateIdentity() async {
       try {
         final curr = widget.curr;
+
+        final updatedIdentity = Identity(
+          mId: curr?.mId ?? '',
+          signed: curr?.signed ?? false,
+          isContact: curr?.isContact ?? false,
+          name: nameController.text,
+          avatar: _image.base64String,
+        );
+
         await Provider.of<Identities>(context, listen: false)
             .updateIdentity(
-          Identity(
-            mId: curr?.mId ?? '',
-            signed: curr?.signed ?? false,
-            isContact: curr?.isContact ?? false,
-            name: nameController.text,
-            avatar: _image.base64String,
-          ),
+          updatedIdentity,
           _image,
         )
             .then((value) {
@@ -157,8 +164,7 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
             ),
             Expanded(
               child: LayoutBuilder(
-                builder:
-                    (BuildContext context, BoxConstraints viewportConstraints) {
+                builder: (BuildContext context, BoxConstraints viewportConstraints) {
                   return SingleChildScrollView(
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
@@ -193,8 +199,7 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                                             ),
                                           ),
                                     child: Visibility(
-                                      visible: _image.mData == null ||
-                                          _image.mData!.isEmpty,
+                                      visible: _image.mData == null || _image.mData!.isEmpty,
                                       child: const Center(
                                         child: Icon(
                                           Icons.person,
@@ -235,8 +240,7 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                                         ),
                                         hintText: 'Name',
                                       ),
-                                      style:
-                                          Theme.of(context).textTheme.bodyLarge,
+                                      style: Theme.of(context).textTheme.bodyLarge,
                                     ),
                                   ),
                                 ),
