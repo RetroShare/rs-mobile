@@ -13,7 +13,7 @@ import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class UpdateIdentityScreen extends StatefulWidget {
   const UpdateIdentityScreen({super.key, this.curr});
-  final dynamic curr;
+  final Identity? curr;
 
   @override
   UpdateIdentityScreenState createState() => UpdateIdentityScreenState();
@@ -29,8 +29,13 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
     super.initState();
     final curr = widget.curr;
     nameController = TextEditingController(text: curr?.name ?? '');
-    if (curr != null && curr.avatar != null) {
-      _image = RsGxsImage(mData: base64.decode(curr.avatar));
+    if (curr != null && curr.avatar != null && curr.avatar!.isNotEmpty) {
+      final bytes = base64.decode(curr.avatar!);
+      _image = RsGxsImage(
+        mData: bytes,
+        mSize: bytes.length,
+        base64String: curr.avatar,
+      );
     }
   }
 
@@ -42,9 +47,12 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
 
   Future<void> _setImage(File? image) async {
     Navigator.pop(context);
-    setState(() {
-      _image = RsGxsImage(mData: image?.readAsBytesSync());
-    });
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      setState(() {
+        _image = RsGxsImage.fromBytes(bytes);
+      });
+    }
   }
 
   // Validate the Name
@@ -57,15 +65,14 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
     Future<void> _updateIdentity() async {
       try {
         final curr = widget.curr;
+        if (curr == null) return;
+        final updatedIdentity = curr.copyWith(
+          name: nameController.text,
+          avatar: _image.base64String,
+        );
         await Provider.of<Identities>(context, listen: false)
             .updateIdentity(
-          Identity(
-            mId: curr?.mId ?? '',
-            signed: curr?.signed ?? false,
-            isContact: curr?.isContact ?? false,
-            name: nameController.text,
-            avatar: _image.base64String,
-          ),
+          updatedIdentity,
           _image,
         )
             .then((value) {

@@ -89,13 +89,14 @@ class Identities with ChangeNotifier {
     if (!success) {
       throw 'Try Again';
     }
-    for (var i in _ownidentities) {
-      if (i.mId == id.mId) {
-        i = id;
-        break;
-      }
-    }
-    _currentIdentity = id;
+    await fetchOwnidenities();
+    
+    // Find the updated identity in the refreshed list
+    final updated = _ownidentities.firstWhere(
+      (element) => element.mId == id.mId,
+      orElse: () => id,
+    );
+    _currentIdentity = updated;
     _selected = _currentIdentity;
     notifyListeners();
   }
