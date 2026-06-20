@@ -27,6 +27,11 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.initState();
     _isInit = true;
     _tabController = TabController(vsync: this, length: 2);
+    _tabController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -197,8 +202,8 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () => Future.value(false),
+    return PopScope(
+      canPop: false,
       child: Scaffold(
         onDrawerChanged: (val) async {
           if (!val) {
@@ -243,9 +248,21 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.chat_bubble_outline, 
-                          color: _tabController.index == 0 ? Colors.blue : Colors.grey),
-                        const Text('Chats', style: TextStyle(fontSize: 10)),
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          color: _tabController.index == 0
+                              ? Colors.blue
+                              : Colors.grey,
+                        ),
+                        Text(
+                          'Chats',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: _tabController.index == 0
+                                ? Colors.blue
+                                : Colors.grey,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -257,9 +274,21 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.people_outline,
-                          color: _tabController.index == 1 ? Colors.blue : Colors.grey),
-                        const Text('Friends', style: TextStyle(fontSize: 10)),
+                        Icon(
+                          Icons.people_outline,
+                          color: _tabController.index == 1
+                              ? Colors.blue
+                              : Colors.grey,
+                        ),
+                        Text(
+                          'Friends',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: _tabController.index == 1
+                                ? Colors.blue
+                                : Colors.grey,
+                          ),
+                        ),
                       ],
                     ),
                   ),
