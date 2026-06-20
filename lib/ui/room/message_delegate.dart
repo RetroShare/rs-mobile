@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
@@ -59,6 +61,32 @@ class MessageDelegate extends StatelessWidget {
                   ),
                   child: Html(
                     data: messageContent,
+                    shrinkWrap: true,
+                    extensions: [
+                      TagExtension(
+                        tagsToExtend: {"img"},
+                        builder: (extensionContext) {
+                          final src = extensionContext.attributes['src'];
+                          if (src != null &&
+                              src.contains('base64,')) {
+                            try {
+                              final base64Data = src.split('base64,').last;
+                              return Image.memory(
+                                base64Decode(base64Data.trim()),
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  debugPrint('Error building image: $error');
+                                  return const Icon(Icons.broken_image);
+                                },
+                              );
+                            } catch (e) {
+                              debugPrint('Error decoding base64 image: $e');
+                            }
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ],
                     style: {
                       'body': Style(
                         margin: Margins.zero,
@@ -74,8 +102,8 @@ class MessageDelegate extends StatelessWidget {
                                 .onSecondaryContainer,
                       ),
                       'img': Style(
-                        width: Width.auto(),
-                        height: Height(150),
+                        width: Width(100, Unit.percent),
+                        height: Height.auto(),
                       ),
                     },
                   ),
