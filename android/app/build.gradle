@@ -83,6 +83,12 @@ android {
         }
     }
 
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "retroshare-mobile-${variant.name}.apk"
+        }
+    }
+
 }
 
 flutter {
