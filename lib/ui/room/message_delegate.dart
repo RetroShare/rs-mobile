@@ -64,7 +64,7 @@ class MessageDelegate extends StatelessWidget {
                     shrinkWrap: true,
                     extensions: [
                       TagExtension(
-                        tagsToExtend: {"img"},
+                        tagsToExtend: {'img'},
                         builder: (extensionContext) {
                           final src = extensionContext.attributes['src'];
                           if (src != null &&

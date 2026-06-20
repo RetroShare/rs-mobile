@@ -244,7 +244,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.chat_bubble_outline, 
-                          color: _tabController.index == 0 ? Colors.blue : Colors.grey),
+                          color: _tabController.index == 0 ? Colors.blue : Colors.grey,),
                         const Text('Chats', style: TextStyle(fontSize: 10)),
                       ],
                     ),
@@ -258,7 +258,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.people_outline,
-                          color: _tabController.index == 1 ? Colors.blue : Colors.grey),
+                          color: _tabController.index == 1 ? Colors.blue : Colors.grey,),
                         const Text('Friends', style: TextStyle(fontSize: 10)),
                       ],
                     ),
