@@ -28,6 +28,9 @@ RetroShare mobile client written in Flutter.
 * Converting retroshare service (a.k.a backend of retroshare Mobile) from  background to foreground service.
 * Support of CI/CD.
 
+## Build on Windows
+Follow this file : [AndroidStudio-Flutter-Windows.md](https://github.com/RetroShare/rs-mobile/blob/master/AndroidStudio-Flutter-Windows.md)
+
 ## Installing on Local Machine:
 
 * Run below command:
