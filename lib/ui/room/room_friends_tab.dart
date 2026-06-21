@@ -154,11 +154,12 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
                                 return;
                               }
                               // Ensure current identity and participant are valid
-                              final chatData = Provider.of<RoomChatLobby>(
+                              final chatData = await Provider.of<RoomChatLobby>(
                                 context,
                                 listen: false,
                               ).getChat(curr, participant);
 
+                              if (!context.mounted) return;
                               await Navigator.pushNamed(
                                 context,
                                 '/room',
