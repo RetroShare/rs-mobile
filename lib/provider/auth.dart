@@ -92,13 +92,13 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<void> signup(String username, String password, String nodename) async {
-    final resp = await RsLoginHelper.requestAccountCreation(username, password);
+    final resp = await RsLoginHelper.requestAccountCreation(username, password, nodename);
     final account = (
       resp['retval']['errorNumber'] == 0,
       Account(
         locationId: resp['locationId'],
         pgpId: resp['pgpId'],
-        locationName: username,
+        locationName: nodename,
         pgpName: username,
       ),
     );

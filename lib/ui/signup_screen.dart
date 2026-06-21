@@ -20,7 +20,7 @@ class SignUpScreenState extends State<SignUpScreen> {
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   TextEditingController repeatPasswordController = TextEditingController();
-  TextEditingController nodeNameController = TextEditingController();
+  TextEditingController nodeNameController = TextEditingController(text: 'mobile');
 
   bool advancedOption = false;
   bool isUsernameCorrect = true;
@@ -84,7 +84,7 @@ class SignUpScreenState extends State<SignUpScreen> {
           .signup(
         usernameController.text,
         passwordController.text,
-        nodeNameController.text,
+        nodeNameController.text.isEmpty ? 'mobile' : nodeNameController.text,
       )
           .then((value) {
         final ids = Provider.of<Identities>(context, listen: false);
