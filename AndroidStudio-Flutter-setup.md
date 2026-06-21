@@ -1,173 +1,86 @@
-# Retroshare mobile: Setup Flutter | Android Studio build environment
-## Windows
-### Directories 
-(These may be adapted to your needs.)
+# Building RetroShare Mobile on Windows
 
-- Clean environment yet without any dart, flutter or android studio
-- FlutterDir: ``C:\Users\LOCALWINUSERNAME\Documents\flutter_windows_x.xx.x-stable\flutter``
-- AndroidStudioDir: ``C:\Program Files\Android\AndroidStudio``
-- RSMobileDir: ``C:\Users\LOCALWINUSERNAME\Documents\GitHub\retroshare-mobile``
-- RSPlatformTools: ``C:\Users\LOCALWINUSERNAME\AppData\Local\Android\Sdk\platform-tools``
+A streamlined guide to setting up your environment and building the RetroShare mobile app.
 
-### Steps
-#### Flutter installation
-1. Download and install Git for windows
-   - https://gitforwindows.org/
-   - Git path : ``C:\Program Files\Git\cmd\git.exe``
-   - Add in Environment Variables of your account, Git to PATH: ``C:\Program Files\Git\cmd``
-1. Download and install Github Desktop for windows.  
-https://central.github.com/deployments/desktop/desktop/latest/win32
-2. Download Flutter stable:  
-   https://flutter.dev/docs/get-started/install/windows#get-the-flutter-sdk
-3. Open the zip-package and copy the contained flutter-dir to FlutterDir.  
-This results in the FlutterDir.
-4. Add in environment variables of your account to the PATH-variable of USER context separated by ';' the explicit full path to flutter\bin: $(FlutterDir)\bin
-   1. Test:   
-     Start a cmd console  (in START/RUN type: `cmd`)
-   2. type:  
-      `flutter -h <return>`   
-      flutter should show you its help text if all is well until now.
-5. in cmd type:  
-   `flutter doctor <return>`   
-   - flutter checks its environment and will most likely tell you, that
-     - Android SDK is missing
-     - Android Studio is missing
-     - it may also query for chrome but this is not needed
+## 1. Prerequisites
 
-#### Android Studio installation
-1. Install Android Studio for windows:  
-   https://developer.android.com/studio
-   - follow the default setting and ensure the installation is done to AndroidStudioDir
-2. After installation start Android Studio and let it update if it queries for some
-3. Press NEXT-buttons until it is no longer shown
-4. Press FINISH and follow until finish
-5. On Welcome-Page go into plugins and
-   - Install dart 
-   - Install flutter 
-   - and let Android Studio restart
-6. On welcome page select projects: More Action/SDK Manager and than Tab SDK-Tools.
-   - Ensure all "Android SDK"* Entries are installed and especially
-   - ensure "Android SDK command line tools" to be installed
-7. Close the SDK Dialog
-8. If you wish to use simulated mobiles you may later select in "more actions" AVD Manager and create emulated devices as you need.
+Download and install the following tools:
 
+1.  **Git for Windows**: [gitforwindows.org](https://gitforwindows.org/)
+2.  **Flutter SDK**: [flutter.dev](https://docs.flutter.dev/get-started/install/windows)
+    *   Extract it to a permanent folder (e.g., `C:\flutter`).
+    *   Add `C:\flutter\bin` to your User **Environment Variables** `PATH`.
+3.  **Android Studio**: [developer.android.com/studio](https://developer.android.com/studio)
 
-#### Associate Flutter and Android Studio
-1. Tell Flutter where to find Android Studio:    
-   in cmd console type:  
-   ``flutter config --android-studio-dir "$(AndroidStudioDir)"``  
-   The quotes are mandatory if the path conatains for exc. BLANKs
-2. now you need to accept the SDK licenses:  
-   in cmd console type:  
-   ``flutter doctor --android-licenses``  
-   and accept all.
+---
 
-#### Final check of flutter installation
-- In new cmd-console type:  
-  ``flutter doctor ``  
-  it should now tell all is OK. (but maybe, Visual Studio or Chrome not needed)
-![Image](https://github.com/RetroShare/rs-mobile/blob/master/screenshoots/flutter.png)
-# Retroshare mobile: Prepare project
+## 2. Setup Android Studio
 
-## Main package
-1. Github Desktop: clone Retroshare mobile locally as RSMobileDir  
-(https://github.com/RetroShare/retroshare-mobile)
-2. Open a cmd window (type cmd in START)
-3. Change directory into Retroshare mobile dir
-4. Type:  
-``flutter pub get<return>``  
-to update the flutter package dependancies as needed in the project.
-5. Open the RSMobileDir in Android Studio ( File -> Open )
-6. Set Flutter SDK Path & Dart SDK Path in Android Studio
-   - File -> Settings -> Languages & Frameworks  -> Flutter -> Set Flutter SDK Path:
-   - ``$(FlutterDir)\flutter`` and click on OK
-   - File -> Settings -> Languages & Frameworks  -> Dart    -> Set Dart SDK Path:
-   - ``$(FlutterDir)\bin\cache\dart-sdk`` and click on OK
+1.  **Install Plugins**: Open Android Studio -> **Plugins** -> Search and install **Flutter** (this will automatically install Dart).
+2.  **SDK Tools**: 
+    *   Go to **Settings** -> **Languages & Frameworks** -> **Android SDK**.
+    *   Select the **SDK Tools** tab.
+    *   Check and install:
+        *   `Android SDK Command-line Tools (latest)`
+        *   `Android SDK Platform-Tools`
+        *   `Android SDK Build-Tools`
+3.  **Accept Licenses**: Open a Command Prompt (cmd) and run:
+    ```bash
+    flutter doctor --android-licenses
+    ```
+    *(Type `y` for all prompts)*
 
-### Prepare your Project for use with emulated devices
-1. Within the opened Android Studio on the left side in the project-tab open the path:  
-   "retroshare-mobile/android/app/src/main/java/io/GeneratedPluginRegistrant.java"
-2. Start "GeneratedPluginRegistrant.java" by dobbleclick on it.
-3. On the right side on top of the opened registrant:  
-   if you see a note "Module SDK is not defined",  
-   than click the button "Setup SDK" on the right side of this note.
-4. In the opened dialog select any android SDK and click OK.
-5. Restart Android Studio.
+---
 
-Now your project - this is to do in any new project - is able to define and use emulated Phones.
+## 3. Prepare the Project
 
-# Activate USB Debug Mode of the mobile
-1. In settings type usb in search
-2. Select usb-debugging
-3. Activate it
-4. Plug the mobile with usb to the pc
-5. if this is the first time a dialog appears to accept the key; accept it
-6. check in cmd console if the device is available
-    - cmd:  
-      ``flutter devices<return>``  
-      should now list your mobile as availabel 
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/RetroShare/rs-mobile.git
+    cd rs-mobile
+    ```
+2.  **Fetch Dependencies**:
+    ```bash
+    flutter pub get
+    ```
+3.  **Open in Android Studio**:
+    *   Open Android Studio -> **Open** -> Select the `rs-mobile` folder.
+    *   If prompted "Flutter SDK path not given", point it to your flutter folder (e.g., `C:\flutter`).
 
-## Run the RestroShare Mobile
+---
 
-Type in cmd console:  
+## 4. Build and Run
 
-    flutter run [[--release]]<return>
+### Run on a Device/Emulator
+1. Connect your Android phone via USB (with **USB Debugging** enabled in Developer Options) or start an emulator.
+2. Verify connection:
+   ```bash
+   flutter devices
+   ```
+3. Run the app:
+   ```bash
+   flutter run
+   ```
 
-without release it will run in debug mode
+### Build the APK
+To generate the installer file (`.apk`), run:
+```bash
+flutter build apk --release
+```
+The result will be located in:
+`build/app/outputs/flutter-apk/app-release.apk`
 
-# Debugging and Tracing
-## Debuging RS-Mobile
-RS-Mobile is debugable simply with Android-Studio as usual with. Just intuitiv and relative comfortable.
-## Tracing RS-mobile in the context of the android-activities
-Open a cmd-console in the directory of the android ../sdk/patform-tools.
-There you will find the adb.exe (Android Debug Bridge).
-This tool enables you for excample to get the tracefiles from your android-device 
-by  
+---
 
-    adb logcat > trace.txt<return>
+## Troubleshooting
 
-You may filter the content of trace.txt than by "restroshare" to get only the lines of the client and the service without other android contextual activities.
-
-
-## Debugging RS-Service-Apk
-TBD; actual not knwon how to setup a debug-environment fort it.  
-Hints in context: https://gitlab.com/elRepo.io/elRepo.io-android/-/issues/43
-
-## Tracing RS-Service in the context of the android-activities
-As above with the adb.exe tool.  
-If you want manually check the communication interface of the servcice
-you may use the cUrl tool.  
-To use it you must establich a redirection of the ports by:  
-
+*   **Flutter Doctor**: Run `flutter doctor` at any time to check if your environment is correctly configured.
+*   **Service Logs**: To view native RetroShare logs while the app is running:
+    ```bash
+    adb logcat -s RetroShareService:D
+    ```
+*   **Port Forwarding**: To access the RetroShare JSON API directly from your PC while debugging:
+    ```bash
     adb forward tcp:9091 tcp:9092
-
-than you should be able to talk to the servcie direcly  
-for exc. like:
-
-    curl http://127.0.0.1:9091/RsJsonApi/version -v
-
-This would for exc generate an output like  
-
-    Trying 127.0.0.1...  
-    TCP_NODELAY set  
-    Connected to 127.0.0.1 (127.0.0.1) port 9091 (#0)
-    GET /RsJsonApi/version HTTP/1.1  
-    Host: 127.0.0.1:9091  
-    User-Agent: curl/7.55.1  
-    Accept: */*  
-    
-    HTTP/1.1 200 OK  
-    Access-Control-Allow-Headers: Authorization,DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range  
-    Access-Control-Allow-Methods: GET, POST, OPTIONS  
-    Access-Control-Allow-Origin: *  
-    Access-Control-Expose-Headers: Content-Length,Content-Range  
-    Connection: close  
-    Content-Length: 116  
-    Content-Type: application/json  
-      
-    {"major": 0,  
-     "minor": 6,  
-     "mini": 6,  
-     "extra": "-38-g25f58bc10",  
-     "human": "0.6.6-38-g25f58bc10"  
-    }* Closing connection 0
+    curl http://127.0.0.1:9091/RsJsonApi/version
+    ```
