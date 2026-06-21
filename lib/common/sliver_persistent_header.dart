@@ -12,7 +12,7 @@ SliverPersistentHeader sliverPersistentHeader(
       minHeight: 3 * personDelegateHeight / 4,
       maxHeight: 3 * personDelegateHeight / 4,
       child: Container(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         padding: const EdgeInsets.only(left: personDelegateHeight / 4),
         alignment: Alignment.centerLeft,
         child: Text(
@@ -61,7 +61,7 @@ SliverPersistentHeader makeHeader(String headerText, BuildContext context) {
       minHeight: 30,
       maxHeight: 60,
       child: Container(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: Theme.of(context).colorScheme.surface,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Align(
           alignment: Alignment.centerLeft,
