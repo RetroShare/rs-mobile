@@ -102,7 +102,7 @@ class GetAddfriendState extends State<GetAddfriend> {
                   padding: const EdgeInsets.all(10),
                   child: const Text(
                     'Add Friend',
-                    style: TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: 13, color: Colors.white),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -133,7 +133,7 @@ class GetAddfriendState extends State<GetAddfriend> {
                   padding: const EdgeInsets.all(10),
                   child: const Text(
                     'Add Friend via QR',
-                    style: TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: 13, color: Colors.white),
                     textAlign: TextAlign.center,
                   ),
                 ),

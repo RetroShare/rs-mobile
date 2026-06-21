@@ -20,6 +20,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     final lastAccount =
         Provider.of<AccountCredentials>(context, listen: false).loggedinAccount;
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: appBar('Identity Info', context),
       body: SingleChildScrollView(
         child: Column(
@@ -31,11 +32,11 @@ class ProfileScreenState extends State<ProfileScreen> {
               decoration: (widget.curr.avatar == null)
                   ? BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(),
+                      border: Border.all(color: Theme.of(context).dividerColor),
                     )
                   : BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(),
+                      border: Border.all(color: Theme.of(context).dividerColor),
                       image: DecorationImage(
                         fit: BoxFit.fill,
                         image: MemoryImage(base64.decode(widget.curr.avatar!)),
@@ -104,8 +105,11 @@ class ProfileScreenState extends State<ProfileScreen> {
                         ),
                         child: const Text(
                           'Edit Identity',
-                          style:
-                              TextStyle(fontSize: 15, fontFamily: 'Vollkorn'),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontFamily: 'Vollkorn',
+                            color: Colors.white,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -122,37 +126,42 @@ class ProfileScreenState extends State<ProfileScreen> {
 }
 
 Widget textField(String text, String label) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(
-        label,
-        style: const TextStyle(
-          fontFamily: 'Vollkorn',
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      TextFormField(
-        readOnly: true,
-        initialValue: text,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'Oxygen',
-        ),
-        decoration: InputDecoration(
-          prefix: const SizedBox(
-            width: 10,
-          ),
-          labelStyle: const TextStyle(fontSize: 12),
-          border: OutlineInputBorder(
-            borderSide: const BorderSide(width: 2),
-            borderRadius: BorderRadius.circular(12),
+  return Builder(builder: (context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Vollkorn',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
           ),
         ),
-      ),
-    ],
-  );
+        TextFormField(
+          readOnly: true,
+          initialValue: text,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Oxygen',
+          ),
+          decoration: InputDecoration(
+            prefix: const SizedBox(
+              width: 10,
+            ),
+            labelStyle: const TextStyle(fontSize: 12),
+            border: OutlineInputBorder(
+              borderSide: BorderSide(
+                width: 2,
+                color: Theme.of(context).dividerColor,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  });
 }

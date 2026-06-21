@@ -60,17 +60,11 @@ class SearchScreenState extends State<SearchScreen>
         }
       }
     });
-
-    _leftTabIconColor =
-        ColorTween(begin: const Color(0xFFF5F5F5), end: Colors.white)
-            .animate(_tabController.animation!);
-    _rightTabIconColor =
-        ColorTween(begin: Colors.white, end: const Color(0xFFF5F5F5))
-            .animate(_tabController.animation!);
   }
 
   @override
   void didChangeDependencies() {
+    super.didChangeDependencies();
     if (_init) {
       final friendIdentity = Provider.of<RoomChatLobby>(context, listen: false);
       final chatLobby = Provider.of<ChatLobby>(context, listen: false);
@@ -84,7 +78,13 @@ class SearchScreenState extends State<SearchScreen>
       publicChats = chatLobby.unSubscribedlist;
     }
     _init = false;
-    super.didChangeDependencies();
+
+    _leftTabIconColor =
+        ColorTween(begin: Theme.of(context).colorScheme.surfaceContainerHighest, end: Theme.of(context).colorScheme.primary)
+            .animate(_tabController.animation!);
+    _rightTabIconColor =
+        ColorTween(begin: Theme.of(context).colorScheme.primary, end: Theme.of(context).colorScheme.surfaceContainerHighest)
+            .animate(_tabController.animation!);
   }
 
   Future<void> _goToChat(Chat lobby) async {
@@ -115,7 +115,7 @@ class SearchScreenState extends State<SearchScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -139,11 +139,11 @@ class SearchScreenState extends State<SearchScreen>
                   ),
                   Expanded(
                     child: Material(
-                      color: Colors.white,
+                      color: Colors.transparent,
                       child: Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(15),
-                          color: const Color(0xFFF5F5F5),
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 15),
                         margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -154,10 +154,7 @@ class SearchScreenState extends State<SearchScreen>
                             children: <Widget>[
                               Icon(
                                 Icons.search,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.color,
+                                color: Theme.of(context).hintColor,
                               ),
                               const SizedBox(
                                 width: 8,
@@ -166,9 +163,10 @@ class SearchScreenState extends State<SearchScreen>
                                 child: TextField(
                                   controller: _searchBoxFilter,
                                   autofocus: true,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     border: InputBorder.none,
                                     hintText: 'Type text...',
+                                    hintStyle: TextStyle(color: Theme.of(context).hintColor),
                                   ),
                                   style: Theme.of(context).textTheme.bodyLarge,
                                 ),
@@ -209,7 +207,12 @@ class SearchScreenState extends State<SearchScreen>
                             child: Center(
                               child: Text(
                                 'Chats',
-                                style: Theme.of(context).textTheme.bodyLarge,
+                                style: TextStyle(
+                                  color: _tabController.index == 0
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
@@ -239,7 +242,12 @@ class SearchScreenState extends State<SearchScreen>
                             child: Center(
                               child: Text(
                                 'People',
-                                style: Theme.of(context).textTheme.bodyLarge,
+                                style: TextStyle(
+                                  color: _tabController.index == 1
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),

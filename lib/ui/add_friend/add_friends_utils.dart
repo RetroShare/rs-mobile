@@ -124,7 +124,7 @@ class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
                 child: Container(
                   height: 150,
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(6),
                   ),
                 ),
@@ -132,13 +132,13 @@ class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.error, color: Colors.grey[600], size: 30),
+                  Icon(Icons.error, color: Theme.of(context).colorScheme.error, size: 30),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Could not load invite',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.error,
                       fontFamily: 'Oxygen',
                     ),
                   ),
@@ -157,7 +157,7 @@ class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
                 child: Container(
                   height: 150,
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(6),
                   ),
                 ),
@@ -171,7 +171,7 @@ class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
                     'Loading...',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.blueAccent[100],
+                      color: Theme.of(context).colorScheme.primary,
                       fontFamily: 'Oxygen',
                     ),
                   ),
@@ -196,7 +196,7 @@ class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
                   minLines: 10,
                   style: GoogleFonts.oxygen(
                     textStyle:
-                        const TextStyle(fontSize: 12, color: Colors.black54),
+                        TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                   textAlign: TextAlign.center,
                   textAlignVertical: TextAlignVertical.center,
@@ -204,7 +204,7 @@ class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 15, vertical: 10,),
                     filled: true,
-                    fillColor: Colors.black.withOpacity(.05),
+                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
                       borderSide: BorderSide.none,
@@ -226,7 +226,7 @@ class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
                     },
                     icon: Icon(
                       Icons.copy,
-                      color: Colors.blueAccent[200],
+                      color: Theme.of(context).colorScheme.primary,
                       size: 30,
                     ),
                     tooltip: 'Copy Invite',
@@ -238,7 +238,7 @@ class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Oxygen',
                       fontSize: 12,
-                      color: Colors.blueAccent[100],
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -277,7 +277,7 @@ class GetInviteState extends State<GetInvite> with TickerProviderStateMixin {
             });
           },
           contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-          activeThumbColor: Colors.blueAccent,
+          activeThumbColor: Theme.of(context).colorScheme.primary,
         ),
         const SizedBox(height: 10),
       ],

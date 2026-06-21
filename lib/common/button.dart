@@ -21,7 +21,7 @@ class Button extends StatelessWidget {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         height: buttonHeight,
         child: Row(
           children: <Widget>[

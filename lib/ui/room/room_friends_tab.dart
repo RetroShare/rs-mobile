@@ -137,7 +137,7 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
                           onLongPress: (Offset tapPosition) {
                             showCustomMenu(
                               'Add to contacts',
-                              const Icon(Icons.add, color: Colors.black),
+                              Icon(Icons.add, color: Theme.of(context).colorScheme.onSurface),
                               () => _addToContacts(participant.mId),
                               tapPosition,
                               context,

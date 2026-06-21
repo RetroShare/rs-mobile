@@ -132,17 +132,17 @@ class GenericIdentityTabState extends State<GenericIdentityTab> {
                                 : null,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: Colors.grey[300]!,
+                              color: Theme.of(context).dividerColor,
                               width: 2,
                             ),
-                            color: Colors.grey[200],
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           ),
                           child: (_image?.mData == null)
                               ? Center(
                                   child: Icon(
                                     Icons.person,
                                     size: 100,
-                                    color: Colors.grey[400],
+                                    color: Theme.of(context).hintColor,
                                   ),
                                 )
                               : null,

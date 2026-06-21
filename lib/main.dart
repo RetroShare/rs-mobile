@@ -1,7 +1,9 @@
+import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:oktoast/oktoast.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/notifications.dart';
+import 'package:retroshare/common/theme_data.dart';
 import 'package:retroshare/model/app_life_cycle_state.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare/provider/friend_location.dart';
@@ -12,12 +14,15 @@ import 'package:retroshare/routes.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final savedThemeMode = await AdaptiveTheme.getThemeMode();
   //initializeNotifications();
-  runApp(const App());
+  runApp(App(savedThemeMode: savedThemeMode));
 }
 
 class App extends StatefulWidget {
-  const App({super.key});
+  const App({super.key, this.savedThemeMode});
+
+  final AdaptiveThemeMode? savedThemeMode;
 
   @override
   // ignore: unnecessary_new
@@ -60,17 +65,20 @@ class _AppState extends State<App> with WidgetsBindingObserver {
               roomChatLobby!..authToken = auth.authtoken!,
         ),
       ],
-      child: Builder(
-        builder: (context) {
-          return const OKToast(
-            child: MaterialApp(
-              debugShowCheckedModeBanner: false,
-              title: 'Retroshare',
-              initialRoute: '/',
-              onGenerateRoute: RouteGenerator.generateRoute,
-            ),
-          );
-        },
+      child: AdaptiveTheme(
+        light: lightTheme,
+        dark: darkTheme,
+        initial: widget.savedThemeMode ?? AdaptiveThemeMode.light,
+        builder: (theme, darkTheme) => OKToast(
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'Retroshare',
+            theme: theme,
+            darkTheme: darkTheme,
+            initialRoute: '/',
+            onGenerateRoute: RouteGenerator.generateRoute,
+          ),
+        ),
       ),
     );
   }

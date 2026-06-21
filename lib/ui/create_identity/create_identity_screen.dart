@@ -11,24 +11,29 @@ class CreateIdentityScreen extends StatefulWidget {
 
 class CreateIdentityScreenState extends State<CreateIdentityScreen>
     with SingleTickerProviderStateMixin {
-  late final Animation<Color?> _leftTabIconColor;
-  late final Animation<Color?> _rightTabIconColor;
+  late Animation<Color?> _leftTabIconColor;
+  late Animation<Color?> _rightTabIconColor;
   late final TabController _tabController;
   static const double _appBarHeight = kToolbarHeight;
   static const double _tabVerticalPadding = 20;
   static const double _tabBottomOffset = (_appBarHeight - 40) / 2;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _leftTabIconColor =
+        ColorTween(begin: Theme.of(context).colorScheme.surfaceContainerHighest, end: Theme.of(context).colorScheme.primary)
+            .animate(_tabController.animation!);
+    _rightTabIconColor =
+        ColorTween(begin: Theme.of(context).colorScheme.primary, end: Theme.of(context).colorScheme.surfaceContainerHighest)
+            .animate(_tabController.animation!);
+  }
+
+  @override
   void initState() {
     super.initState();
     _tabController =
         TabController(vsync: this, length: widget.isFirstId ? 1 : 2);
-    _leftTabIconColor =
-        ColorTween(begin: const Color(0xFFF5F5F5), end: Colors.white)
-            .animate(_tabController.animation!);
-    _rightTabIconColor =
-        ColorTween(begin: Colors.white, end: const Color(0xFFF5F5F5))
-            .animate(_tabController.animation!);
   }
 
   @override
@@ -41,7 +46,7 @@ class CreateIdentityScreenState extends State<CreateIdentityScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Create Identity'),
       ),
@@ -135,7 +140,12 @@ class AnimatedTabIndicator extends StatelessWidget {
                 child: Text(
                   label,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: TextStyle(
+                    color: animation.value == Theme.of(context).colorScheme.primary
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
