@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/drawer.dart';
+import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
@@ -44,10 +45,11 @@ class ProfileScreenState extends State<ProfileScreen> {
                     ),
               child: Visibility(
                 visible: widget.curr.avatar == null,
-                child: const Center(
-                  child: Icon(
-                    Icons.person,
-                    size: 80,
+                child: Center(
+                  child: Identicon(
+                    id: widget.curr.mId,
+                    size: 100,
+                    borderRadius: 10,
                   ),
                 ),
               ),
