@@ -180,7 +180,7 @@ class SignInScreenState extends State<SignInScreen> {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
-          color: const Color(0xFFF5F5F5),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 15),
         height: 40,
@@ -188,9 +188,9 @@ class SignInScreenState extends State<SignInScreen> {
           onLongPress: _revealLocations,
           child: Row(
             children: <Widget>[
-              const Icon(
+              Icon(
                 Icons.person_outline,
-                color: Color(0xFF9E9E9E),
+                color: Theme.of(context).hintColor,
                 size: 22,
               ),
               const SizedBox(width: 15),
@@ -229,17 +229,17 @@ class SignInScreenState extends State<SignInScreen> {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
-          color: const Color(0xFFF5F5F5),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 15),
         height: 40,
         child: TextField(
           controller: passwordController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             border: InputBorder.none,
             icon: Icon(
               Icons.lock_outline,
-              color: Color(0xFF9E9E9E),
+              color: Theme.of(context).hintColor,
               size: 22,
             ),
             hintText: 'Password',
@@ -358,7 +358,7 @@ class SignInScreenState extends State<SignInScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints viewportConstraints) {
           return SingleChildScrollView(

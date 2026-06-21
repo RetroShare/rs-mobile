@@ -42,6 +42,7 @@ dependencies:
 
   # Used to render chat messages
   flutter_html: 3.0.0
+  adaptive_theme: ^3.7.0
   simple_chips_input: ^1.2.1
   # For notifications
   flutter_local_notifications: ^19.1.0

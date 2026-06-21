@@ -143,28 +143,34 @@ class PersonDelegateState extends State<PersonDelegate>
     );
     _curvedAnimation =
         CurvedAnimation(parent: _animationController, curve: Curves.easeOut);
+  }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     boxShadow = DecorationTween(
       begin: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: Colors.white.withOpacity(0),
+            color: Colors.transparent,
             spreadRadius: appBarHeight / 3,
           ),
         ],
         borderRadius: const BorderRadius.all(Radius.circular(appBarHeight / 3)),
-        color: Colors.white.withOpacity(0),
+        color: Colors.transparent,
       ),
-      end: const BoxDecoration(
+      end: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Theme.of(context).brightness == Brightness.light
+                ? Colors.black12
+                : Colors.white10,
             blurRadius: 10,
             spreadRadius: 2,
           ),
         ],
-        borderRadius: BorderRadius.all(Radius.circular(appBarHeight / 3)),
-        color: Colors.white,
+        borderRadius: const BorderRadius.all(Radius.circular(appBarHeight / 3)),
+        color: Theme.of(context).colorScheme.surface,
       ),
     ).animate(_curvedAnimation);
   }

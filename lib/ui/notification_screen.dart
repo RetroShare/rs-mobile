@@ -33,7 +33,7 @@ class NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -103,26 +103,28 @@ class NotificationScreenState extends State<NotificationScreen> {
                                                 text: TextSpan(
                                                   text:
                                                       '${snapshot.data[index]['location'].accountName}',
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontFamily: 'Oxygen',
                                                     fontSize: 16,
-                                                    color: Colors.black,
+                                                    color: Theme.of(context).colorScheme.onSurface,
                                                   ),
                                                   children: <TextSpan>[
-                                                    const TextSpan(
+                                                    TextSpan(
                                                       text:
                                                           ' sent you the invite to join the chatlobby ',
                                                       style: TextStyle(
                                                         fontSize: 15,
                                                         fontFamily: 'Oxygen',
+                                                        color: Theme.of(context).colorScheme.onSurface,
                                                       ),
                                                     ),
                                                     TextSpan(
                                                       text:
                                                           '${snapshot.data[index]['lobby_name']}.',
-                                                      style: const TextStyle(
+                                                      style: TextStyle(
                                                         fontSize: 15,
                                                         fontFamily: 'Oxygen',
+                                                        color: Theme.of(context).colorScheme.onSurface,
                                                       ),
                                                     ),
                                                   ],

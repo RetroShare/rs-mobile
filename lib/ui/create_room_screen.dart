@@ -210,11 +210,12 @@ class CreateRoomScreenState extends State<CreateRoomScreen>
         _onGoBack();
       },
       child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
         body: SafeArea(
           child: Column(
             children: <Widget>[
               Container(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,8 +262,7 @@ class CreateRoomScreenState extends State<CreateRoomScreen>
                                                 decoration: BoxDecoration(
                                                   borderRadius:
                                                       BorderRadius.circular(15),
-                                                  color:
-                                                      const Color(0xFFF5F5F5),
+                                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                                 ),
                                                 padding:
                                                     const EdgeInsets.symmetric(
@@ -279,11 +279,12 @@ class CreateRoomScreenState extends State<CreateRoomScreen>
                                                           controller:
                                                               _roomNameController,
                                                           decoration:
-                                                              const InputDecoration(
+                                                              InputDecoration(
                                                             border: InputBorder
                                                                 .none,
                                                             hintText:
                                                                 'Room name',
+                                                            hintStyle: TextStyle(color: Theme.of(context).hintColor),
                                                           ),
                                                           style:
                                                               Theme.of(context)
@@ -306,8 +307,7 @@ class CreateRoomScreenState extends State<CreateRoomScreen>
                                                 decoration: BoxDecoration(
                                                   borderRadius:
                                                       BorderRadius.circular(15),
-                                                  color:
-                                                      const Color(0xFFF5F5F5),
+                                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                                 ),
                                                 padding:
                                                     const EdgeInsets.symmetric(
@@ -324,11 +324,12 @@ class CreateRoomScreenState extends State<CreateRoomScreen>
                                                           controller:
                                                               _roomTopicController,
                                                           decoration:
-                                                              const InputDecoration(
+                                                              InputDecoration(
                                                             border: InputBorder
                                                                 .none,
                                                             hintText:
                                                                 'Room topic',
+                                                            hintStyle: TextStyle(color: Theme.of(context).hintColor),
                                                           ),
                                                           style:
                                                               Theme.of(context)
@@ -504,8 +505,8 @@ class CreateRoomScreenState extends State<CreateRoomScreen>
                         left: 8,
                         right: 16,
                       ),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
                       ),
 //                      height: _buttonHeightAnimation.value,
                       child: FadeTransition(
@@ -568,7 +569,7 @@ class CreateRoomScreenState extends State<CreateRoomScreen>
                                   });
                                 },
                                 child: Container(
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.surface,
                                   height: _buttonHeightAnimation.value,
                                   child: FadeTransition(
                                     opacity: _buttonFadeAnimation,

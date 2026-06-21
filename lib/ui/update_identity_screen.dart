@@ -99,7 +99,7 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -220,7 +220,7 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                                   child: Container(
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(15),
-                                      color: const Color(0xFFF5F5F5),
+                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                     ),
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 15,
@@ -234,11 +234,11 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                                           _showError = !_validate(text);
                                         });
                                       },
-                                      decoration: const InputDecoration(
+                                      decoration: InputDecoration(
                                         border: InputBorder.none,
                                         icon: Icon(
                                           Icons.person_outline,
-                                          color: Color(0xFF9E9E9E),
+                                          color: Theme.of(context).hintColor,
                                           size: 22,
                                         ),
                                         hintText: 'Name',
@@ -323,7 +323,7 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                             padding: const EdgeInsets.all(10),
                             child: Text(
                               'Update Identity',
-                              style: Theme.of(context).textTheme.labelLarge,
+                              style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.white),
                               textAlign: TextAlign.center,
                             ),
                           ),

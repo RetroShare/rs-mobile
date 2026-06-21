@@ -16,7 +16,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: appBar('Add Friend', context),
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: const SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 30, vertical: 10),

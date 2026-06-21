@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
@@ -170,6 +171,21 @@ Widget drawerWidget(BuildContext ctx) {
               buildNavList(Icons.language, 'Discover public chats', () {
                 Navigator.pushNamed(ctx, '/discover_chats');
               }),
+              buildNavList(
+                AdaptiveTheme.of(ctx).mode.isDark
+                    ? Icons.light_mode
+                    : Icons.dark_mode,
+                AdaptiveTheme.of(ctx).mode.isDark
+                    ? 'Switch to Light Mode'
+                    : 'Switch to Dark Mode',
+                () {
+                  if (AdaptiveTheme.of(ctx).mode.isDark) {
+                    AdaptiveTheme.of(ctx).setLight();
+                  } else {
+                    AdaptiveTheme.of(ctx).setDark();
+                  }
+                },
+              ),
               buildNavList(Icons.info_rounded, 'About', () {
                 Navigator.pushNamed(ctx, '/about');
               }),
@@ -195,14 +211,17 @@ Widget drawerWidget(BuildContext ctx) {
 
 AppBar appBar(String title, BuildContext context) {
   return AppBar(
-    backgroundColor: Colors.white,
+    backgroundColor: Theme.of(context).colorScheme.surface,
     shadowColor: Colors.transparent,
     title: Text(
       title,
-      style: const TextStyle(color: Colors.black, fontSize: 14.5),
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onSurface,
+        fontSize: 14.5,
+      ),
     ),
     leading: BackButton(
-      color: Colors.black,
+      color: Theme.of(context).colorScheme.onSurface,
       onPressed: () {
         Navigator.of(context).pop();
       },
@@ -232,7 +251,7 @@ class NotificationIconState extends State<NotificationIcon> {
       children: [
         Icon(
           Icons.notifications,
-          color: Theme.of(context).primaryColor,
+          color: Theme.of(context).colorScheme.primary,
           size: 28,
         ),
         Positioned(

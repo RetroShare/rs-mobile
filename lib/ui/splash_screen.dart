@@ -157,6 +157,7 @@ class SplashState extends State<SplashScreen> {
     return PopScope(
       canPop: false,
       child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
         body: Center(
           child: SingleChildScrollView(
             child: Column(

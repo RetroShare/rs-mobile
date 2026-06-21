@@ -20,23 +20,25 @@ class BottomBar extends StatelessWidget {
         maxHeight: maxHeight,
       ),
       child: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black12,
+              color: Theme.of(context).brightness == Brightness.light
+                  ? Colors.black12
+                  : Colors.white10,
               blurRadius: 20,
               spreadRadius: 5,
-              offset: Offset(
+              offset: const Offset(
                 0,
                 15,
               ),
             ),
           ],
-          borderRadius: BorderRadius.only(
+          borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(appBarHeight / 3),
             topRight: Radius.circular(appBarHeight / 3),
           ),
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
         ),
         child: child,
       ),

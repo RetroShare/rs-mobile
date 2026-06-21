@@ -49,9 +49,9 @@ class AboutScreenState extends State<AboutScreen> {
         index: _stackToView,
         children: [
           WebViewWidget(controller: _controller),
-          const ColoredBox(
-            color: Colors.white,
-            child: Center(
+          ColoredBox(
+            color: Theme.of(context).colorScheme.surface,
+            child: const Center(
               child: CircularProgressIndicator(),
             ),
           ),

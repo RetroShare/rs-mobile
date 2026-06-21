@@ -19,16 +19,20 @@ class RoomScreen extends StatefulWidget {
 class RoomScreenState extends State<RoomScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  late final Animation<Color?> _iconAnimation;
+  late Animation<Color?> _iconAnimation;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _iconAnimation =
+        ColorTween(begin: Theme.of(context).colorScheme.onSurface, end: Theme.of(context).colorScheme.primary)
+            .animate(_tabController.animation!);
+  }
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(vsync: this, length: widget.isRoom ? 2 : 1);
-
-    _iconAnimation =
-        ColorTween(begin: Colors.black, end: Colors.lightBlueAccent)
-            .animate(_tabController.animation!);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (widget.chat.chatId == null) {
@@ -119,13 +123,13 @@ class RoomScreenState extends State<RoomScreen>
                       height: appBarHeight,
                       child: CircleAvatar(
                         radius: appBarHeight * 0.35,
-                        backgroundColor: Colors.grey[300],
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         backgroundImage: avatarImage,
                         child: !hasAvatar
                             ? Icon(
                                 Icons.person,
                                 size: appBarHeight * 0.4,
-                                color: Colors.grey[600],
+                                color: Theme.of(context).hintColor,
                               )
                             : null,
                       ),

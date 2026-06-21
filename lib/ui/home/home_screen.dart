@@ -128,7 +128,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: Column(
                 children: [
                   AppBar(
-                    backgroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).colorScheme.surface,
                     elevation: 2,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
@@ -143,9 +143,12 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     primary: false,
-                    title: const Text(
+                    title: Text(
                       'Search',
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                      style: TextStyle(
+                        color: Theme.of(context).hintColor,
+                        fontSize: 14,
+                      ),
                       textAlign: TextAlign.start,
                     ),
                     actions: <Widget>[
@@ -251,16 +254,16 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Icon(
                           Icons.chat_bubble_outline,
                           color: _tabController.index == 0
-                              ? Colors.blue
-                              : Colors.grey,
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).disabledColor,
                         ),
                         Text(
                           'Chats',
                           style: TextStyle(
                             fontSize: 10,
                             color: _tabController.index == 0
-                                ? Colors.blue
-                                : Colors.grey,
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).disabledColor,
                           ),
                         ),
                       ],
@@ -277,16 +280,16 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Icon(
                           Icons.people_outline,
                           color: _tabController.index == 1
-                              ? Colors.blue
-                              : Colors.grey,
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).disabledColor,
                         ),
                         Text(
                           'Friends',
                           style: TextStyle(
                             fontSize: 10,
                             color: _tabController.index == 1
-                                ? Colors.blue
-                                : Colors.grey,
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).disabledColor,
                           ),
                         ),
                       ],

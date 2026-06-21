@@ -27,7 +27,7 @@ class ChangeIdentityScreenState extends State<ChangeIdentityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: appBar('Change Identity', context),
       body: SafeArea(
         child: Padding(
@@ -96,7 +96,7 @@ class ChangeIdentityScreenState extends State<ChangeIdentityScreen> {
                     padding: const EdgeInsets.all(10),
                     child: Text(
                       'Change Identity',
-                      style: Theme.of(context).textTheme.labelLarge,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.white),
                       textAlign: TextAlign.center,
                     ),
                   ),
