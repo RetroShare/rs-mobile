@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/common/styles.dart';
 import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
@@ -240,40 +241,44 @@ class PersonDelegateState extends State<PersonDelegate>
                       width: widget.data.isUnread
                           ? delegateHeight * 0.88
                           : delegateHeight * 0.8,
-                      decoration:
-                          (widget.data.isRoom || widget.data.image == null)
-                              ? null
-                              : BoxDecoration(
-                                  border: widget.data.isUnread
-                                      ? Border.all(
-                                          color: Colors.white,
-                                          width: delegateHeight * 0.03,
-                                        )
-                                      : null,
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(
-                                    delegateHeight * 0.92 * 0.33,
-                                  ),
-                                  image: widget.data.image != null
-                                      ? DecorationImage(
-                                          fit: BoxFit.fill,
-                                          image: widget.data.image!,
-                                          onError: (exception, stackTrace) {
-                                            print(
-                                              'Error loading image in PersonDelegate: $exception',
-                                            );
-                                          },
-                                        )
-                                      : null,
-                                ),
+                      decoration: (widget.data.image == null)
+                          ? null
+                          : BoxDecoration(
+                              border: widget.data.isUnread
+                                  ? Border.all(
+                                      color: Colors.white,
+                                      width: delegateHeight * 0.03,
+                                    )
+                                  : null,
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(
+                                delegateHeight * 0.92 * 0.33,
+                              ),
+                              image: widget.data.image != null
+                                  ? DecorationImage(
+                                      fit: BoxFit.fill,
+                                      image: widget.data.image!,
+                                      onError: (exception, stackTrace) {
+                                        print(
+                                          'Error loading image in PersonDelegate: $exception',
+                                        );
+                                      },
+                                    )
+                                  : null,
+                            ),
                       child: Visibility(
-                        visible:
-                            widget.data.isRoom || widget.data.image == null,
+                        visible: widget.data.image == null,
                         child: Center(
-                          child: Icon(
-                            widget.data.icon,
-                            size: personDelegateIconHeight,
-                          ),
+                          child: (widget.data.mId != null)
+                              ? Identicon(
+                                  id: widget.data.mId!,
+                                  size: delegateHeight * 0.8,
+                                  borderRadius: delegateHeight * 0.92 * 0.33,
+                                )
+                              : Icon(
+                                  widget.data.icon,
+                                  size: personDelegateIconHeight,
+                                ),
                         ),
                       ),
                     ),

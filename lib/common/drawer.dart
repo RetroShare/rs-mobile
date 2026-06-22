@@ -4,6 +4,7 @@ import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/common/show_dialog.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare/provider/identity.dart';
@@ -90,10 +91,11 @@ Widget drawerWidget(BuildContext ctx) {
                             child: Visibility(
                               visible: curr.currentIdentity!.avatar == null ||
                                   curr.currentIdentity!.avatar!.isEmpty,
-                              child: const Center(
-                                child: Icon(
-                                  Icons.person,
-                                  size: 80,
+                              child: Center(
+                                child: Identicon(
+                                  id: curr.currentIdentity!.mId,
+                                  size: 100,
+                                  borderRadius: 18,
                                 ),
                               ),
                             ),

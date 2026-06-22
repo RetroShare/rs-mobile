@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/bottom_bar.dart';
 import 'package:retroshare/common/color_loader_3.dart';
+import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/common/image_picker_dialog.dart';
 import 'package:retroshare/common/show_dialog.dart';
 import 'package:retroshare/common/styles.dart';
@@ -203,10 +204,11 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
                                           ),
                                     child: Visibility(
                                       visible: _image.mData == null || _image.mData!.isEmpty,
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.person,
+                                      child: Center(
+                                        child: Identicon(
+                                          id: widget.curr?.mId ?? nameController.text,
                                           size: 300 * 0.7,
+                                          borderRadius: 300 * 0.7 * 0.33,
                                         ),
                                       ),
                                     ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/bottom_bar.dart';
 import 'package:retroshare/common/color_loader_3.dart';
+import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/common/image_picker_dialog.dart';
 import 'package:retroshare/common/styles.dart';
 import 'package:retroshare/provider/identity.dart';
@@ -139,10 +140,12 @@ class GenericIdentityTabState extends State<GenericIdentityTab> {
                           ),
                           child: (_image?.mData == null)
                               ? Center(
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 100,
-                                    color: Theme.of(context).hintColor,
+                                  child: Identicon(
+                                    id: _nameController.text.isEmpty
+                                        ? "default"
+                                        : _nameController.text,
+                                    size: 300 * 0.7,
+                                    borderRadius: 300 * 0.7 / 2,
                                   ),
                                 )
                               : null,

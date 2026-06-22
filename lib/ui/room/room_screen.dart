@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/common/styles.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/ui/room/messages_tab.dart';
@@ -126,10 +127,10 @@ class RoomScreenState extends State<RoomScreen>
                         backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         backgroundImage: avatarImage,
                         child: !hasAvatar
-                            ? Icon(
-                                Icons.person,
-                                size: appBarHeight * 0.4,
-                                color: Theme.of(context).hintColor,
+                            ? Identicon(
+                                id: widget.chat.interlocutorId,
+                                size: appBarHeight * 0.7,
+                                borderRadius: appBarHeight * 0.35,
                               )
                             : null,
                       ),
