@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/common/styles.dart';
+import 'package:retroshare/provider/friend_location.dart';
 import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
@@ -20,8 +21,11 @@ class PersonDelegateData {
     this.isOnline = false,
     this.isMessage = false,
     this.isUnread = false,
+    this.unreadCount = 0,
     this.isTime = false,
     this.isRoom = false,
+    this.status = 0,
+    this.isContact = false,
     this.icon = Icons.person,
     this.image,
   });
@@ -34,8 +38,11 @@ class PersonDelegateData {
   final bool isOnline;
   final bool isMessage;
   final bool isUnread;
+  final int unreadCount;
   final bool isTime;
   final bool isRoom;
+  final int status;
+  final bool isContact;
   final IconData icon;
   final MemoryImage? image;
 
@@ -45,10 +52,54 @@ class PersonDelegateData {
       name: chatData.chatName ?? 'Unknown Chat',
       message: chatData.lobbyTopic ?? '',
       mId: chatData.chatId?.toString(),
-      isRoom: true,
+      isRoom: chatData.isPublic,
       isMessage: true,
       icon: (chatData.isPublic) ? Icons.public : Icons.lock,
       isUnread: (chatData.unreadCount) > 0,
+      unreadCount: chatData.unreadCount,
+    );
+  }
+
+  static PersonDelegateData distantChatData(
+    Chat chat,
+    Identity identity,
+    BuildContext context,
+  ) {
+    final friendLocs =
+        Provider.of<FriendLocations>(context, listen: false).friendlist;
+    final matchingLocs = friendLocs.where((loc) =>
+        loc.rsGpgId.isNotEmpty &&
+        identity.pgpId != null &&
+        loc.rsGpgId.toLowerCase() == identity.pgpId!.toLowerCase() &&
+        loc.rsGpgId != '0000000000000000');
+
+    final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
+
+    int effectiveStatus = identity.status;
+    for (final loc in matchingLocs) {
+      if (loc.isOnline) {
+        int locStat = loc.status == 4 ? 0 : loc.status;
+        int curStat = effectiveStatus == 4 ? 0 : effectiveStatus;
+        if (locStat > curStat) {
+          effectiveStatus = loc.status;
+        } else if (effectiveStatus == 0) {
+          effectiveStatus = 3; // Online
+        }
+      }
+    }
+
+    return PersonDelegateData(
+      name: identity.name ?? chat.chatName ?? 'Unknown Identity',
+      mId: identity.mId,
+      image: identity.avatar != null && identity.avatar!.isNotEmpty
+          ? MemoryImage(base64Decode(identity.avatar!))
+          : null,
+      status: effectiveStatus,
+      isOnline: isAnyLocationOnline,
+      isContact: identity.isContact,
+      isMessage: true,
+      isUnread: chat.unreadCount > 0,
+      unreadCount: chat.unreadCount,
     );
   }
 
@@ -81,30 +132,65 @@ class PersonDelegateData {
     final currentIdenInfo =
         Provider.of<Identities>(context, listen: false).currentIdentity;
 
+    final friendLocs =
+        Provider.of<FriendLocations>(context, listen: false).friendlist;
+
+    final matchingLocs = friendLocs.where((loc) =>
+        loc.rsGpgId.isNotEmpty &&
+        identity.pgpId != null &&
+        loc.rsGpgId.toLowerCase() == identity.pgpId!.toLowerCase() &&
+        loc.rsGpgId != '0000000000000000');
+
+    final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
+
+    int effectiveStatus = identity.status;
+    
+    // Check if any matching online location has a more specific status
+    for (final loc in matchingLocs) {
+      if (loc.isOnline) {
+        // Map INACTIVE (4) to something lower than ONLINE (3) for priority
+        int locStat = loc.status == 4 ? 0 : loc.status;
+        int curStat = effectiveStatus == 4 ? 0 : effectiveStatus;
+        if (locStat > curStat) {
+          effectiveStatus = loc.status;
+        } else if (effectiveStatus == 0) {
+          effectiveStatus = 3; // Default to Online (3) if we know it's connected
+        }
+      }
+    }
+
+    final unreadCount = currentIdenInfo != null
+        ? Provider.of<RoomChatLobby>(context, listen: false)
+            .getUnreadCount(identity, currentIdenInfo)
+        : 0;
+
     return PersonDelegateData(
       name: identity.name ?? 'Unknown Identity',
       mId: identity.mId,
       image: identity.avatar != null && identity.avatar!.isNotEmpty
           ? MemoryImage(base64Decode(identity.avatar!))
           : null,
+      status: effectiveStatus,
+      isOnline: isAnyLocationOnline,
+      isContact: identity.isContact,
       isMessage: true,
       // ignore: avoid_bool_literals_in_conditional_expressions
-      isUnread: currentIdenInfo != null &&
-              Provider.of<RoomChatLobby>(context, listen: false)
-                      .getUnreadCount(identity, currentIdenInfo) >
-                  0
-          ? true
-          : false,
+      isUnread: unreadCount > 0,
+      unreadCount: unreadCount,
     );
   }
 
   // ignore: non_constant_identifier_names
   static PersonDelegateData locationData(Location location) {
     return PersonDelegateData(
-      name: location.accountName,
-      message: location.locationName,
+      name: '${location.accountName}:${location.locationName}',
+      mId: null,
+      message: '${location.rsGpgId}:${location.rsPeerId}',
       isOnline: location.isOnline,
+      status: location.status,
+      isContact: true,
       isMessage: true,
+      icon: Icons.devices,
     );
   }
 }
@@ -114,12 +200,14 @@ class PersonDelegate extends StatefulWidget {
     required this.data,
     this.onPressed,
     this.onLongPress,
+    this.onAvatarPressed,
     this.isSelectable = false,
     super.key,
   });
   final PersonDelegateData data;
   final Function? onPressed;
   final Function? onLongPress;
+  final Function? onAvatarPressed;
   final bool isSelectable;
 
   @override
@@ -187,10 +275,27 @@ class PersonDelegateState extends State<PersonDelegate>
     _tapPosition = details.globalPosition;
   }
 
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 3: // RS_STATUS_ONLINE
+        return Colors.lightGreenAccent;
+      case 1: // RS_STATUS_AWAY
+        return Colors.orange;
+      case 2: // RS_STATUS_BUSY
+        return Colors.red;
+      case 4: // RS_STATUS_INACTIVE
+        return Colors.grey.withOpacity(0.8);
+      default:
+        return Colors.grey.withOpacity(0.5);
+    }
+  }
+
   Widget _build(BuildContext context, [Identity? id]) {
     return GestureDetector(
       onTap: () {
-        widget.onPressed!();
+        if (widget.onPressed != null) {
+          widget.onPressed!();
+        }
       },
       onLongPress: () {
         if (widget.onLongPress != null && _tapPosition != null) {
@@ -234,75 +339,81 @@ class PersonDelegateState extends State<PersonDelegate>
                     ),
                   ),
                   Center(
-                    child: Container(
-                      height: widget.data.isUnread
-                          ? delegateHeight * 0.88
-                          : delegateHeight * 0.8,
-                      width: widget.data.isUnread
-                          ? delegateHeight * 0.88
-                          : delegateHeight * 0.8,
-                      decoration: (widget.data.image == null)
-                          ? null
-                          : BoxDecoration(
-                              border: widget.data.isUnread
-                                  ? Border.all(
-                                      color: Colors.white,
-                                      width: delegateHeight * 0.03,
-                                    )
-                                  : null,
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(
-                                delegateHeight * 0.92 * 0.33,
-                              ),
-                              image: widget.data.image != null
-                                  ? DecorationImage(
-                                      fit: BoxFit.fill,
-                                      image: widget.data.image!,
-                                      onError: (exception, stackTrace) {
-                                        print(
-                                          'Error loading image in PersonDelegate: $exception',
-                                        );
-                                      },
-                                    )
-                                  : null,
-                            ),
-                      child: Visibility(
-                        visible: widget.data.image == null,
-                        child: Center(
-                          child: (widget.data.mId != null)
-                              ? Identicon(
-                                  id: widget.data.mId!,
-                                  size: delegateHeight * 0.8,
-                                  borderRadius: delegateHeight * 0.92 * 0.33,
-                                )
-                              : Icon(
-                                  widget.data.icon,
-                                  size: personDelegateIconHeight,
+                    child: GestureDetector(
+                      onTap: widget.onAvatarPressed != null
+                          ? () => widget.onAvatarPressed!()
+                          : null,
+                      child: Container(
+                        height: widget.data.isUnread
+                            ? delegateHeight * 0.88
+                            : delegateHeight * 0.8,
+                        width: widget.data.isUnread
+                            ? delegateHeight * 0.88
+                            : delegateHeight * 0.8,
+                        decoration: (widget.data.image == null)
+                            ? null
+                            : BoxDecoration(
+                                border: widget.data.isUnread
+                                    ? Border.all(
+                                        color: Colors.white,
+                                        width: delegateHeight * 0.03,
+                                      )
+                                    : null,
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(
+                                  delegateHeight * 0.92 * 0.33,
                                 ),
+                                image: widget.data.image != null
+                                    ? DecorationImage(
+                                        fit: BoxFit.fill,
+                                        image: widget.data.image!,
+                                        onError: (exception, stackTrace) {
+                                          print(
+                                            'Error loading image in PersonDelegate: $exception',
+                                          );
+                                        },
+                                      )
+                                    : null,
+                              ),
+                        child: Visibility(
+                          visible: widget.data.image == null,
+                          child: Center(
+                            child: (widget.data.mId != null)
+                                ? Identicon(
+                                    id: widget.data.mId!,
+                                    size: delegateHeight * 0.8,
+                                    borderRadius: delegateHeight * 0.92 * 0.33,
+                                  )
+                                : Icon(
+                                    widget.data.icon,
+                                    size: personDelegateIconHeight,
+                                  ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  Visibility(
-                    visible: widget.data.isOnline,
-                    child: Positioned(
-                      bottom: delegateHeight * 0.73,
-                      left: delegateHeight * 0.73,
+                  if (!widget.data.isRoom &&
+                      widget.data.isContact &&
+                      (widget.data.isOnline || widget.data.status != 0))
+                    Positioned(
+                      bottom: 6,
+                      right: 6,
                       child: Container(
-                        height: delegateHeight * 0.25,
-                        width: delegateHeight * 0.25,
+                        height: 14,
+                        width: 14,
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: Colors.white,
-                            width: delegateHeight * 0.03,
+                            color: Theme.of(context).colorScheme.surface,
+                            width: 2,
                           ),
-                          color: Colors.lightGreenAccent,
-                          borderRadius:
-                              BorderRadius.circular(delegateHeight * 0.3 * 0.5),
+                          color: widget.data.status != 0
+                              ? _getStatusColor(widget.data.status)
+                              : Colors.lightGreenAccent,
+                          shape: BoxShape.circle,
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -331,11 +442,14 @@ class PersonDelegateState extends State<PersonDelegate>
                               _curvedAnimation.value == 1,
                           child: IconButton(
                             icon: const Icon(Icons.navigate_next),
-                            onPressed: () =>
+                            onPressed: () {
+                              if (id != null) {
                                 Navigator.of(context).pushReplacementNamed(
-                              '/profile',
-                              arguments: {'id': id},
-                            ),
+                                  '/profile',
+                                  arguments: {'id': id},
+                                );
+                              }
+                            },
                           ),
                         ),
                       ],
@@ -353,10 +467,40 @@ class PersonDelegateState extends State<PersonDelegate>
               ),
             ),
             Visibility(
-              visible: widget.data.isTime,
-              child: Text(
-                widget.data.time,
-                style: Theme.of(context).textTheme.labelSmall,
+              visible: widget.data.isTime || widget.data.isUnread,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (widget.data.isTime)
+                    Text(
+                      widget.data.time,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  if (widget.data.isUnread && widget.data.unreadCount > 0)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 20,
+                        minHeight: 20,
+                      ),
+                      child: Center(
+                        child: Text(
+                          widget.data.unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
@@ -394,22 +538,41 @@ Future<void> showCustomMenu(
   Icon icon,
   Function action,
   Offset tapPosition,
-  BuildContext context,
-) async {
+  BuildContext context, {
+  List<({String title, Icon icon, Function action})>? additionalActions,
+}) async {
   final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+
+  final List<PopupMenuEntry<int>> items = [
+    PopupMenuItem(
+      value: 0,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+        leading: icon,
+        title: Text(title, style: Theme.of(context).textTheme.bodyLarge),
+      ),
+    ),
+  ];
+
+  if (additionalActions != null) {
+    for (int i = 0; i < additionalActions.length; i++) {
+      items.add(
+        PopupMenuItem(
+          value: i + 1,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+            leading: additionalActions[i].icon,
+            title: Text(additionalActions[i].title,
+                style: Theme.of(context).textTheme.bodyLarge),
+          ),
+        ),
+      );
+    }
+  }
 
   final delta = await showMenu(
     context: context,
-    items: <PopupMenuEntry>[
-      PopupMenuItem(
-        value: 0,
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-          leading: icon,
-          title: Text(title, style: Theme.of(context).textTheme.bodyLarge),
-        ),
-      ),
-    ],
+    items: items,
     position: RelativeRect.fromRect(
       tapPosition & const Size(40, 40),
       Offset.zero & overlay.semanticBounds.size,
@@ -417,6 +580,10 @@ Future<void> showCustomMenu(
   );
 
   if (delta != null) {
-    if (delta == 0) action();
+    if (delta == 0) {
+      action();
+    } else if (additionalActions != null && delta <= additionalActions.length) {
+      additionalActions[delta - 1].action();
+    }
   }
 }

@@ -4,8 +4,9 @@ import 'package:retroshare/common/styles.dart';
 
 SliverPersistentHeader sliverPersistentHeader(
   String headerText,
-  BuildContext context,
-) {
+  BuildContext context, {
+  Widget? trailing,
+}) {
   return SliverPersistentHeader(
     pinned: true,
     delegate: _SliverAppBarDelegate(
@@ -13,11 +14,16 @@ SliverPersistentHeader sliverPersistentHeader(
       maxHeight: 3 * personDelegateHeight / 4,
       child: Container(
         color: Theme.of(context).colorScheme.surface,
-        padding: const EdgeInsets.only(left: personDelegateHeight / 4),
-        alignment: Alignment.centerLeft,
-        child: Text(
-          headerText,
-          style: Theme.of(context).textTheme.bodyLarge,
+        padding: const EdgeInsets.symmetric(horizontal: personDelegateHeight / 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              headerText,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            if (trailing != null) trailing,
+          ],
         ),
       ),
     ),

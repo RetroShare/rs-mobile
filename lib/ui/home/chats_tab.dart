@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/person_delegate.dart';
 import 'package:retroshare/common/styles.dart';
+import 'package:retroshare/provider/friend_location.dart';
 import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/provider/subscribed.dart';
@@ -19,8 +20,8 @@ class ChatsTab extends StatelessWidget {
     return SafeArea(
       top: false,
       bottom: false,
-      child: Consumer2<ChatLobby, RoomChatLobby>(
-        builder: (context, chatLobby, roomChat, _) {
+      child: Consumer3<ChatLobby, RoomChatLobby, FriendLocations>(
+        builder: (context, chatLobby, roomChat, friendLocations, _) {
           final List<Chat> allChats = [
             ...chatLobby.subscribedlist,
             ...roomChat.distanceChat.values.toSet().where((c) => !c.isPublic),
@@ -42,19 +43,30 @@ class ChatsTab extends StatelessWidget {
                       (BuildContext context, int index) {
                         final chat = allChats[index];
                         final isRoom = chat.isPublic;
+                        final identity = roomChat.allIdentity[chat.interlocutorId] ??
+                            Identity(
+                              mId: chat.interlocutorId,
+                              signed: false,
+                              isContact: false,
+                              name: chat.chatName,
+                            );
                         return PersonDelegate(
                           data: isRoom
                               ? PersonDelegateData.chatData(chat)
-                              : PersonDelegateData.identityData(
-                                  roomChat.allIdentity[chat.interlocutorId] ??
-                                      Identity(
-                                        mId: chat.interlocutorId,
-                                        signed: false,
-                                        isContact: false,
-                                        name: chat.chatName,
-                                      ),
+                              : PersonDelegateData.distantChatData(
+                                  chat,
+                                  identity,
                                   context,
                                 ),
+                          onAvatarPressed: isRoom
+                              ? null
+                              : () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/profile',
+                                    arguments: {'id': identity},
+                                  );
+                                },
                           onPressed: () async {
                             final curr =
                                 Provider.of<Identities>(context, listen: false)
@@ -91,6 +103,51 @@ class ChatsTab extends StatelessWidget {
                                 ),
                                 tapPosition,
                                 context,
+                              );
+                            } else {
+                              showCustomMenu(
+                                identity.isContact
+                                    ? 'Remove from contacts'
+                                    : 'Add to contacts',
+                                Icon(
+                                    identity.isContact
+                                        ? Icons.person_remove
+                                        : Icons.person_add,
+                                    color: Colors.black),
+                                () {
+                                  Provider.of<RoomChatLobby>(context,
+                                          listen: false)
+                                      .toggleContacts(
+                                          identity.mId, !identity.isContact);
+                                },
+                                tapPosition,
+                                context,
+                                additionalActions: [
+                                  (
+                                    title: 'View Details',
+                                    icon: const Icon(Icons.info_outline,
+                                        color: Colors.black),
+                                    action: () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/profile',
+                                        arguments: {'id': identity},
+                                      );
+                                    },
+                                  ),
+                                  (
+                                    title: 'Remove chat',
+                                    icon: const Icon(Icons.delete_outline,
+                                        color: Colors.black),
+                                    action: () {
+                                      if (chat.chatId != null) {
+                                        Provider.of<RoomChatLobby>(context,
+                                                listen: false)
+                                            .removeDistantChat(chat.chatId!);
+                                      }
+                                    },
+                                  ),
+                                ],
                               );
                             }
                           },

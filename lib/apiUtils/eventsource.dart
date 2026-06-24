@@ -13,24 +13,42 @@ Future<void> registerChatEvent(
   BuildContext context,
   AuthToken authToken,
 ) async {
-  await await eventsRegisterChatMessage(
+  await eventsRegisterChatMessage(
     listenCb: (var json, ChatMessage msg) {
+      final roomChatLobby = Provider.of<RoomChatLobby>(context, listen: false);
+      final chatLobby = Provider.of<ChatLobby>(context, listen: false);
+
       // Check if is a lobby chat
       if (msg.isLobbyMessage()) {
-        Provider.of<RoomChatLobby>(context, listen: false)
-            .chatIdentityCheck(msg);
+        final lobbyId = msg.chatId?.lobbyId?.xstr64 ?? '';
+        
+        roomChatLobby.chatIdentityCheck(msg);
         showChatNotify(msg, context);
-        Provider.of<RoomChatLobby>(context, listen: false)
-            .addChatMessage(msg, msg.chatId?.lobbyId?.xstr64 ?? '');
+        roomChatLobby.addChatMessage(msg, lobbyId);
+
+        // Increment unread count if not current chat
+        if (roomChatLobby.currentChat?.chatId != lobbyId) {
+          chatLobby.incrementUnreadCount(lobbyId);
+        }
       }
       // Check if is distant chat message
       else if (msg.chatId?.distantChatId != null) {
+        final distantId = msg.chatId!.distantChatId!;
+
         // First check if the recieved message
         //is from an already registered chat
-        Provider.of<RoomChatLobby>(context, listen: false)
-            .chatIdentityCheck(msg);
-        Provider.of<RoomChatLobby>(context, listen: false)
-            .getDistanceChatStatus(msg);
+        roomChatLobby.chatIdentityCheck(msg);
+        showChatNotify(msg, context);
+        
+        // Handle distant chat metadata and message addition
+        roomChatLobby.getDistanceChatStatus(msg).then((_) {
+          // Increment unread count if not current chat
+          if (roomChatLobby.currentChat?.chatId != distantId) {
+            roomChatLobby.incrementUnreadCount(distantId);
+          }
+        }).catchError((e) {
+          debugPrint('Error processing distant chat message: $e');
+        });
       }
     },
     authToken: authToken,

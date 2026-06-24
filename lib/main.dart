@@ -51,18 +51,30 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         ),
         ChangeNotifierProxyProvider<AccountCredentials, FriendLocations>(
           create: (_) => FriendLocations(),
-          update: (_, auth, friendLocations) =>
-              friendLocations!..authToken = auth.authtoken!,
+          update: (_, auth, friendLocations) {
+            if (auth.authtoken != null) {
+              friendLocations!..authToken = auth.authtoken!;
+            }
+            return friendLocations!;
+          },
         ),
         ChangeNotifierProxyProvider<AccountCredentials, ChatLobby>(
           create: (_) => ChatLobby(),
-          update: (_, auth, chatLobby) =>
-              chatLobby!..authToken = auth.authtoken!,
+          update: (_, auth, chatLobby) {
+            if (auth.authtoken != null) {
+              chatLobby!..authToken = auth.authtoken!;
+            }
+            return chatLobby!;
+          },
         ),
         ChangeNotifierProxyProvider<AccountCredentials, RoomChatLobby>(
           create: (_) => RoomChatLobby(),
-          update: (_, auth, roomChatLobby) =>
-              roomChatLobby!..authToken = auth.authtoken!,
+          update: (_, auth, roomChatLobby) {
+            if (auth.authtoken != null) {
+              roomChatLobby!..authToken = auth.authtoken!;
+            }
+            return roomChatLobby!;
+          },
         ),
       ],
       child: AdaptiveTheme(

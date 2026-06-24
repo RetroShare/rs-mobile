@@ -4,6 +4,7 @@ import 'package:retroshare/apiUtils/eventsource.dart';
 import 'package:retroshare/common/drawer.dart';
 import 'package:retroshare/common/styles.dart';
 import 'package:retroshare/provider/auth.dart';
+import 'package:retroshare/provider/friend_location.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare/ui/home/chats_tab.dart';
@@ -20,6 +21,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late final TabController _tabController;
   bool _isInit = true;
   bool _isLoading = false;
+  bool _isEventRegistered = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -52,10 +54,14 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       await Provider.of<ChatLobby>(context, listen: false).fetchAndUpdate();
       await Provider.of<RoomChatLobby>(context, listen: false).fetchAndUpdate();
+      await Provider.of<FriendLocations>(context, listen: false).fetchfriendLocation();
 
       final authToken =
           Provider.of<AccountCredentials>(context, listen: false).authtoken;
-      if (authToken != null) await registerChatEvent(context, authToken);
+      if (authToken != null && !_isEventRegistered) {
+        await registerChatEvent(context, authToken);
+        _isEventRegistered = true;
+      }
     } catch (e) {
       debugPrint('Error during initial data fetch: $e');
       if (!mounted) return;
@@ -75,6 +81,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       await Provider.of<ChatLobby>(context, listen: false).fetchAndUpdate();
       await Provider.of<RoomChatLobby>(context, listen: false).fetchAndUpdate();
+      await Provider.of<FriendLocations>(context, listen: false).fetchfriendLocation();
     } catch (e) {
       debugPrint('Error during fetchdata: $e');
       if (!mounted) return;
@@ -186,15 +193,51 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  TabBar(
-                    controller: _tabController,
-                    indicatorColor: Colors.white,
-                    labelColor: Colors.white,
-                    unselectedLabelColor: Colors.white70,
-                    tabs: const [
-                      Tab(text: 'Chats'),
-                      Tab(text: 'Friends'),
-                    ],
+                  Consumer2<ChatLobby, RoomChatLobby>(
+                    builder: (context, chatLobby, roomChatLobby, _) {
+                      final int totalUnread = chatLobby.subscribedlist
+                              .fold(0, (sum, chat) => sum + chat.unreadCount) +
+                          roomChatLobby.distanceChat.values
+                              .toSet()
+                              .where((c) => !c.isPublic)
+                              .fold(0, (sum, chat) => sum + chat.unreadCount);
+
+                      return TabBar(
+                        controller: _tabController,
+                        indicatorColor: Colors.white,
+                        labelColor: Colors.white,
+                        unselectedLabelColor: Colors.white70,
+                        tabs: [
+                          Tab(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text('Chats'),
+                                if (totalUnread > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      totalUnread.toString(),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const Tab(text: 'Friends'),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -248,25 +291,63 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Expanded(
                   child: InkWell(
                     onTap: () => _tabController.animateTo(0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          color: _tabController.index == 0
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).disabledColor,
-                        ),
-                        Text(
-                          'Chats',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: _tabController.index == 0
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).disabledColor,
-                          ),
-                        ),
-                      ],
+                    child: Consumer2<ChatLobby, RoomChatLobby>(
+                      builder: (context, chatLobby, roomChatLobby, _) {
+                        final int totalUnread = chatLobby.subscribedlist.fold(0, (sum, chat) => sum + chat.unreadCount) +
+                            roomChatLobby.distanceChat.values.toSet().where((c) => !c.isPublic).fold(0, (sum, chat) => sum + chat.unreadCount);
+                        
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Icon(
+                                  Icons.chat_bubble_outline,
+                                  color: _tabController.index == 0
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).disabledColor,
+                                ),
+                                if (totalUnread > 0)
+                                  Positioned(
+                                    right: -8,
+                                    top: -8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 16,
+                                        minHeight: 16,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          totalUnread > 99 ? '99+' : totalUnread.toString(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            Text(
+                              'Chats',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: _tabController.index == 0
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).disabledColor,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),

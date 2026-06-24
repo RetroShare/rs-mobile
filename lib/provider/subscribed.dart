@@ -70,6 +70,22 @@ class ChatLobby with ChangeNotifier {
     await fetchAndUpdateUnsubscribed();
   }
 
+  void incrementUnreadCount(String lobbyId) {
+    final index = _chatlist.indexWhere((c) => c.chatId == lobbyId);
+    if (index != -1) {
+      _chatlist[index].unreadCount++;
+      notifyListeners();
+    }
+  }
+
+  void resetUnreadCount(String lobbyId) {
+    final index = _chatlist.indexWhere((c) => c.chatId == lobbyId);
+    if (index != -1) {
+      _chatlist[index].unreadCount = 0;
+      notifyListeners();
+    }
+  }
+
   Future<void> createChatlobby(
     String lobbyName,
     String idToUse,

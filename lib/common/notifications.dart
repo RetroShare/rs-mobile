@@ -13,7 +13,7 @@ Future<void> initializeNotifications() async {
       await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
 
   const initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_notification');
+      AndroidInitializationSettings('@mipmap/ic_launcher');
   const initializationSettings =
       InitializationSettings(android: initializationSettingsAndroid);
   await flutterLocalNotificationsPlugin.initialize(
