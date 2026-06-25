@@ -89,13 +89,25 @@ class Identities with ChangeNotifier {
     if (!success) {
       throw 'Try Again';
     }
-    for (var i in _ownidentities) {
-      if (i.mId == id.mId) {
-        i = id;
+    
+    // Refresh to get the latest details from the core (including PGP info if applicable)
+    await fetchOwnidenities();
+    
+    // Fallback if the list didn't include the updated ID for some reason
+    bool found = false;
+    for (int i = 0; i < _ownidentities.length; i++) {
+      if (_ownidentities[i].mId == id.mId) {
+        _ownidentities[i] = id;
+        _currentIdentity = _ownidentities[i];
+        found = true;
         break;
       }
     }
-    _currentIdentity = id;
+    
+    if (!found) {
+      _currentIdentity = id;
+    }
+
     _selected = _currentIdentity;
     notifyListeners();
   }

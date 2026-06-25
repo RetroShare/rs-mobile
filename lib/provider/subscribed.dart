@@ -13,8 +13,15 @@ class ChatLobby with ChangeNotifier {
     final list = await RsMsgs.getSubscribedChatLobbies(authToken);
     final chatsList = <Chat>[];
     for (var i = 0; i < list.length; i++) {
-      final chatItem =
-          await RsMsgs.getChatLobbyInfo(list[i]['xstr64'], authToken);
+      final chatId = list[i]['xstr64'];
+      final chatItem = await RsMsgs.getChatLobbyInfo(chatId, authToken);
+      
+      // Preserve unread count from existing object if present
+      final existingChat = _chatlist.firstWhere(
+        (c) => c.chatId == chatId,
+        orElse: () => Chat(ownIdToUse: '', interlocutorId: '', isPublic: true),
+      );
+      final int existingUnread = existingChat.chatId != null ? existingChat.unreadCount : 0;
 
       chatsList.add(
         Chat(
@@ -30,6 +37,7 @@ class ChatLobby with ChangeNotifier {
           isPublic:
               chatItem['lobby_flags'] == 4 || chatItem['lobby_flags'] == 20,
           interlocutorId: chatItem['gxs_id'],
+          unreadCount: existingUnread,
         ),
       );
     }
@@ -47,8 +55,15 @@ class ChatLobby with ChangeNotifier {
     final list = await RsMsgs.getSubscribedChatLobbies(authToken);
     final chatsList = <Chat>[];
     for (var i = 0; i < list.length; i++) {
-      final chatItem =
-          await RsMsgs.getChatLobbyInfo(list[i]['xstr64'], authToken);
+      final chatId = list[i]['xstr64'];
+      final chatItem = await RsMsgs.getChatLobbyInfo(chatId, authToken);
+      
+      final existingChat = _chatlist.firstWhere(
+        (c) => c.chatId == chatId,
+        orElse: () => Chat(ownIdToUse: '', interlocutorId: '', isPublic: true),
+      );
+      final int existingUnread = existingChat.chatId != null ? existingChat.unreadCount : 0;
+
       chatsList.add(
         Chat(
           chatId: chatItem['lobby_id']['xstr64'],
@@ -63,6 +78,7 @@ class ChatLobby with ChangeNotifier {
           isPublic:
               chatItem['lobby_flags'] == 4 || chatItem['lobby_flags'] == 20,
           interlocutorId: chatItem['gxs_id'],
+          unreadCount: existingUnread,
         ),
       );
     }

@@ -22,9 +22,18 @@ class ChatsTab extends StatelessWidget {
       bottom: false,
       child: Consumer3<ChatLobby, RoomChatLobby, FriendLocations>(
         builder: (context, chatLobby, roomChat, friendLocations, _) {
+          final Set<String> processedDistantIds = {};
+          final List<Chat> distantChats = [];
+          for (final chat in roomChat.distanceChat.values) {
+            if (!chat.isPublic && chat.chatId != null && !processedDistantIds.contains(chat.chatId)) {
+              distantChats.add(chat);
+              processedDistantIds.add(chat.chatId!);
+            }
+          }
+
           final List<Chat> allChats = [
             ...chatLobby.subscribedlist,
-            ...roomChat.distanceChat.values.toSet().where((c) => !c.isPublic),
+            ...distantChats,
           ];
 
           if (allChats.isNotEmpty) {

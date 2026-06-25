@@ -195,12 +195,20 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   const SizedBox(height: 10),
                   Consumer2<ChatLobby, RoomChatLobby>(
                     builder: (context, chatLobby, roomChatLobby, _) {
-                      final int totalUnread = chatLobby.subscribedlist
-                              .fold(0, (sum, chat) => sum + chat.unreadCount) +
-                          roomChatLobby.distanceChat.values
-                              .toSet()
-                              .where((c) => !c.isPublic)
-                              .fold(0, (sum, chat) => sum + chat.unreadCount);
+                      // Aggregate room unreads
+                      final int roomUnread = chatLobby.subscribedlist.fold(0, (sum, chat) => sum + chat.unreadCount);
+                      
+                      // Aggregate distant chat unreads, ensuring we only count each unique chat once
+                      final Set<String> processedDistantIds = {};
+                      int distantUnread = 0;
+                      for (final chat in roomChatLobby.distanceChat.values) {
+                        if (!chat.isPublic && chat.chatId != null && !processedDistantIds.contains(chat.chatId)) {
+                          distantUnread += chat.unreadCount;
+                          processedDistantIds.add(chat.chatId!);
+                        }
+                      }
+                      
+                      final int totalUnread = roomUnread + distantUnread;
 
                       return TabBar(
                         controller: _tabController,
@@ -293,8 +301,20 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     onTap: () => _tabController.animateTo(0),
                     child: Consumer2<ChatLobby, RoomChatLobby>(
                       builder: (context, chatLobby, roomChatLobby, _) {
-                        final int totalUnread = chatLobby.subscribedlist.fold(0, (sum, chat) => sum + chat.unreadCount) +
-                            roomChatLobby.distanceChat.values.toSet().where((c) => !c.isPublic).fold(0, (sum, chat) => sum + chat.unreadCount);
+                        // Aggregate room unreads
+                        final int roomUnread = chatLobby.subscribedlist.fold(0, (sum, chat) => sum + chat.unreadCount);
+                        
+                        // Aggregate distant chat unreads, ensuring we only count each unique chat once
+                        final Set<String> processedDistantIds = {};
+                        int distantUnread = 0;
+                        for (final chat in roomChatLobby.distanceChat.values) {
+                          if (!chat.isPublic && chat.chatId != null && !processedDistantIds.contains(chat.chatId)) {
+                            distantUnread += chat.unreadCount;
+                            processedDistantIds.add(chat.chatId!);
+                          }
+                        }
+                        
+                        final int totalUnread = roomUnread + distantUnread;
                         
                         return Column(
                           mainAxisSize: MainAxisSize.min,

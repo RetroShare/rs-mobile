@@ -465,7 +465,10 @@ class SignUpScreenState extends State<SignUpScreen> {
           alignment: Alignment.center,
           child: const Text(
             'Create account',
-            style: TextStyle(fontSize: 20),
+            style: TextStyle(
+              fontSize: 20,
+              color: Colors.white,
+            ),
             textAlign: TextAlign.center,
           ),
         ),

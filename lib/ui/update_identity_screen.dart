@@ -32,8 +32,13 @@ class UpdateIdentityScreenState extends State<UpdateIdentityScreen> {
     super.initState();
     final curr = widget.curr;
     nameController = TextEditingController(text: curr?.name ?? '');
-    if (curr != null && curr.avatar != null) {
-      _image = RsGxsImage(mData: base64.decode(curr.avatar));
+    if (curr != null && curr.avatar != null && curr.avatar.isNotEmpty) {
+      final decoded = base64.decode(curr.avatar);
+      _image = RsGxsImage(
+        mData: decoded,
+        base64String: curr.avatar,
+        mSize: decoded.length,
+      );
     }
   }
 

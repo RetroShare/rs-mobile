@@ -131,6 +131,7 @@ class FriendsTabState extends State<FriendsTab> {
                     itemExtent: personDelegateHeight,
                     delegate: SliverChildBuilderDelegate(
                       (BuildContext context, int index) {
+                        final bool isMe = identities.currentIdentity?.mId == friendsList[index].mId;
                         return PersonDelegate(
                           data: PersonDelegateData.identityData(
                             friendsList[index],
@@ -143,7 +144,7 @@ class FriendsTabState extends State<FriendsTab> {
                               arguments: {'id': friendsList[index]},
                             );
                           },
-                          onLongPress: (Offset tapPosition) {
+                          onLongPress: isMe ? null : (Offset tapPosition) {
                               showCustomMenu(
                                 'Remove from contacts',
                                 const Icon(
@@ -171,7 +172,7 @@ class FriendsTabState extends State<FriendsTab> {
                                 ],
                               );
                             },
-                            onPressed: () async {
+                            onPressed: isMe ? null : () async {
                               final curr = Provider.of<Identities>(
                                 context,
                                 listen: false,
@@ -184,6 +185,7 @@ class FriendsTabState extends State<FriendsTab> {
                                 curr,
                                 friendsList[index],
                               );
+                              if (chatData == null) return;
                               if (!context.mounted) return;
                               await Navigator.pushNamed(
                                 context,
@@ -225,6 +227,8 @@ class FriendsTabState extends State<FriendsTab> {
                                   signed: false,
                                   isContact: false,
                                 );
+                        final bool isMe = identities.currentIdentity?.mId == actualId.mId;
+
                         return PersonDelegate(
                           data: PersonDelegateData.identityData(
                             actualId,
@@ -237,7 +241,7 @@ class FriendsTabState extends State<FriendsTab> {
                               arguments: {'id': actualId},
                             );
                           },
-                          onLongPress: (Offset tapPosition) {
+                          onLongPress: isMe ? null : (Offset tapPosition) {
                               showCustomMenu(
                                 'Add to contacts',
                                 const Icon(
@@ -263,7 +267,7 @@ class FriendsTabState extends State<FriendsTab> {
                                 ],
                               );
                             },
-                            onPressed: () async {
+                            onPressed: isMe ? null : () async {
                               final curr = Provider.of<Identities>(
                                 context,
                                 listen: false,
@@ -273,6 +277,7 @@ class FriendsTabState extends State<FriendsTab> {
                                 context,
                                 listen: false,
                               ).getChat(curr, actualId);
+                              if (chatData == null) return;
                               if (!context.mounted) return;
                               await Navigator.pushNamed(
                                 context,

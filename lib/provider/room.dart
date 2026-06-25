@@ -222,9 +222,16 @@ class RoomChatLobby with ChangeNotifier {
         }
       }
     }
+    
+    // If still null, maybe it's indexed by composite ID but has a different tunnel ID now
+    // This can happen if a chat is re-initiated
+    if (targetChat == null) {
+      // No match found
+    }
 
     if (targetChat != null) {
       targetChat.unreadCount++;
+      // Ensure all references to this chat object are updated (they should be since it's the same object)
       notifyListeners();
     }
   }
@@ -387,6 +394,11 @@ class RoomChatLobby with ChangeNotifier {
     final toId = chat.interlocutorId;
     final fromId = chat.ownIdToUse;
 
+    if (toId == fromId) {
+      debugPrint('Warning: Attempted to initiate distant chat with self ($toId). Aborting.');
+      return null;
+    }
+
     try {
       final resp = await RsMsgs.c(chat, _authToken);
       if (resp['retval'] == true && resp['pid'] is String) {
@@ -413,6 +425,11 @@ class RoomChatLobby with ChangeNotifier {
 
     if (to is Identity) {
       final toId = to.mId;
+
+      if (toId == currentId) {
+        debugPrint('Warning: Cannot create distant chat with self ($currentId).');
+        return null;
+      }
 
       final distantChatId = _generateDistantChatId(toId, currentId);
       // Explicitly unhide if user starts the chat manually

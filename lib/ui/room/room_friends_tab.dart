@@ -85,6 +85,7 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
             // 5. Simplify participant list retrieval
             final participantsMap = lobbyData.lobbyParticipants;
             final participantList = participantsMap[chatId] ?? [];
+            final currentIdentity = Provider.of<Identities>(context, listen: false).currentIdentity;
 
             // Show empty state or list
             return participantList.isEmpty
@@ -127,6 +128,8 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
                     itemBuilder: (BuildContext context, int index) {
                       // 6. Access is safe now assuming participantList is non-null List
                       final participant = participantList[index];
+                      final bool isMe = currentIdentity?.mId == participant.mId;
+
                       return PersonDelegate(
                         // Pass non-nullable participant
                         data: PersonDelegateData.identityData(
@@ -141,7 +144,7 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
                           );
                         },
                         // 7. Ensure showCustomMenu is defined and safe
-                        onLongPress: (Offset tapPosition) {
+                        onLongPress: isMe ? null : (Offset tapPosition) {
                           showCustomMenu(
                             participant.isContact
                                 ? 'Remove from contacts'
@@ -176,7 +179,7 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
                           );
                         },
                         // 8. Add basic error handling/check for navigation
-                        onPressed: () async {
+                        onPressed: isMe ? null : () async {
                             try {
                               final curr = Provider.of<Identities>(
                                 context,
@@ -190,6 +193,8 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
                                 context,
                                 listen: false,
                               ).getChat(curr, participant);
+
+                              if (chatData == null) return;
 
                               if (!context.mounted) return;
                               await Navigator.pushNamed(

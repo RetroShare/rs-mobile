@@ -230,25 +230,26 @@ class RoomScreenState extends State<RoomScreen>
                         );
                       },
                     ),
-                  PopupMenuButton<BubbleStyle>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (BubbleStyle result) {
-                      setState(() {
-                        _bubbleStyle = result;
-                      });
-                    },
-                    itemBuilder: (BuildContext context) =>
-                        <PopupMenuEntry<BubbleStyle>>[
-                      const PopupMenuItem<BubbleStyle>(
-                        value: BubbleStyle.bubble,
-                        child: Text('Bubble'),
-                      ),
-                      const PopupMenuItem<BubbleStyle>(
-                        value: BubbleStyle.compact,
-                        child: Text('Bubble Compact'),
-                      ),
-                    ],
-                  ),
+                  if (!widget.isRoom)
+                    PopupMenuButton<BubbleStyle>(
+                      icon: const Icon(Icons.more_vert),
+                      onSelected: (BubbleStyle result) {
+                        setState(() {
+                          _bubbleStyle = result;
+                        });
+                      },
+                      itemBuilder: (BuildContext context) =>
+                          <PopupMenuEntry<BubbleStyle>>[
+                        const PopupMenuItem<BubbleStyle>(
+                          value: BubbleStyle.bubble,
+                          child: Text('Bubble'),
+                        ),
+                        const PopupMenuItem<BubbleStyle>(
+                          value: BubbleStyle.compact,
+                          child: Text('Bubble Compact'),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
