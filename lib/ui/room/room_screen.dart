@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/common/styles.dart';
 import 'package:retroshare/provider/room.dart';
+import 'package:retroshare/provider/subscribed.dart';
+import 'package:retroshare/ui/room/message_delegate.dart';
 import 'package:retroshare/ui/room/messages_tab.dart';
 import 'package:retroshare/ui/room/room_friends_tab.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
@@ -21,6 +24,8 @@ class RoomScreenState extends State<RoomScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late Animation<Color?> _iconAnimation;
+  BubbleStyle _bubbleStyle = BubbleStyle.bubble;
+  Timer? _statusRefreshTimer;
 
   @override
   void didChangeDependencies() {
@@ -44,10 +49,31 @@ class RoomScreenState extends State<RoomScreen>
       }
       try {
         final roomProvider = Provider.of<RoomChatLobby>(context, listen: false);
+        final chatLobby = Provider.of<ChatLobby>(context, listen: false);
+
         if (widget.isRoom) {
           await roomProvider.updateParticipants(widget.chat.chatId!);
+          if (widget.chat.chatId != null) {
+            chatLobby.resetUnreadCount(widget.chat.chatId!);
+          }
+        } else if (widget.chat.chatId != null) {
+          // Trigger immediate status check for 1:1 chat
+          await roomProvider.refreshDistantChatStatus(
+            widget.chat.chatId!,
+            ChatId(distantChatId: widget.chat.chatId, type: ChatIdType.type2),
+          );
+
+          // Start periodic refresh while chat is open
+          _statusRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+            if (mounted) {
+              roomProvider.refreshDistantChatStatus(
+                widget.chat.chatId!,
+                ChatId(distantChatId: widget.chat.chatId, type: ChatIdType.type2),
+              );
+            }
+          });
         }
-        if (roomProvider.currentChat!.chatId != widget.chat.chatId) {
+        if (roomProvider.currentChat?.chatId != widget.chat.chatId) {
           roomProvider.updateCurrentChat(widget.chat);
         }
       } catch (e) {
@@ -63,6 +89,7 @@ class RoomScreenState extends State<RoomScreen>
 
   @override
   void dispose() {
+    _statusRefreshTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -76,6 +103,21 @@ class RoomScreenState extends State<RoomScreen>
     } catch (e) {
       debugPrint('Error decoding base64 image: $e');
       return null;
+    }
+  }
+
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 3: // RS_STATUS_ONLINE
+        return Colors.lightGreenAccent;
+      case 1: // RS_STATUS_AWAY
+        return Colors.orange;
+      case 2: // RS_STATUS_BUSY
+        return Colors.red;
+      case 4: // RS_STATUS_INACTIVE
+        return Colors.grey.withOpacity(0.8);
+      default:
+        return Colors.grey;
     }
   }
 
@@ -119,28 +161,56 @@ class RoomScreenState extends State<RoomScreen>
                     ),
                   ),
                   if (!widget.isRoom)
-                    SizedBox(
-                      width: appBarHeight,
-                      height: appBarHeight,
-                      child: CircleAvatar(
-                        radius: appBarHeight * 0.35,
-                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        backgroundImage: avatarImage,
-                        child: !hasAvatar
-                            ? Identicon(
-                                id: widget.chat.interlocutorId,
-                                size: appBarHeight * 0.7,
-                                borderRadius: appBarHeight * 0.35,
-                              )
-                            : null,
+                    GestureDetector(
+                      onTap: interlocutorIdentity == null
+                          ? null
+                          : () {
+                              Navigator.pushNamed(
+                                context,
+                                '/profile',
+                                arguments: {'id': interlocutorIdentity},
+                              );
+                            },
+                      child: Stack(
+                        children: [
+                          SizedBox(
+                            width: appBarHeight,
+                            height: appBarHeight,
+                            child: CircleAvatar(
+                              radius: appBarHeight * 0.35,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              backgroundImage: avatarImage,
+                              child: !hasAvatar
+                                  ? Identicon(
+                                      id: widget.chat.interlocutorId,
+                                      size: appBarHeight * 0.7,
+                                      borderRadius: appBarHeight * 0.35,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      displayName ?? 'Chat',
-                      style: Theme.of(context).textTheme.titleMedium,
-                      overflow: TextOverflow.ellipsis,
+                    child: GestureDetector(
+                      onTap: widget.isRoom || interlocutorIdentity == null
+                          ? null
+                          : () {
+                              Navigator.pushNamed(
+                                context,
+                                '/profile',
+                                arguments: {'id': interlocutorIdentity},
+                              );
+                            },
+                      child: Text(
+                        displayName ?? 'Chat',
+                        style: Theme.of(context).textTheme.titleMedium,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                   if (widget.isRoom)
@@ -160,6 +230,25 @@ class RoomScreenState extends State<RoomScreen>
                         );
                       },
                     ),
+                  PopupMenuButton<BubbleStyle>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (BubbleStyle result) {
+                      setState(() {
+                        _bubbleStyle = result;
+                      });
+                    },
+                    itemBuilder: (BuildContext context) =>
+                        <PopupMenuEntry<BubbleStyle>>[
+                      const PopupMenuItem<BubbleStyle>(
+                        value: BubbleStyle.bubble,
+                        child: Text('Bubble'),
+                      ),
+                      const PopupMenuItem<BubbleStyle>(
+                        value: BubbleStyle.compact,
+                        child: Text('Bubble Compact'),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -170,6 +259,7 @@ class RoomScreenState extends State<RoomScreen>
                   MessagesTab(
                     chat: widget.chat,
                     isRoom: widget.isRoom,
+                    bubbleStyle: _bubbleStyle,
                   ),
                   if (widget.isRoom) RoomFriendsTab(chat: widget.chat),
                 ],

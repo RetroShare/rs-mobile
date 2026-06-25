@@ -390,20 +390,90 @@ class SearchScreenState extends State<SearchScreen>
                 delegate: SliverChildBuilderDelegate(
                   (BuildContext context, int index) {
                     final chat = filteredSubscribedChats[index];
-                    final delegateData = PersonDelegateData(
-                      name: chat.chatName ?? 'Unknown Chat',
-                      message: chat.lobbyTopic ?? '',
-                      mId: chat.chatId?.toString(),
-                      isRoom: true,
-                      isMessage: true,
-                      icon: (chat.isPublic) ? Icons.public : Icons.lock,
-                      isUnread: (chat.unreadCount) > 0,
-                    );
-                    return GestureDetector(
-                      child: PersonDelegate(
-                        data: delegateData,
-                        onPressed: () => _goToChat(chat),
-                      ),
+                    final isRoom = chat.isPublic;
+                    final identity = Provider.of<RoomChatLobby>(context, listen: false).allIdentity[chat.interlocutorId] ??
+                        Identity(
+                          mId: chat.interlocutorId,
+                          signed: false,
+                          isContact: false,
+                          name: chat.chatName,
+                        );
+                    final delegateData = isRoom
+                        ? PersonDelegateData.chatData(chat)
+                        : PersonDelegateData.identityData(identity, context);
+                    
+                    return PersonDelegate(
+                      data: delegateData,
+                      onAvatarPressed: isRoom
+                          ? null
+                          : () {
+                              Navigator.pushNamed(
+                                context,
+                                '/profile',
+                                arguments: {'id': identity},
+                              );
+                            },
+                      onLongPress: (Offset tapPosition) {
+                        if (isRoom) {
+                          showCustomMenu(
+                            'Unsubscribe chat lobby',
+                            const Icon(
+                              Icons.delete,
+                              color: Colors.black,
+                            ),
+                            () async {
+                              await Provider.of<ChatLobby>(context, listen: false)
+                                  .unsubscribed(chat.chatId!);
+                            },
+                            tapPosition,
+                            context,
+                          );
+                        } else {
+                          showCustomMenu(
+                            identity.isContact
+                                ? 'Remove from contacts'
+                                : 'Add to contacts',
+                            Icon(
+                                identity.isContact
+                                    ? Icons.person_remove
+                                    : Icons.person_add,
+                                color: Colors.black),
+                            () {
+                              Provider.of<RoomChatLobby>(context, listen: false)
+                                  .toggleContacts(identity.mId, !identity.isContact);
+                            },
+                            tapPosition,
+                            context,
+                            additionalActions: [
+                              (
+                                title: 'View Details',
+                                icon: const Icon(Icons.info_outline,
+                                    color: Colors.black),
+                                action: () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/profile',
+                                    arguments: {'id': identity},
+                                  );
+                                },
+                              ),
+                              (
+                                title: 'Remove chat',
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.black),
+                                action: () {
+                                  if (chat.chatId != null) {
+                                    Provider.of<RoomChatLobby>(context,
+                                            listen: false)
+                                        .removeDistantChat(chat.chatId!);
+                                  }
+                                },
+                              ),
+                            ],
+                          );
+                        }
+                      },
+                      onPressed: () => _goToChat(chat),
                     );
                   },
                   childCount: filteredSubscribedChats.length,
@@ -504,25 +574,49 @@ class SearchScreenState extends State<SearchScreen>
                 delegate: SliverChildBuilderDelegate(
                   (BuildContext context, int index) {
                     final id = filteredContactsIds[index];
-                    final currentIdenInfo =
-                        Provider.of<Identities>(context, listen: false)
-                            .currentIdentity;
-                    final delegateData = PersonDelegateData(
-                      name: id.name ?? 'Unknown Identity',
-                      mId: id.mId,
-                      image: id.avatar != null && id.avatar!.isNotEmpty
-                          ? MemoryImage(base64Decode(id.avatar!))
-                          : null,
-                      isMessage: true,
-                      isUnread: currentIdenInfo != null &&
-                          Provider.of<RoomChatLobby>(context, listen: false)
-                                  .getUnreadCount(id, currentIdenInfo) >
-                              0,
-                    );
-                    return GestureDetector(
-                      child: PersonDelegate(
-                        data: delegateData,
-                        onPressed: () async {
+                    final delegateData = PersonDelegateData.identityData(id, context);
+                    return PersonDelegate(
+                      data: delegateData,
+                      onAvatarPressed: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/profile',
+                          arguments: {'id': id},
+                        );
+                      },
+                      onLongPress: (Offset tapPosition) {
+                        showCustomMenu(
+                          id.isContact
+                              ? 'Remove from contacts'
+                              : 'Add to contacts',
+                          Icon(
+                              id.isContact
+                                  ? Icons.person_remove
+                                  : Icons.person_add,
+                              color: Colors.black),
+                          () {
+                            Provider.of<RoomChatLobby>(context, listen: false)
+                                .toggleContacts(id.mId, !id.isContact);
+                          },
+                          tapPosition,
+                          context,
+                          additionalActions: [
+                            (
+                              title: 'View Details',
+                              icon: const Icon(Icons.info_outline,
+                                  color: Colors.black),
+                              action: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/profile',
+                                  arguments: {'id': id},
+                                );
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                      onPressed: () async {
                           final curr =
                               Provider.of<Identities>(context, listen: false)
                                   .currentIdentity;
@@ -534,7 +628,6 @@ class SearchScreenState extends State<SearchScreen>
                                   .getChat(curr, id);
                           if (chat != null) _goToChat(chat);
                         },
-                      ),
                     );
                   },
                   childCount: filteredContactsIds.length,
@@ -556,25 +649,49 @@ class SearchScreenState extends State<SearchScreen>
                 delegate: SliverChildBuilderDelegate(
                   (BuildContext context, int index) {
                     final id = filteredAllIds[index];
-                    final currentIdenInfo =
-                        Provider.of<Identities>(context, listen: false)
-                            .currentIdentity;
-                    final delegateData = PersonDelegateData(
-                      name: id.name ?? 'Unknown Identity',
-                      mId: id.mId,
-                      image: id.avatar != null && id.avatar!.isNotEmpty
-                          ? MemoryImage(base64Decode(id.avatar!))
-                          : null,
-                      isMessage: true,
-                      isUnread: currentIdenInfo != null &&
-                          Provider.of<RoomChatLobby>(context, listen: false)
-                                  .getUnreadCount(id, currentIdenInfo) >
-                              0,
-                    );
-                    return GestureDetector(
-                      child: PersonDelegate(
-                        data: delegateData,
-                        onPressed: () async {
+                    final delegateData = PersonDelegateData.identityData(id, context);
+                    return PersonDelegate(
+                      data: delegateData,
+                      onAvatarPressed: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/profile',
+                          arguments: {'id': id},
+                        );
+                      },
+                      onLongPress: (Offset tapPosition) {
+                        showCustomMenu(
+                          id.isContact
+                              ? 'Remove from contacts'
+                              : 'Add to contacts',
+                          Icon(
+                              id.isContact
+                                  ? Icons.person_remove
+                                  : Icons.person_add,
+                              color: Colors.black),
+                          () {
+                            Provider.of<RoomChatLobby>(context, listen: false)
+                                .toggleContacts(id.mId, !id.isContact);
+                          },
+                          tapPosition,
+                          context,
+                          additionalActions: [
+                            (
+                              title: 'View Details',
+                              icon: const Icon(Icons.info_outline,
+                                  color: Colors.black),
+                              action: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/profile',
+                                  arguments: {'id': id},
+                                );
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                      onPressed: () async {
                           final curr =
                               Provider.of<Identities>(context, listen: false)
                                   .currentIdentity;
@@ -586,7 +703,6 @@ class SearchScreenState extends State<SearchScreen>
                                   .getChat(curr, id);
                           if (chat != null) _goToChat(chat);
                         },
-                      ),
                     );
                   },
                   childCount: filteredAllIds.length,

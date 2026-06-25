@@ -57,14 +57,8 @@ class FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: PersonDelegate(
-                                    data: PersonDelegateData(
-                                      name:
-                                          '${idsTuple.friendlist[index].accountName}:${idsTuple.friendlist[index].locationName}',
-                                      message:
-                                          '${idsTuple.friendlist[index].rsGpgId}:${idsTuple.friendlist[index].rsPeerId}',
-                                      isOnline:
-                                          idsTuple.friendlist[index].isOnline,
-                                      isMessage: true,
+                                    data: PersonDelegateData.locationData(
+                                      idsTuple.friendlist[index],
                                     ),
                                   ),
                                 );

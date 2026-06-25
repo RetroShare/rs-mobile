@@ -8,14 +8,21 @@ import 'package:provider/provider.dart';
 import 'package:retroshare/common/bottom_bar.dart';
 import 'package:retroshare/common/show_dialog.dart';
 import 'package:retroshare/common/styles.dart';
+import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/ui/room/message_delegate.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class MessagesTab extends StatefulWidget {
-  const MessagesTab({super.key, required this.chat, this.isRoom = false});
+  const MessagesTab({
+    super.key,
+    required this.chat,
+    this.isRoom = false,
+    this.bubbleStyle = BubbleStyle.bubble,
+  });
   final Chat chat;
   final bool? isRoom;
+  final BubbleStyle bubbleStyle;
 
   @override
   MessagesTabState createState() => MessagesTabState();
@@ -152,6 +159,12 @@ class MessagesTabState extends State<MessagesTab> {
                     : messagesList.messagesList[widget.chat.chatId]!.reversed
                         .toList();
 
+                final identitiesProvider =
+                    Provider.of<Identities>(context, listen: false);
+                final ownIdentity = identitiesProvider.currentIdentity;
+                final interlocutorIdentity =
+                    messagesList.allIdentity[widget.chat.interlocutorId];
+
                 return Stack(
                   children: <Widget>[
                     ListView.builder(
@@ -161,13 +174,32 @@ class MessagesTabState extends State<MessagesTab> {
                       itemBuilder: (BuildContext context, int index) {
                         final message = msgList[index];
                         final key = UniqueKey();
+                        
+                        String bubbleTitle = '';
+                        final bool isSystem = ((message.chatflags ?? 0) & 0x0008) != 0;
+
+                        if (isSystem) {
+                          bubbleTitle = 'Status';
+                        } else if (widget.isRoom ?? false) {
+                          if (message.incoming ?? false) {
+                            bubbleTitle = messagesList.getChatSenderName(message);
+                          }
+                        } else {
+                          // 1:1 Chat nicknames
+                          if (message.incoming ?? false) {
+                            bubbleTitle = interlocutorIdentity?.name ?? 
+                                widget.chat.chatName ?? 
+                                'Interlocutor';
+                          } else {
+                            bubbleTitle = ownIdentity?.name ?? 'Me';
+                          }
+                        }
+
                         return MessageDelegate(
                           key: key,
                           data: message,
-                          bubbleTitle: (widget.isRoom ?? false) &&
-                                  (message.incoming ?? false)
-                              ? (messagesList.getChatSenderName(message))
-                              : '',
+                          bubbleTitle: bubbleTitle,
+                          style: widget.bubbleStyle,
                         );
                       },
                     ),

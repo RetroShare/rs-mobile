@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:retroshare/common/person_delegate.dart';
 import 'package:retroshare/common/sliver_persistent_header.dart';
 import 'package:retroshare/common/styles.dart';
+import 'package:retroshare/provider/friend_location.dart';
 import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
+
+enum ContactSortOption { name, state }
 
 class FriendsTab extends StatefulWidget {
   const FriendsTab({super.key});
@@ -15,6 +18,8 @@ class FriendsTab extends StatefulWidget {
 }
 
 class FriendsTabState extends State<FriendsTab> {
+  ContactSortOption _sortOption = ContactSortOption.name;
+
   void _removeFromContacts(String gxsId) {
     Provider.of<RoomChatLobby>(context, listen: false)
         .toggleContacts(gxsId, false);
@@ -30,31 +35,89 @@ class FriendsTabState extends State<FriendsTab> {
     return SafeArea(
       top: false,
       bottom: false,
-      child: Consumer<RoomChatLobby>(
-        builder: (context, roomChat, _) {
-          final (
-            List<Identity> friendsList,
-            List<Chat> distantChats,
-            Map<String, Identity> allIdentities
-          ) = (
-            roomChat.friendsIdsList,
-            roomChat.distanceChat.values
-                .toList()
-                .where(
-                  (chat) =>
-                      roomChat.allIdentity[chat.interlocutorId] == null ||
-                      roomChat.allIdentity[chat.interlocutorId]!.isContact ==
-                          false,
-                )
-                .toSet()
-                .toList(),
-            roomChat.allIdentity,
-          );
+      child: Consumer3<RoomChatLobby, FriendLocations, Identities>(
+        builder: (context, roomChat, friendLocations, identities, _) {
+          final List<Identity> rawFriendsList = roomChat.friendsIdsList;
+          final List<Chat> distantChats = roomChat.distanceChat.values
+              .toList()
+              .where(
+                (chat) =>
+                    roomChat.allIdentity[chat.interlocutorId] == null ||
+                    roomChat.allIdentity[chat.interlocutorId]!.isContact ==
+                        false,
+              )
+              .toSet()
+              .toList();
+          final Map<String, Identity> allIdentities = roomChat.allIdentity;
+
+          // Apply sorting to friendsList
+          List<Identity> friendsList = List.from(rawFriendsList);
+          if (_sortOption == ContactSortOption.name) {
+            friendsList.sort((a, b) => (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase()));
+          } else if (_sortOption == ContactSortOption.state) {
+            friendsList.sort((a, b) {
+              // Online: 1, Away: 2, Busy: 3, Offline: 0
+              // Mapping to weights for sorting: Online (0), Away (1), Busy (2), Offline (3)
+              int getWeight(Identity id) {
+                // Check if any location is online (matches PersonDelegate logic)
+                final matchingLocs = friendLocations.friendlist.where((loc) =>
+                    id.pgpId != null &&
+                    loc.rsGpgId.toLowerCase() == id.pgpId!.toLowerCase() &&
+                    loc.rsGpgId != '0000000000000000');
+                
+                final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
+
+                int effectiveStatus = id.status;
+                for (final loc in matchingLocs) {
+                  if (loc.isOnline) {
+                    // Map INACTIVE (4) to something lower than ONLINE (3) for priority
+                    int locStat = loc.status == 4 ? 0 : loc.status;
+                    int curStat = effectiveStatus == 4 ? 0 : effectiveStatus;
+                    if (locStat > curStat) {
+                      effectiveStatus = loc.status;
+                    } else if (effectiveStatus == 0) {
+                      effectiveStatus = 3; // Default to Online if we know it's connected
+                    }
+                  }
+                }
+                
+                if (effectiveStatus == 3) return 0; // Online
+                if (effectiveStatus == 1) return 1; // Away
+                if (effectiveStatus == 2) return 2; // Busy
+                return 3; // Offline / Inactive
+              }
+              int weightA = getWeight(a);
+              int weightB = getWeight(b);
+              if (weightA != weightB) return weightA.compareTo(weightB);
+              return (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase());
+            });
+          }
 
           if (friendsList.isNotEmpty) {
             return CustomScrollView(
               slivers: <Widget>[
-                sliverPersistentHeader('Contacts', context),
+                sliverPersistentHeader(
+                  'Contacts',
+                  context,
+                  trailing: PopupMenuButton<ContactSortOption>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (ContactSortOption result) {
+                      setState(() {
+                        _sortOption = result;
+                      });
+                    },
+                    itemBuilder: (BuildContext context) => <PopupMenuEntry<ContactSortOption>>[
+                      const PopupMenuItem<ContactSortOption>(
+                        value: ContactSortOption.name,
+                        child: Text('Sort by name'),
+                      ),
+                      const PopupMenuItem<ContactSortOption>(
+                        value: ContactSortOption.state,
+                        child: Text('Sort by state'),
+                      ),
+                    ],
+                  ),
+                ),
                 SliverPadding(
                   padding: EdgeInsets.only(
                     left: 8,
@@ -68,14 +131,19 @@ class FriendsTabState extends State<FriendsTab> {
                     itemExtent: personDelegateHeight,
                     delegate: SliverChildBuilderDelegate(
                       (BuildContext context, int index) {
-                        return GestureDetector(
-                          // Todo: DRY
-                          child: PersonDelegate(
-                            data: PersonDelegateData.identityData(
-                              friendsList[index],
+                        return PersonDelegate(
+                          data: PersonDelegateData.identityData(
+                            friendsList[index],
+                            context,
+                          ),
+                          onAvatarPressed: () {
+                            Navigator.pushNamed(
                               context,
-                            ),
-                            onLongPress: (Offset tapPosition) {
+                              '/profile',
+                              arguments: {'id': friendsList[index]},
+                            );
+                          },
+                          onLongPress: (Offset tapPosition) {
                               showCustomMenu(
                                 'Remove from contacts',
                                 const Icon(
@@ -87,6 +155,20 @@ class FriendsTabState extends State<FriendsTab> {
                                 ),
                                 tapPosition,
                                 context,
+                                additionalActions: [
+                                  (
+                                    title: 'View Details',
+                                    icon: const Icon(Icons.info_outline,
+                                        color: Colors.black),
+                                    action: () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/profile',
+                                        arguments: {'id': friendsList[index]},
+                                      );
+                                    },
+                                  ),
+                                ],
                               );
                             },
                             onPressed: () async {
@@ -112,8 +194,7 @@ class FriendsTabState extends State<FriendsTab> {
                                 },
                               );
                             },
-                          ),
-                        );
+                          );
                       },
                       childCount: friendsList.length,
                     ),
@@ -144,14 +225,19 @@ class FriendsTabState extends State<FriendsTab> {
                                   signed: false,
                                   isContact: false,
                                 );
-                        return GestureDetector(
-                          // Todo: DRY
-                          child: PersonDelegate(
-                            data: PersonDelegateData.identityData(
-                              actualId,
+                        return PersonDelegate(
+                          data: PersonDelegateData.identityData(
+                            actualId,
+                            context,
+                          ),
+                          onAvatarPressed: () {
+                            Navigator.pushNamed(
                               context,
-                            ),
-                            onLongPress: (Offset tapPosition) {
+                              '/profile',
+                              arguments: {'id': actualId},
+                            );
+                          },
+                          onLongPress: (Offset tapPosition) {
                               showCustomMenu(
                                 'Add to contacts',
                                 const Icon(
@@ -161,6 +247,20 @@ class FriendsTabState extends State<FriendsTab> {
                                 () => _addToContacts(actualId.mId),
                                 tapPosition,
                                 context,
+                                additionalActions: [
+                                  (
+                                    title: 'View Details',
+                                    icon: const Icon(Icons.info_outline,
+                                        color: Colors.black),
+                                    action: () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/profile',
+                                        arguments: {'id': actualId},
+                                      );
+                                    },
+                                  ),
+                                ],
                               );
                             },
                             onPressed: () async {
@@ -183,8 +283,7 @@ class FriendsTabState extends State<FriendsTab> {
                                 },
                               );
                             },
-                          ),
-                        );
+                          );
                       },
                       childCount: distantChats.toSet().length,
                     ),

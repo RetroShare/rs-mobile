@@ -114,4 +114,42 @@ class AccountCredentials with ChangeNotifier {
       throw const HttpException('DATA INSUFFICIENT');
     }
   }
+
+  Future<void> importAccount(String base64Cert, String password) async {
+    try {
+      final resp = await RsLoginHelper.importLocation(base64Cert, password);
+      if (resp['retval'] == true || (resp['retval'] is Map && resp['retval']['errorNumber'] == 0)) {
+        await fetchAuthAccountList();
+        notifyListeners();
+      } else {
+        throw HttpException(resp['retval']?['errorMessage'] ?? 'Import failed');
+      }
+    } catch (e) {
+      throw HttpException(e.toString());
+    }
+  }
+
+  Future<void> importIdentityAndCreateLocation(String pgpKeyContent, String password) async {
+    try {
+      final importResp = await RsAccounts.importIdentity(pgpKeyContent);
+      if (importResp['retval'] != true) {
+        throw HttpException(importResp['errorMessage'] ?? 'Import Identity failed');
+      }
+
+      final String? gpgId = importResp['gpg_id'];
+      if (gpgId == null) {
+        throw const HttpException('Import Identity failed: gpg_id not found');
+      }
+
+      final createResp = await RsLoginHelper.createLocation(gpgId, password);
+      if (createResp['retval'] != true) {
+        throw HttpException(createResp['errorMessage'] ?? 'Create Location failed');
+      }
+
+      await fetchAuthAccountList();
+      notifyListeners();
+    } catch (e) {
+      throw HttpException(e.toString());
+    }
+  }
 }

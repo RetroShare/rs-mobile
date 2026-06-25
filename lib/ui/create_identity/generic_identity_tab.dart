@@ -142,7 +142,7 @@ class GenericIdentityTabState extends State<GenericIdentityTab> {
                               ? Center(
                                   child: Identicon(
                                     id: _nameController.text.isEmpty
-                                        ? "default"
+                                        ? 'default'
                                         : _nameController.text,
                                     size: 300 * 0.7,
                                     borderRadius: 300 * 0.7 / 2,

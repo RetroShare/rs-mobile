@@ -50,8 +50,10 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
     }
   }
 
-  // Keep _storePosition if needed by showCustomMenu
-  void _storePosition(TapDownDetails details) {}
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -125,26 +127,56 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
                     itemBuilder: (BuildContext context, int index) {
                       // 6. Access is safe now assuming participantList is non-null List
                       final participant = participantList[index];
-                      return GestureDetector(
-                        onTapDown: _storePosition,
-                        child: PersonDelegate(
-                          // Pass non-nullable participant
-                          data: PersonDelegateData.identityData(
-                            participant,
+                      return PersonDelegate(
+                        // Pass non-nullable participant
+                        data: PersonDelegateData.identityData(
+                          participant,
+                          context,
+                        ),
+                        onAvatarPressed: () {
+                          Navigator.pushNamed(
                             context,
-                          ),
-                          // 7. Ensure showCustomMenu is defined and safe
-                          onLongPress: (Offset tapPosition) {
-                            showCustomMenu(
-                              'Add to contacts',
-                              Icon(Icons.add, color: Theme.of(context).colorScheme.onSurface),
-                              () => _addToContacts(participant.mId),
-                              tapPosition,
-                              context,
-                            );
-                          },
-                          // 8. Add basic error handling/check for navigation
-                          onPressed: () async {
+                            '/profile',
+                            arguments: {'id': participant},
+                          );
+                        },
+                        // 7. Ensure showCustomMenu is defined and safe
+                        onLongPress: (Offset tapPosition) {
+                          showCustomMenu(
+                            participant.isContact
+                                ? 'Remove from contacts'
+                                : 'Add to contacts',
+                            Icon(
+                                participant.isContact
+                                    ? Icons.person_remove
+                                    : Icons.person_add,
+                                color: Theme.of(context).colorScheme.onSurface),
+                            () {
+                              Provider.of<RoomChatLobby>(context, listen: false)
+                                  .toggleContacts(
+                                      participant.mId, !participant.isContact);
+                            },
+                            tapPosition,
+                            context,
+                            additionalActions: [
+                              (
+                                title: 'View Details',
+                                icon: Icon(Icons.info_outline,
+                                    color:
+                                        Theme.of(context).colorScheme.onSurface),
+                                action: () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/profile',
+                                    arguments: {'id': participant},
+                                  );
+                                },
+                              ),
+                            ],
+                          );
+                        },
+                        // 8. Add basic error handling/check for navigation
+                        onPressed: () async {
                             try {
                               final curr = Provider.of<Identities>(
                                 context,
@@ -175,7 +207,6 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
                               // Optionally show error to user
                             }
                           },
-                        ),
                       );
                     },
                   );

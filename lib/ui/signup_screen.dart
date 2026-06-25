@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:oktoast/oktoast.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/show_dialog.dart';
 import 'package:retroshare/model/http_exception.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare/provider/identity.dart';
+import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -269,6 +273,8 @@ class SignUpScreenState extends State<SignUpScreen> {
           const SizedBox(height: 10),
           _buildNodeNameField(),
           const SizedBox(height: 10),
+          _buildImportButton(context),
+          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: Container(
@@ -293,6 +299,138 @@ class SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildImportButton(BuildContext context) {
+    return TextButton(
+      onPressed: () => _showImportDialog(context),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.file_download, color: Theme.of(context).colorScheme.primary, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Import existing account',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showImportDialog(BuildContext context) {
+    final certController = TextEditingController();
+    final passController = TextEditingController();
+    bool isLoading = false;
+    int importType = 0; // 0: Full Location, 1: PGP Key only
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Import Account'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButton<int>(
+                  value: importType,
+                  isExpanded: true,
+                  items: const [
+                    DropdownMenuItem(value: 0, child: Text('Import Full Location')),
+                    DropdownMenuItem(value: 1, child: Text('Import PGP Key & Create Node')),
+                  ],
+                  onChanged: (val) => setState(() => importType = val!),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    FilePickerResult? result = await FilePicker.platform.pickFiles(
+                      type: FileType.custom,
+                      allowedExtensions: ['txt', 'crt', 'asc'],
+                    );
+                    if (result != null) {
+                      File file = File(result.files.single.path!);
+                      String content = await file.readAsString();
+                      certController.text = content;
+                    }
+                  },
+                  icon: const Icon(Icons.attach_file),
+                  label: const Text('Pick Certificate File'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: certController,
+                  maxLines: 5,
+                  decoration: InputDecoration(
+                    hintText: importType == 0 
+                      ? 'Paste RetroShare certificate here...' 
+                      : 'Paste PGP private key (.asc) here...',
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Password',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading ? null : () async {
+                if (certController.text.isEmpty || passController.text.isEmpty) {
+                  showToast('Please fill all fields');
+                  return;
+                }
+                setState(() => isLoading = true);
+                try {
+                  final authProvider = Provider.of<AccountCredentials>(context, listen: false);
+                  final String rawContent = certController.text.trim();
+                  
+                  if (importType == 0) {
+                    // For full location import, it's usually already base64 encoded by the export process
+                    await authProvider.importAccount(rawContent, passController.text);
+                  } else {
+                    // For PGP key, we send the raw content (which might be armored text)
+                    await authProvider.importIdentityAndCreateLocation(rawContent, passController.text);
+                  }
+                  
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    showToast('Import successful');
+                    Navigator.pop(context); // Go back to sign in
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    showToast('Import failed: $e');
+                  }
+                } finally {
+                  if (context.mounted) {
+                    setState(() => isLoading = false);
+                  }
+                }
+              },
+              child: isLoading 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Import'),
+            ),
+          ],
+        ),
       ),
     );
   }
