@@ -61,14 +61,32 @@ class AccountCredentials with ChangeNotifier {
     throw Exception('No account found for setLastAccountUsed');
   }
 
-  Future<bool> getinitializeAuth(String locationId, String password) async {
-    _authToken = AuthToken(locationId, password);
-    final success = await RsJsonApi.checkExistingAuthTokens(
-      locationId,
-      password,
-      _authToken!,
-    );
-    return success;
+  Future<bool> getinitializeAuth(Account account, String password) async {
+    // Retry logic as the core might take a moment to initialize the API for the unlocked account
+    for (int retry = 0; retry < 3; retry++) {
+      if (retry > 0) {
+        await Future.delayed(const Duration(seconds: 1));
+      }
+
+      // 1. Try locationId (SSL ID) - most robust for multiple locations
+      _authToken = AuthToken(account.locationId, password);
+      bool success = await RsJsonApi.isAuthTokenValid(_authToken!);
+      if (success) return true;
+
+      // 2. Try pgpName (The username used in signup as apiUser)
+      _authToken = AuthToken(account.pgpName, password);
+      success = await RsJsonApi.isAuthTokenValid(_authToken!);
+      if (success) return true;
+
+      // 3. Try locationName (The node name, sometimes used as fallback)
+      _authToken = AuthToken(account.locationName, password);
+      success = await RsJsonApi.isAuthTokenValid(_authToken!);
+      if (success) return true;
+    }
+
+    // 4. Default back to locationId if all failed
+    _authToken = AuthToken(account.locationId, password);
+    return false;
   }
 
   Future<bool> checkIsValidAuthToken() async {
@@ -81,7 +99,7 @@ class AccountCredentials with ChangeNotifier {
     // Login success 0, already logged in 1
     if (resp == 0 || resp == 1) {
       final isAuthTokenValid =
-          await getinitializeAuth(currentAccount.locationName, password);
+          await getinitializeAuth(currentAccount, password);
       if (!isAuthTokenValid) {
         throw const HttpException('AUTHTOKEN FAILED');
       }
@@ -106,7 +124,7 @@ class AccountCredentials with ChangeNotifier {
       _accountsList.add(account.$2);
       logginAccount = account.$2;
       final isAuthTokenValid =
-          await getinitializeAuth(account.$2.locationName, password);
+          await getinitializeAuth(account.$2, password);
       if (!isAuthTokenValid) throw const HttpException('AUTHTOKEN FAILED');
 
       notifyListeners();
