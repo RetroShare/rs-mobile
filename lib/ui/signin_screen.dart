@@ -83,6 +83,10 @@ class SignInScreenState extends State<SignInScreen> {
       }
     } on HttpException catch (error) {
       if (!mounted) return;
+      
+      // Close the splash screen/loading screen first to avoid UI conflicts
+      if (Navigator.canPop(context)) Navigator.pop(context);
+      
       if (error.message.contains('WRONG PASSWORD')) {
         _handleWrongPassword();
       } else {
@@ -91,16 +95,17 @@ class SignInScreenState extends State<SignInScreen> {
           error.message,
           context,
         );
-        if (Navigator.canPop(context)) Navigator.pop(context);
       }
     } catch (e) {
       if (!mounted) return;
+
+      if (Navigator.canPop(context)) Navigator.pop(context);
+
       await errorShowDialog(
         'Retroshare Service Down',
         'An error occurred: $e'.trim(),
         context,
       );
-      if (Navigator.canPop(context)) Navigator.pop(context);
     }
   }
 
