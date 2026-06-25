@@ -103,9 +103,11 @@ class SignUpScreenState extends State<SignUpScreen> {
         });
       });
     } on HttpException {
+      if (Navigator.canPop(context)) Navigator.pop(context);
       const errorMessage = 'Authentication failed';
       await errorShowDialog(errorMessage, 'Something went wrong', context);
     } catch (e) {
+      if (Navigator.canPop(context)) Navigator.pop(context);
       debugPrint('Error creating account: $e');
       await errorShowDialog(
         'Retroshare Service Down',

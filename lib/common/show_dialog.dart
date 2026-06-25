@@ -12,7 +12,6 @@ Future errorShowDialog(String title, String text, BuildContext context) {
     type: CoolAlertType.error,
     onConfirmBtnTap: (context) {
       if (Navigator.canPop(context)) Navigator.of(context).pop();
-      if (Navigator.canPop(context)) Navigator.of(context).pop();
     },
     title: title,
     text: text,
@@ -29,7 +28,6 @@ Future successShowDialog(String title, String text, BuildContext context) {
     type: CoolAlertType.success,
     onConfirmBtnTap: (context) {
       if (Navigator.canPop(context)) Navigator.of(context).pop();
-      if (Navigator.canPop(context)) Navigator.of(context).pop();
     },
     title: title,
     text: text,
@@ -41,7 +39,6 @@ Future warningShowDialog(String title, String text, BuildContext context) {
     context: context,
     type: CoolAlertType.warning,
     onConfirmBtnTap: (context) {
-      if (Navigator.canPop(context)) Navigator.of(context).pop();
       if (Navigator.canPop(context)) Navigator.of(context).pop();
     },
     title: title,
