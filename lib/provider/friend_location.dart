@@ -31,7 +31,26 @@ class FriendLocations with ChangeNotifier {
           debugPrint('Error fetching details for friend ${sslIds[i]}: $e');
         }
       }
-      _friendlist = locations;
+
+      // Fetch actual peer statuses (online/away/busy/idle/inactive)
+      final statusMap = await RsStatus.getStatusList(_authToken);
+      debugPrint('Fetched ${statusMap.length} peer statuses: $statusMap');
+
+      // Merge status into locations
+      final locationsWithStatus = <Location>[];
+      for (final loc in locations) {
+        final peerStatus = statusMap[loc.rsPeerId];
+        if (peerStatus != null) {
+          locationsWithStatus.add(loc.copyWith(status: peerStatus));
+        } else {
+          // If no status info, set online (3) if connected, offline (0) if not
+          locationsWithStatus.add(
+            loc.copyWith(status: loc.isOnline ? 3 : 0),
+          );
+        }
+      }
+
+      _friendlist = locationsWithStatus;
       notifyListeners();
     } catch (e) {
       debugPrint('Error in fetchfriendLocation: $e');
