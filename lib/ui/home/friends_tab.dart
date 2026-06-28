@@ -68,15 +68,12 @@ class FriendsTabState extends State<FriendsTab> {
                 final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
 
                 int effectiveStatus = id.status;
-                for (final loc in matchingLocs) {
-                  if (loc.isOnline) {
-                    // Map INACTIVE (4) to something lower than ONLINE (3) for priority
-                    int locStat = loc.status == 4 ? 0 : loc.status;
-                    int curStat = effectiveStatus == 4 ? 0 : effectiveStatus;
-                    if (locStat > curStat) {
+                if (effectiveStatus == 0 && isAnyLocationOnline) {
+                  effectiveStatus = 3; // Default to Online
+                  for (final loc in matchingLocs) {
+                    if (loc.isOnline && loc.status != 0 && loc.status != 3) {
                       effectiveStatus = loc.status;
-                    } else if (effectiveStatus == 0) {
-                      effectiveStatus = 3; // Default to Online if we know it's connected
+                      break;
                     }
                   }
                 }

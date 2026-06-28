@@ -5,6 +5,7 @@ import 'package:retroshare/ui/change_identity_screen.dart';
 import 'package:retroshare/ui/create_identity/create_identity_screen.dart';
 import 'package:retroshare/ui/create_room_screen.dart';
 import 'package:retroshare/ui/discover_chats_screen.dart';
+import 'package:retroshare/ui/friend_location_detail_screen.dart';
 import 'package:retroshare/ui/friends_locations_screen.dart';
 import 'package:retroshare/ui/home/home_screen.dart';
 import 'package:retroshare/ui/launch_transition_screen.dart';
@@ -16,7 +17,7 @@ import 'package:retroshare/ui/signin_screen.dart';
 import 'package:retroshare/ui/signup_screen.dart';
 import 'package:retroshare/ui/splash_screen.dart';
 import 'package:retroshare/ui/update_identity_screen.dart';
-import 'package:retroshare_api_wrapper/retroshare.dart' show Identity, Chat;
+import 'package:retroshare_api_wrapper/retroshare.dart' show Identity, Chat, Location;
 
 class RouteGenerator {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -105,6 +106,15 @@ class RouteGenerator {
         return MaterialPageRoute(
           builder: (_) => const FriendsLocationsScreen(),
         );
+      case '/friend_location_detail':
+        if (args is Map<String, dynamic> && args['location'] is Location) {
+          return MaterialPageRoute(
+            builder: (_) => FriendLocationDetailScreen(
+              location: args['location'] as Location,
+            ),
+          );
+        }
+        return _errorRoute();
       case '/about':
         return MaterialPageRoute(builder: (_) => const AboutScreen());
       case '/notification':

@@ -76,14 +76,12 @@ class PersonDelegateData {
     final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
 
     int effectiveStatus = identity.status;
-    for (final loc in matchingLocs) {
-      if (loc.isOnline) {
-        int locStat = loc.status == 4 ? 0 : loc.status;
-        int curStat = effectiveStatus == 4 ? 0 : effectiveStatus;
-        if (locStat > curStat) {
+    if (effectiveStatus == 0 && isAnyLocationOnline) {
+      effectiveStatus = 3; // Default to Online
+      for (final loc in matchingLocs) {
+        if (loc.isOnline && loc.status != 0 && loc.status != 3) {
           effectiveStatus = loc.status;
-        } else if (effectiveStatus == 0) {
-          effectiveStatus = 3; // Online
+          break;
         }
       }
     }
@@ -144,17 +142,12 @@ class PersonDelegateData {
     final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
 
     int effectiveStatus = identity.status;
-    
-    // Check if any matching online location has a more specific status
-    for (final loc in matchingLocs) {
-      if (loc.isOnline) {
-        // Map INACTIVE (4) to something lower than ONLINE (3) for priority
-        int locStat = loc.status == 4 ? 0 : loc.status;
-        int curStat = effectiveStatus == 4 ? 0 : effectiveStatus;
-        if (locStat > curStat) {
+    if (effectiveStatus == 0 && isAnyLocationOnline) {
+      effectiveStatus = 3; // Default to Online
+      for (final loc in matchingLocs) {
+        if (loc.isOnline && loc.status != 0 && loc.status != 3) {
           effectiveStatus = loc.status;
-        } else if (effectiveStatus == 0) {
-          effectiveStatus = 3; // Default to Online (3) if we know it's connected
+          break;
         }
       }
     }
@@ -181,11 +174,27 @@ class PersonDelegateData {
   }
 
   // ignore: non_constant_identifier_names
+  static String _statusText(int status, bool isOnline) {
+    if (!isOnline && status == 0) return 'Offline';
+    switch (status) {
+      case 3:
+        return 'Online';
+      case 1:
+        return 'Away';
+      case 2:
+        return 'Busy';
+      case 4:
+        return 'Inactive';
+      default:
+        return isOnline ? 'Online' : 'Offline';
+    }
+  }
+
   static PersonDelegateData locationData(Location location) {
     return PersonDelegateData(
       name: '${location.accountName}:${location.locationName}',
       mId: null,
-      message: '${location.rsGpgId}:${location.rsPeerId}',
+      message: _statusText(location.status, location.isOnline),
       isOnline: location.isOnline,
       status: location.status,
       isContact: true,
