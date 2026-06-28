@@ -4,7 +4,7 @@ allprojects {
         mavenCentral()
         jcenter()
         maven {
-                url "https://gitlab.com/api/v4/projects/32730908/packages/maven"
+                url "https://gitlab.com/api/v4/projects/32902664/packages/maven"
             }
     }
 }
