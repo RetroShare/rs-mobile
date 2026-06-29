@@ -20,6 +20,8 @@ subprojects {
                 if (namespace == null) {
                     namespace project.group
                 }
+                // Force compileSdk to a newer version for plugins that might be outdated
+                compileSdk = 36
 
                 if (project.android.hasProperty('kotlinOptions')) {
                     kotlinOptions {
