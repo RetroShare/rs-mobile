@@ -95,8 +95,10 @@ class DiscoverChatsScreenState extends State<DiscoverChatsScreen> {
                                           );
                                         },
                                         key: UniqueKey(),
-                                        child: SizedBox(
-                                          height: personDelegateHeight,
+                                        child: Container(
+                                          constraints: const BoxConstraints(
+                                            minHeight: personDelegateHeight,
+                                          ),
                                           child: Row(
                                             children: <Widget>[
                                               Expanded(
