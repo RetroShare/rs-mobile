@@ -12,10 +12,12 @@ import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare/routes.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final savedThemeMode = await AdaptiveTheme.getThemeMode();
-  //initializeNotifications();
+  await initializeNotifications();
   runApp(App(savedThemeMode: savedThemeMode));
 }
 
@@ -83,6 +85,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         initial: widget.savedThemeMode ?? AdaptiveThemeMode.light,
         builder: (theme, darkTheme) => OKToast(
           child: MaterialApp(
+            navigatorKey: navigatorKey,
             debugShowCheckedModeBanner: false,
             title: 'Retroshare',
             theme: theme,

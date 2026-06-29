@@ -1,13 +1,46 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
+import 'package:retroshare/common/notifications.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class ChatLobby with ChangeNotifier {
   List<Chat> _chatlist = [];
   List<VisibleChatLobbyRecord> _unsubscribedlist = [];
+  final Set<String> _notifiedInvites = {};
   List<Chat> get subscribedlist => _chatlist;
   AuthToken authToken = const AuthToken('', '');
 
   List<VisibleChatLobbyRecord> get unSubscribedlist => _unsubscribedlist;
+
+  Future<void> checkForNewInvites() async {
+    if (authToken.username.isEmpty) return;
+    try {
+      final invites = await RsMsgs.getPendingChatLobbyInvites(authToken);
+      if (invites == null || invites.isEmpty) return;
+
+      bool foundNew = false;
+      for (final invite in invites) {
+        final lobbyId = invite['lobby_id']?['xstr64'] ?? '';
+        if (lobbyId.isNotEmpty && !_notifiedInvites.contains(lobbyId)) {
+          final lobbyName = invite['lobby_name'] ?? 'Unknown Room';
+          final peerId = invite['peer_id']?.toString() ?? '0';
+          
+          String senderName = 'A friend';
+          try {
+            final peerDetails = await RsPeers.getPeerDetails(peerId, authToken);
+            senderName = peerDetails.accountName;
+          } catch (_) {}
+
+          await showLobbyInviteNotification(lobbyId, lobbyName, senderName);
+          _notifiedInvites.add(lobbyId);
+          foundNew = true;
+        }
+      }
+      if (foundNew) notifyListeners();
+    } catch (e) {
+      debugPrint('Error checking for invites: $e');
+    }
+  }
 
   Future<void> fetchAndUpdate() async {
     final list = await RsMsgs.getSubscribedChatLobbies(authToken);
@@ -43,6 +76,7 @@ class ChatLobby with ChangeNotifier {
     }
     _chatlist = chatsList;
     notifyListeners();
+    unawaited(checkForNewInvites());
   }
 
   Future<void> fetchAndUpdateUnsubscribed() async {
