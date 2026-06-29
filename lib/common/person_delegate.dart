@@ -52,7 +52,7 @@ class PersonDelegateData {
       name: chatData.chatName ?? 'Unknown Chat',
       message: chatData.lobbyTopic ?? '',
       mId: chatData.chatId?.toString(),
-      isRoom: chatData.isPublic,
+      isRoom: true, // Lobbies are always rooms, even if private
       isMessage: true,
       icon: (chatData.isPublic) ? Icons.public : Icons.lock,
       isUnread: (chatData.unreadCount) > 0,

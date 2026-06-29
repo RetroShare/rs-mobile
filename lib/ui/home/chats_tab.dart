@@ -51,7 +51,11 @@ class ChatsTab extends StatelessWidget {
                     delegate: SliverChildBuilderDelegate(
                       (BuildContext context, int index) {
                         final chat = allChats[index];
-                        final isRoom = chat.isPublic;
+                        // A chat is a room if it has lobby flags (rooms/lobbies) 
+                        // or is explicitly in the subscribed list
+                        final bool isRoom = chat.lobbyFlags != null || 
+                                           chatLobby.subscribedlist.any((c) => c.chatId == chat.chatId);
+
                         final identity = roomChat.allIdentity[chat.interlocutorId] ??
                             Identity(
                               mId: chat.interlocutorId,
