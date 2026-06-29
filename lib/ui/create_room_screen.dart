@@ -135,7 +135,16 @@ class CreateRoomScreenState extends State<CreateRoomScreen>
       final locations = Provider.of<FriendLocations>(context, listen: false);
       _friendsList = identities.friendsSignedIdsList;
       _suggestionsList = identities.friendsSignedIdsList;
-      _locationsList = locations.friendlist;
+      
+      // Sort locations so online friends are at the top
+      _locationsList = List.from(locations.friendlist);
+      _locationsList.sort((a, b) {
+        if (a.isOnline != b.isOnline) {
+          return a.isOnline ? -1 : 1;
+        }
+        return a.accountName.toLowerCase().compareTo(b.accountName.toLowerCase());
+      });
+
       _selectedLocations = <Location>[];
     }
     _init = false;
@@ -439,12 +448,48 @@ class CreateRoomScreenState extends State<CreateRoomScreen>
                                         .map(
                                           (loc) => MultiSelectItem<Location>(
                                             loc,
-                                            loc.accountName,
+                                            (loc.isOnline ? '● ' : '') + loc.accountName,
                                           ),
                                         )
                                         .toList(),
                                     initialValue: _selectedLocations,
                                     searchable: true,
+                                    backgroundColor: Theme.of(context).colorScheme.surface,
+                                    selectedColor: Theme.of(context).colorScheme.primary,
+                                    colorator: (value) {
+                                      if (value.isOnline) {
+                                        return Colors.green.withOpacity(0.4);
+                                      }
+                                      return Theme.of(context).colorScheme.surfaceContainerHighest;
+                                    },
+                                    itemsTextStyle: TextStyle(
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                    selectedItemsTextStyle: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    unselectedColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    searchIcon: Icon(
+                                      Icons.search,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                    searchHintStyle: TextStyle(
+                                      color: Theme.of(context).hintColor,
+                                    ),
+                                    confirmText: Text(
+                                      'OK',
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    cancelText: Text(
+                                      'CANCEL',
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.secondary,
+                                      ),
+                                    ),
                                     title: const Text('Invite friends'),
                                     buttonText: Text(
                                       _isRoomCreation
@@ -459,6 +504,11 @@ class CreateRoomScreenState extends State<CreateRoomScreen>
                                       });
                                     },
                                     chipDisplay: MultiSelectChipDisplay(
+                                      scroll: true,
+                                      colorator: (value) => Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                                      textStyle: TextStyle(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                      ),
                                       onTap: (value) {
                                         setState(() {
                                           _selectedLocations.remove(value);
