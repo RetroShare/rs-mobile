@@ -85,11 +85,11 @@ class SearchScreenState extends State<SearchScreen>
 
     _leftTabIconColor = ColorTween(
             begin: Theme.of(context).colorScheme.primary,
-            end: Theme.of(context).colorScheme.surfaceContainerHighest)
+            end: Theme.of(context).colorScheme.surfaceContainerHighest,)
         .animate(_tabController.animation!);
     _rightTabIconColor = ColorTween(
             begin: Theme.of(context).colorScheme.surfaceContainerHighest,
-            end: Theme.of(context).colorScheme.primary)
+            end: Theme.of(context).colorScheme.primary,)
         .animate(_tabController.animation!);
 
     _leftTabTextColor = ColorTween(begin: selectedTextColor, end: unselectedTextColor)
@@ -444,7 +444,7 @@ class SearchScreenState extends State<SearchScreen>
                                 identity.isContact
                                     ? Icons.person_remove
                                     : Icons.person_add,
-                                color: Colors.black),
+                                color: Colors.black,),
                             () {
                               Provider.of<RoomChatLobby>(context, listen: false)
                                   .toggleContacts(identity.mId, !identity.isContact);
@@ -455,7 +455,7 @@ class SearchScreenState extends State<SearchScreen>
                               (
                                 title: 'View Details',
                                 icon: const Icon(Icons.info_outline,
-                                    color: Colors.black),
+                                    color: Colors.black,),
                                 action: () {
                                   Navigator.pushNamed(
                                     context,
@@ -467,11 +467,11 @@ class SearchScreenState extends State<SearchScreen>
                               (
                                 title: 'Remove chat',
                                 icon: const Icon(Icons.delete_outline,
-                                    color: Colors.black),
+                                    color: Colors.black,),
                                 action: () {
                                   if (chat.chatId != null) {
                                     Provider.of<RoomChatLobby>(context,
-                                            listen: false)
+                                            listen: false,)
                                         .removeDistantChat(chat.chatId!);
                                   }
                                 },
@@ -600,7 +600,7 @@ class SearchScreenState extends State<SearchScreen>
                               id.isContact
                                   ? Icons.person_remove
                                   : Icons.person_add,
-                              color: Colors.black),
+                              color: Colors.black,),
                           () {
                             Provider.of<RoomChatLobby>(context, listen: false)
                                 .toggleContacts(id.mId, !id.isContact);
@@ -611,7 +611,7 @@ class SearchScreenState extends State<SearchScreen>
                             (
                               title: 'View Details',
                               icon: const Icon(Icons.info_outline,
-                                  color: Colors.black),
+                                  color: Colors.black,),
                               action: () {
                                 Navigator.pushNamed(
                                   context,
@@ -675,7 +675,7 @@ class SearchScreenState extends State<SearchScreen>
                               id.isContact
                                   ? Icons.person_remove
                                   : Icons.person_add,
-                              color: Colors.black),
+                              color: Colors.black,),
                           () {
                             Provider.of<RoomChatLobby>(context, listen: false)
                                 .toggleContacts(id.mId, !id.isContact);
@@ -686,7 +686,7 @@ class SearchScreenState extends State<SearchScreen>
                             (
                               title: 'View Details',
                               icon: const Icon(Icons.info_outline,
-                                  color: Colors.black),
+                                  color: Colors.black,),
                               action: () {
                                 Navigator.pushNamed(
                                   context,

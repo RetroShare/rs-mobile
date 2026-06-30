@@ -89,7 +89,7 @@ class FriendLocations with ChangeNotifier {
 
     // Refresh the list multiple times as the core might take a few seconds to update
     await fetchfriendLocation();
-    Future.delayed(const Duration(seconds: 2), () => fetchfriendLocation());
-    Future.delayed(const Duration(seconds: 5), () => fetchfriendLocation());
+    Future.delayed(const Duration(seconds: 2), fetchfriendLocation);
+    Future.delayed(const Duration(seconds: 5), fetchfriendLocation);
   }
 }

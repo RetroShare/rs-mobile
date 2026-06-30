@@ -94,8 +94,8 @@ class Identities with ChangeNotifier {
     await fetchOwnidenities();
     
     // Fallback if the list didn't include the updated ID for some reason
-    bool found = false;
-    for (int i = 0; i < _ownidentities.length; i++) {
+    var found = false;
+    for (var i = 0; i < _ownidentities.length; i++) {
       if (_ownidentities[i].mId == id.mId) {
         _ownidentities[i] = id;
         _currentIdentity = _ownidentities[i];

@@ -69,7 +69,7 @@ class RoomChatLobby with ChangeNotifier {
       _notContactIds = tupleIds.$3;
       
       // Deduplicate by mId to be safe
-      final Map<String, Identity> uniqueFriends = {};
+      final uniqueFriends = <String, Identity>{};
       for (final id in _friendsIdsList) {
         uniqueFriends[id.mId] = id;
       }
@@ -124,10 +124,10 @@ class RoomChatLobby with ChangeNotifier {
     }
 
     // Remove from local state and track as hidden
-    bool removed = false;
+    var removed = false;
     
     // Find the chat object to get all its identifiers
-    Chat? chat = _distanceChat[chatId];
+    var chat = _distanceChat[chatId];
     if (chat == null) {
       for (final entry in _distanceChat.values) {
         if (entry.chatId == chatId) {
@@ -211,7 +211,7 @@ class RoomChatLobby with ChangeNotifier {
   }
 
   void incrementUnreadCount(String chatId) {
-    Chat? targetChat = _distanceChat[chatId];
+    var targetChat = _distanceChat[chatId];
     
     if (targetChat == null) {
       // search by tunnel ID in values
@@ -237,7 +237,7 @@ class RoomChatLobby with ChangeNotifier {
   }
 
   void resetUnreadCount(String chatId) {
-    Chat? targetChat = _distanceChat[chatId];
+    var targetChat = _distanceChat[chatId];
     
     if (targetChat == null) {
       for (final chat in _distanceChat.values) {
@@ -542,7 +542,7 @@ class RoomChatLobby with ChangeNotifier {
         if (systemMsg != null) {
           // Check if we already have this specific system message in the last few messages
           final existingMessages = _messagesList[distantId] ?? [];
-          bool alreadyExists = existingMessages.reversed.take(5).any((m) => m.msg == systemMsg);
+          final alreadyExists = existingMessages.reversed.take(5).any((m) => m.msg == systemMsg);
           
           if (!alreadyExists) {
             final sysMessage = ChatMessage(
@@ -603,7 +603,7 @@ class RoomChatLobby with ChangeNotifier {
         if (systemMsg != null) {
           // Check if we already have this specific system message in the last few messages
           final existingMessages = _messagesList[distantId] ?? [];
-          bool alreadyExists = existingMessages.reversed.take(5).any((m) => m.msg == systemMsg);
+          final alreadyExists = existingMessages.reversed.take(5).any((m) => m.msg == systemMsg);
           
           if (!alreadyExists) {
             final sysMessage = ChatMessage(

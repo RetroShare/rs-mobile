@@ -31,12 +31,12 @@ class MessageDelegate extends StatelessWidget {
     final isLobby = data.isLobbyMessage();
 
     // RetroShare Chat Flags
-    const int rsChatFlagsHistory = 0x0004;
-    const int rsChatFlagsSystem = 0x0008;
+    const rsChatFlagsHistory = 0x0004;
+    const rsChatFlagsSystem = 0x0008;
 
-    final bool isHistory = ((data.chatflags ?? 0) & rsChatFlagsHistory) != 0;
-    final bool isSystem = ((data.chatflags ?? 0) & rsChatFlagsSystem) != 0;
-    final bool isOffline = data.online == false;
+    final isHistory = ((data.chatflags ?? 0) & rsChatFlagsHistory) != 0;
+    final isSystem = ((data.chatflags ?? 0) & rsChatFlagsSystem) != 0;
+    final isOffline = data.online == false;
 
     // Determine colors based on flags and state
     Color bubbleColor;
@@ -139,11 +139,9 @@ class MessageDelegate extends StatelessWidget {
           mainAxisAlignment: isSystem
               ? MainAxisAlignment.center
               : (isIncoming ? MainAxisAlignment.end : MainAxisAlignment.start),
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (!isIncoming && !isSystem) ...[
-              _buildLabel(context, bubbleTitle, formattedTime, isIncoming,
-                  isCompact: false),
+              _buildLabel(context, bubbleTitle, formattedTime, isIncoming,),
               const SizedBox(width: 4),
             ],
             Flexible(
@@ -152,11 +150,11 @@ class MessageDelegate extends StatelessWidget {
                     color: bubbleColor,
                     borderColor: borderColor,
                     isIncoming: isIncoming,
-                    isSystem: isSystem),
+                    isSystem: isSystem,),
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                   child: _buildHtmlContent(context, messageContent, true,
-                      textColor: Colors.black),
+                      textColor: Colors.black,),
                 ),
               ),
             ),
@@ -165,8 +163,7 @@ class MessageDelegate extends StatelessWidget {
               if (isSystem)
                 _buildSystemLabel(context, bubbleTitle, formattedTime)
               else
-                _buildLabel(context, bubbleTitle, formattedTime, isIncoming,
-                    isCompact: false),
+                _buildLabel(context, bubbleTitle, formattedTime, isIncoming,),
             ],
           ],
         ),
@@ -205,11 +202,11 @@ class MessageDelegate extends StatelessWidget {
                         color: bubbleColor,
                         borderColor: borderColor,
                         isIncoming: isIncoming,
-                        isSystem: isSystem),
+                        isSystem: isSystem,),
                     child: Container(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                       child: _buildHtmlContent(context, messageContent, true,
-                          textColor: Colors.black),
+                          textColor: Colors.black,),
                     ),
                   ),
                 ),
@@ -260,8 +257,7 @@ class MessageDelegate extends StatelessWidget {
   }
 
   Widget _buildLabel(
-      BuildContext context, String title, String time, bool isIncoming,
-      {bool isCompact = false}) {
+      BuildContext context, String title, String time, bool isIncoming,) {
     return Column(
       crossAxisAlignment:
           isIncoming ? CrossAxisAlignment.start : CrossAxisAlignment.end,
@@ -292,7 +288,7 @@ class MessageDelegate extends StatelessWidget {
       shrinkWrap: true,
       extensions: [
         TagExtension(
-          tagsToExtend: {"img"},
+          tagsToExtend: {'img'},
           builder: (extensionContext) {
             final src = extensionContext.attributes['src'];
             if (src != null && src.contains('base64,')) {
@@ -335,16 +331,16 @@ class MessageDelegate extends StatelessWidget {
 }
 
 class BubblePainter extends CustomPainter {
-  final Color color;
-  final Color borderColor;
-  final bool isIncoming;
-  final bool isSystem;
 
   BubblePainter(
       {required this.color,
       required this.borderColor,
       required this.isIncoming,
-      this.isSystem = false});
+      this.isSystem = false,});
+  final Color color;
+  final Color borderColor;
+  final bool isIncoming;
+  final bool isSystem;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -365,7 +361,7 @@ class BubblePainter extends CustomPainter {
       // Centered rounded rectangle without beak for system messages
       path.addRRect(RRect.fromRectAndRadius(
           Rect.fromLTWH(0, 0, size.width, size.height),
-          const Radius.circular(radius)));
+          const Radius.circular(radius),),);
     } else if (isIncoming) {
       // Beak on the right
       path.moveTo(radius, 0);

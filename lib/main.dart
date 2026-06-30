@@ -55,7 +55,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           create: (_) => FriendLocations(),
           update: (_, auth, friendLocations) {
             if (auth.authtoken != null) {
-              friendLocations!..authToken = auth.authtoken!;
+              friendLocations!.authToken = auth.authtoken!;
             }
             return friendLocations!;
           },
@@ -64,7 +64,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           create: (_) => ChatLobby(),
           update: (_, auth, chatLobby) {
             if (auth.authtoken != null) {
-              chatLobby!..authToken = auth.authtoken!;
+              chatLobby!.authToken = auth.authtoken!;
             }
             return chatLobby!;
           },
@@ -73,7 +73,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           create: (_) => RoomChatLobby(),
           update: (_, auth, roomChatLobby) {
             if (auth.authtoken != null) {
-              roomChatLobby!..authToken = auth.authtoken!;
+              roomChatLobby!.authToken = auth.authtoken!;
             }
             return roomChatLobby!;
           },

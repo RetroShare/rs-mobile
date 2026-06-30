@@ -103,11 +103,11 @@ class MessagesTabState extends State<MessagesTab> {
       final mb = kb / 1024;
 
       if (mb < 3) {
-        final String base64Image = base64.encode(imageBytes);
-        final String extension = imageXFile.path.split('.').last.toLowerCase();
-        final String mimeType =
+        final base64Image = base64.encode(imageBytes);
+        final extension = imageXFile.path.split('.').last.toLowerCase();
+        final mimeType =
             (extension == 'png') ? 'image/png' : 'image/jpeg';
-        final String htmlText =
+        final htmlText =
             "<img alt='Image' src='data:$mimeType;base64,$base64Image'/>";
 
         if (!mounted) return;
@@ -175,8 +175,8 @@ class MessagesTabState extends State<MessagesTab> {
                         final message = msgList[index];
                         final key = UniqueKey();
                         
-                        String bubbleTitle = '';
-                        final bool isSystem = ((message.chatflags ?? 0) & 0x0008) != 0;
+                        var bubbleTitle = '';
+                        final isSystem = ((message.chatflags ?? 0) & 0x0008) != 0;
 
                         if (isSystem) {
                           bubbleTitle = 'Status';

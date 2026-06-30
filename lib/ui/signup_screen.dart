@@ -9,7 +9,6 @@ import 'package:retroshare/common/show_dialog.dart';
 import 'package:retroshare/model/http_exception.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare/provider/identity.dart';
-import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -326,8 +325,8 @@ class SignUpScreenState extends State<SignUpScreen> {
   void _showImportDialog(BuildContext context) {
     final certController = TextEditingController();
     final passController = TextEditingController();
-    bool isLoading = false;
-    int importType = 0; // 0: Full Location, 1: PGP Key only
+    var isLoading = false;
+    var importType = 0; // 0: Full Location, 1: PGP Key only
 
     showDialog(
       context: context,
@@ -350,13 +349,13 @@ class SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
                   onPressed: () async {
-                    FilePickerResult? result = await FilePicker.platform.pickFiles(
+                    final result = await FilePicker.platform.pickFiles(
                       type: FileType.custom,
                       allowedExtensions: ['txt', 'crt', 'asc'],
                     );
                     if (result != null) {
-                      File file = File(result.files.single.path!);
-                      String content = await file.readAsString();
+                      final file = File(result.files.single.path!);
+                      final content = await file.readAsString();
                       certController.text = content;
                     }
                   },
@@ -400,7 +399,7 @@ class SignUpScreenState extends State<SignUpScreen> {
                 setState(() => isLoading = true);
                 try {
                   final authProvider = Provider.of<AccountCredentials>(context, listen: false);
-                  final String rawContent = certController.text.trim();
+                  final rawContent = certController.text.trim();
                   
                   if (importType == 0) {
                     // For full location import, it's usually already base64 encoded by the export process

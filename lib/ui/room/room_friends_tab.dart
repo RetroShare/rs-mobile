@@ -128,7 +128,7 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
                     itemBuilder: (BuildContext context, int index) {
                       // 6. Access is safe now assuming participantList is non-null List
                       final participant = participantList[index];
-                      final bool isMe = currentIdentity?.mId == participant.mId;
+                      final isMe = currentIdentity?.mId == participant.mId;
 
                       return PersonDelegate(
                         // Pass non-nullable participant
@@ -153,11 +153,11 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
                                 participant.isContact
                                     ? Icons.person_remove
                                     : Icons.person_add,
-                                color: Theme.of(context).colorScheme.onSurface),
+                                color: Theme.of(context).colorScheme.onSurface,),
                             () {
                               Provider.of<RoomChatLobby>(context, listen: false)
                                   .toggleContacts(
-                                      participant.mId, !participant.isContact);
+                                      participant.mId, !participant.isContact,);
                             },
                             tapPosition,
                             context,
@@ -166,7 +166,7 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
                                 title: 'View Details',
                                 icon: Icon(Icons.info_outline,
                                     color:
-                                        Theme.of(context).colorScheme.onSurface),
+                                        Theme.of(context).colorScheme.onSurface,),
                                 action: () {
                                   Navigator.pushNamed(
                                     context,
