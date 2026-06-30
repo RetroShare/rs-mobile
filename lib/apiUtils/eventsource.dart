@@ -15,7 +15,8 @@ Future<void> registerChatEvent(
   AuthToken authToken,
 ) async {
   await eventsRegisterChatMessage(
-    listenCb: (var json, ChatMessage msg) {
+    listenCb: (var json, ChatMessage? msg) {
+      if (msg == null) return;
       final roomChatLobby = Provider.of<RoomChatLobby>(context, listen: false);
       final chatLobby = Provider.of<ChatLobby>(context, listen: false);
 

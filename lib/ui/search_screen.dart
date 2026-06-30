@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/person_delegate.dart';
@@ -24,6 +22,8 @@ class SearchScreenState extends State<SearchScreen>
   final TextEditingController _searchBoxFilter = TextEditingController();
   late Animation<Color?> _leftTabIconColor;
   late Animation<Color?> _rightTabIconColor;
+  late Animation<Color?> _leftTabTextColor;
+  late Animation<Color?> _rightTabTextColor;
   bool _init = true;
   String _searchContent = '';
   List<Identity> allIds = [];
@@ -79,12 +79,23 @@ class SearchScreenState extends State<SearchScreen>
     }
     _init = false;
 
-    _leftTabIconColor =
-        ColorTween(begin: Theme.of(context).colorScheme.surfaceContainerHighest, end: Theme.of(context).colorScheme.primary)
-            .animate(_tabController.animation!);
-    _rightTabIconColor =
-        ColorTween(begin: Theme.of(context).colorScheme.primary, end: Theme.of(context).colorScheme.surfaceContainerHighest)
-            .animate(_tabController.animation!);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selectedTextColor = isDark ? Colors.black : Theme.of(context).colorScheme.onPrimary;
+    final unselectedTextColor = Theme.of(context).colorScheme.onSurface;
+
+    _leftTabIconColor = ColorTween(
+            begin: Theme.of(context).colorScheme.primary,
+            end: Theme.of(context).colorScheme.surfaceContainerHighest)
+        .animate(_tabController.animation!);
+    _rightTabIconColor = ColorTween(
+            begin: Theme.of(context).colorScheme.surfaceContainerHighest,
+            end: Theme.of(context).colorScheme.primary)
+        .animate(_tabController.animation!);
+
+    _leftTabTextColor = ColorTween(begin: selectedTextColor, end: unselectedTextColor)
+        .animate(_tabController.animation!);
+    _rightTabTextColor = ColorTween(begin: unselectedTextColor, end: selectedTextColor)
+        .animate(_tabController.animation!);
   }
 
   Future<void> _goToChat(Chat lobby) async {
@@ -208,9 +219,7 @@ class SearchScreenState extends State<SearchScreen>
                               child: Text(
                                 'Chats',
                                 style: TextStyle(
-                                  color: _tabController.index == 0
-                                      ? Theme.of(context).colorScheme.onPrimary
-                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: _leftTabTextColor.value,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -243,9 +252,7 @@ class SearchScreenState extends State<SearchScreen>
                               child: Text(
                                 'People',
                                 style: TextStyle(
-                                  color: _tabController.index == 1
-                                      ? Theme.of(context).colorScheme.onPrimary
-                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: _rightTabTextColor.value,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
