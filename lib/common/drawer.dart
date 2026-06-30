@@ -152,49 +152,57 @@ Widget drawerWidget(BuildContext ctx) {
           ),
         ),
         const Divider(),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Column(
-            children: [
-              buildNavList(Icons.person_add_alt, 'Add friend', () {
-                Future.delayed(Duration.zero, () {
-                  Navigator.pushNamed(ctx, '/add_friend');
-                });
-              }),
-              buildNavList(Icons.add, 'Create new identity', () {
-                Navigator.pushNamed(ctx, '/create_identity');
-              }),
-              buildNavList(Icons.visibility, 'Change identity', () {
-                Navigator.pushNamed(ctx, '/change_identity');
-              }),
-              buildNavList(Icons.devices, 'Friends location', () {
-                Navigator.pushNamed(ctx, '/friends_locations');
-              }),
-              buildNavList(Icons.language, 'Discover public chats', () {
-                Navigator.pushNamed(ctx, '/discover_chats');
-              }),
-              buildNavList(
-                AdaptiveTheme.of(ctx).mode.isDark
-                    ? Icons.light_mode
-                    : Icons.dark_mode,
-                AdaptiveTheme.of(ctx).mode.isDark
-                    ? 'Switch to Light Mode'
-                    : 'Switch to Dark Mode',
-                () {
-                  if (AdaptiveTheme.of(ctx).mode.isDark) {
-                    AdaptiveTheme.of(ctx).setLight();
-                  } else {
-                    AdaptiveTheme.of(ctx).setDark();
-                  }
-                },
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Column(
+                children: [
+                  buildNavList(Icons.person_add_alt, 'Add friend', () {
+                    Future.delayed(Duration.zero, () {
+                      Navigator.pushNamed(ctx, '/add_friend');
+                    });
+                  }),
+                  buildNavList(Icons.add, 'Create new identity', () {
+                    Navigator.pushNamed(ctx, '/create_identity');
+                  }),
+                  buildNavList(Icons.visibility, 'Change identity', () {
+                    Navigator.pushNamed(ctx, '/change_identity');
+                  }),
+                  buildNavList(Icons.devices, 'Friends location', () {
+                    Navigator.pushNamed(ctx, '/friends_locations');
+                  }),
+                  buildNavList(Icons.language, 'Discover public chats', () {
+                    Navigator.pushNamed(ctx, '/discover_chats');
+                  }),
+                  buildNavList(
+                    AdaptiveTheme.of(ctx).mode.isDark
+                        ? Icons.light_mode
+                        : Icons.dark_mode,
+                    AdaptiveTheme.of(ctx).mode.isDark
+                        ? 'Switch to Light Mode'
+                        : 'Switch to Dark Mode',
+                    () {
+                      if (AdaptiveTheme.of(ctx).mode.isDark) {
+                        AdaptiveTheme.of(ctx).setLight();
+                      } else {
+                        AdaptiveTheme.of(ctx).setDark();
+                      }
+                    },
+                  ),
+                  buildNavList(Icons.settings, 'Network Settings', () {
+                    Navigator.pushNamed(ctx, '/network_settings');
+                  }),
+                  buildNavList(Icons.info_rounded, 'About', () {
+                    Navigator.pushNamed(ctx, '/about');
+                  }),
+                ],
               ),
-              buildNavList(Icons.info_rounded, 'About', () {
-                Navigator.pushNamed(ctx, '/about');
-              }),
-            ],
+            ),
           ),
         ),
-        const Spacer(),
+        const SizedBox(height: 10),
         const Text(
           'V 1.0.1',
           style: TextStyle(
@@ -204,7 +212,7 @@ Widget drawerWidget(BuildContext ctx) {
           ),
         ),
         const SizedBox(
-          height: 30,
+          height: 20,
         ),
       ],
     ),

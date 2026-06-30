@@ -17,6 +17,7 @@ import 'package:retroshare/ui/signin_screen.dart';
 import 'package:retroshare/ui/signup_screen.dart';
 import 'package:retroshare/ui/splash_screen.dart';
 import 'package:retroshare/ui/update_identity_screen.dart';
+import 'package:retroshare/ui/network_settings_screen.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart' show Identity, Chat, Location;
 
 class RouteGenerator {
@@ -115,6 +116,8 @@ class RouteGenerator {
           );
         }
         return _errorRoute();
+      case '/network_settings':
+        return MaterialPageRoute(builder: (_) => const NetworkSettingsScreen());
       case '/about':
         return MaterialPageRoute(builder: (_) => const AboutScreen());
       case '/notification':
