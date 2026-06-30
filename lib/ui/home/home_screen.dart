@@ -50,9 +50,19 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void didChangeDependencies() {
     if (_isInit) {
       _fetchInitialData();
+      
+      // Listen to both providers for unread changes to update the app icon badge
+      Provider.of<ChatLobby>(context).addListener(_updateAppBadge);
+      Provider.of<RoomChatLobby>(context).addListener(_updateAppBadge);
     }
     _isInit = false;
     super.didChangeDependencies();
+  }
+
+  void _updateAppBadge() {
+    if (mounted) {
+      BadgeHelper.updateAppBadge(context);
+    }
   }
 
   Future<void> _fetchInitialData() async {
@@ -109,6 +119,13 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _inviteCheckTimer?.cancel();
+    // Remove listeners to avoid memory leaks
+    try {
+      Provider.of<ChatLobby>(context, listen: false).removeListener(_updateAppBadge);
+      Provider.of<RoomChatLobby>(context, listen: false).removeListener(_updateAppBadge);
+    } catch (_) {
+      // Providers might be already disposed during logout/shutdown
+    }
     _tabController.dispose();
     super.dispose();
   }
