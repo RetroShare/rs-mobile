@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
+import 'package:retroshare/apiUtils/retroshare_service.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class AccountCredentials with ChangeNotifier {
@@ -76,6 +77,7 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<void> login(Account currentAccount, String password) async {
+    await copyBdbootToConfigDir();
     final int resp = await RsLoginHelper.requestLogIn(currentAccount, password);
     logginAccount = currentAccount;
     // Login success 0, already logged in 1
@@ -93,6 +95,7 @@ class AccountCredentials with ChangeNotifier {
 
   Future<void> signup(String username, String password, String nodename) async {
     final resp = await RsLoginHelper.requestAccountCreation(username, password);
+    await copyBdbootToConfigDir();
     final account = (
       resp['retval']['errorNumber'] == 0,
       Account(
@@ -119,6 +122,7 @@ class AccountCredentials with ChangeNotifier {
     try {
       final resp = await RsLoginHelper.importLocation(base64Cert, password);
       if (resp['retval'] == true || (resp['retval'] is Map && resp['retval']['errorNumber'] == 0)) {
+        await copyBdbootToConfigDir();
         await fetchAuthAccountList();
         notifyListeners();
       } else {
@@ -146,6 +150,7 @@ class AccountCredentials with ChangeNotifier {
         throw HttpException(createResp['errorMessage'] ?? 'Create Location failed');
       }
 
+      await copyBdbootToConfigDir();
       await fetchAuthAccountList();
       notifyListeners();
     } catch (e) {

@@ -56,6 +56,7 @@ class SplashState extends State<SplashScreen> {
       try {
         _updateStatus('Starting Retroshare service...');
         await Future.delayed(const Duration(seconds: 2));
+        await copyBdbootToConfigDir();
         retroshareStarted = await RsServiceControl.startRetroshare();
 
         if (retroshareStarted) {
