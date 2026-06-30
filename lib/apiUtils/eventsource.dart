@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:html/parser.dart';
 import 'package:provider/provider.dart';
+import 'package:retroshare/common/badge_helper.dart';
 import 'package:retroshare/common/notifications.dart';
 import 'package:retroshare/model/app_life_cycle_state.dart';
 import 'package:retroshare/provider/room.dart';
@@ -29,6 +30,7 @@ Future<void> registerChatEvent(
         // Increment unread count if not current chat
         if (roomChatLobby.currentChat?.chatId != lobbyId) {
           chatLobby.incrementUnreadCount(lobbyId);
+          BadgeHelper.updateAppBadge(context);
         }
       }
       // Check if is distant chat message
@@ -45,6 +47,7 @@ Future<void> registerChatEvent(
           // Increment unread count if not current chat
           if (roomChatLobby.currentChat?.chatId != distantId) {
             roomChatLobby.incrementUnreadCount(distantId);
+            BadgeHelper.updateAppBadge(context);
           }
         }).catchError((e) {
           debugPrint('Error processing distant chat message: $e');

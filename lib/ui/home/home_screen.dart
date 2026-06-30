@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/apiUtils/eventsource.dart';
+import 'package:retroshare/common/badge_helper.dart';
 import 'package:retroshare/common/drawer.dart';
 import 'package:retroshare/common/styles.dart';
 import 'package:retroshare/provider/auth.dart';
@@ -22,6 +24,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isInit = true;
   bool _isLoading = false;
   bool _isEventRegistered = false;
+  Timer? _inviteCheckTimer;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -34,15 +37,32 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         setState(() {});
       }
     });
+
+    // Start periodic invite check
+    _inviteCheckTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+      if (mounted) {
+        Provider.of<ChatLobby>(context, listen: false).checkForNewInvites();
+      }
+    });
   }
 
   @override
   void didChangeDependencies() {
     if (_isInit) {
       _fetchInitialData();
+      
+      // Listen to both providers for unread changes to update the app icon badge
+      Provider.of<ChatLobby>(context).addListener(_updateAppBadge);
+      Provider.of<RoomChatLobby>(context).addListener(_updateAppBadge);
     }
     _isInit = false;
     super.didChangeDependencies();
+  }
+
+  void _updateAppBadge() {
+    if (mounted) {
+      BadgeHelper.updateAppBadge(context);
+    }
   }
 
   Future<void> _fetchInitialData() async {
@@ -52,9 +72,12 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
 
     try {
-      await Provider.of<ChatLobby>(context, listen: false).fetchAndUpdate();
+      final chatLobby = Provider.of<ChatLobby>(context, listen: false);
+      await chatLobby.fetchAndUpdate();
       await Provider.of<RoomChatLobby>(context, listen: false).fetchAndUpdate();
       await Provider.of<FriendLocations>(context, listen: false).fetchfriendLocation();
+      await chatLobby.checkForNewInvites();
+      await BadgeHelper.updateAppBadge(context);
 
       final authToken =
           Provider.of<AccountCredentials>(context, listen: false).authtoken;
@@ -79,9 +102,11 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> fetchdata(BuildContext context) async {
     try {
-      await Provider.of<ChatLobby>(context, listen: false).fetchAndUpdate();
+      final chatLobby = Provider.of<ChatLobby>(context, listen: false);
+      await chatLobby.fetchAndUpdate();
       await Provider.of<RoomChatLobby>(context, listen: false).fetchAndUpdate();
       await Provider.of<FriendLocations>(context, listen: false).fetchfriendLocation();
+      await chatLobby.checkForNewInvites();
     } catch (e) {
       debugPrint('Error during fetchdata: $e');
       if (!mounted) return;
@@ -93,6 +118,14 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _inviteCheckTimer?.cancel();
+    // Remove listeners to avoid memory leaks
+    try {
+      Provider.of<ChatLobby>(context, listen: false).removeListener(_updateAppBadge);
+      Provider.of<RoomChatLobby>(context, listen: false).removeListener(_updateAppBadge);
+    } catch (_) {
+      // Providers might be already disposed during logout/shutdown
+    }
     _tabController.dispose();
     super.dispose();
   }

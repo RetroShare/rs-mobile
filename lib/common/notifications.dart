@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:retroshare/main.dart';
 import 'package:rxdart/rxdart.dart';
 
 NotificationAppLaunchDetails? notificationAppLaunchDetails;
@@ -21,7 +22,6 @@ Future<void> initializeNotifications() async {
     onDidReceiveNotificationResponse:
         (NotificationResponse notificationResponse) async {
       final payload = notificationResponse.payload;
-      if (payload != null) {}
       selectNotificationSubject.add(payload);
     },
   );
@@ -29,14 +29,9 @@ Future<void> initializeNotifications() async {
 
 void configureSelectNotificationSubject(BuildContext context) {
   selectNotificationSubject.stream.listen((String? payload) async {
-    // Handle notification selection here if needed
-    // Example: Navigate to a specific screen based on payload
-    // if (payload != null) {
-    //   await Navigator.push(
-    //     context,
-    //     MaterialPageRoute(builder: (context) => SecondScreen(payload)),
-    //   );
-    // }
+    if (payload != null && payload == '/notification') {
+      navigatorKey.currentState?.pushNamed('/notification');
+    }
   });
 }
 
@@ -70,6 +65,31 @@ Future<void> showChatNotification(
     body,
     platformChannelSpecifics,
     payload: chatId,
+  );
+}
+
+Future<void> showLobbyInviteNotification(
+  String lobbyId,
+  String lobbyName,
+  String senderName,
+) async {
+  const androidPlatformChannelSpecifics = AndroidNotificationDetails(
+    'RetroshareInvites',
+    'Retroshare Invites',
+    channelDescription: 'Retroshare chat lobby invitations',
+    importance: Importance.max,
+    priority: Priority.high,
+    color: Colors.purple,
+  );
+  const platformChannelSpecifics =
+      NotificationDetails(android: androidPlatformChannelSpecifics);
+  
+  await flutterLocalNotificationsPlugin.show(
+    lobbyId.hashCode,
+    'New Chat Room Invite',
+    '$senderName invited you to join "$lobbyName"',
+    platformChannelSpecifics,
+    payload: '/notification', // Navigate to notifications screen on tap
   );
 }
 

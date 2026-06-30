@@ -44,6 +44,7 @@ dependencies:
   flutter_html: 3.0.0
   adaptive_theme: ^3.7.0
   file_picker: ^8.1.7
+  flutter_app_badger: ^1.5.0
   simple_chips_input: ^1.2.1
   # For notifications
   flutter_local_notifications: ^19.1.0
