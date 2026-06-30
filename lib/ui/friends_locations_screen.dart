@@ -33,7 +33,7 @@ class FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
     if (_sortOption == LocationSortOption.name) {
       sorted.sort((a, b) => a.accountName
           .toLowerCase()
-          .compareTo(b.accountName.toLowerCase()));
+          .compareTo(b.accountName.toLowerCase()),);
     } else if (_sortOption == LocationSortOption.status) {
       sorted.sort((a, b) {
         // Online first, then away, busy, inactive, offline last

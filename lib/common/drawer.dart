@@ -94,7 +94,6 @@ Widget drawerWidget(BuildContext ctx) {
                               child: Center(
                                 child: Identicon(
                                   id: curr.currentIdentity!.mId,
-                                  size: 100,
                                   borderRadius: 18,
                                 ),
                               ),

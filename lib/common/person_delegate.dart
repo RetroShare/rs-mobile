@@ -71,11 +71,11 @@ class PersonDelegateData {
         loc.rsGpgId.isNotEmpty &&
         identity.pgpId != null &&
         loc.rsGpgId.toLowerCase() == identity.pgpId!.toLowerCase() &&
-        loc.rsGpgId != '0000000000000000');
+        loc.rsGpgId != '0000000000000000',);
 
     final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
 
-    int effectiveStatus = identity.status;
+    var effectiveStatus = identity.status;
     if (effectiveStatus == 0 && isAnyLocationOnline) {
       effectiveStatus = 3; // Default to Online
       for (final loc in matchingLocs) {
@@ -137,11 +137,11 @@ class PersonDelegateData {
         loc.rsGpgId.isNotEmpty &&
         identity.pgpId != null &&
         loc.rsGpgId.toLowerCase() == identity.pgpId!.toLowerCase() &&
-        loc.rsGpgId != '0000000000000000');
+        loc.rsGpgId != '0000000000000000',);
 
     final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
 
-    int effectiveStatus = identity.status;
+    var effectiveStatus = identity.status;
     if (effectiveStatus == 0 && isAnyLocationOnline) {
       effectiveStatus = 3; // Default to Online
       for (final loc in matchingLocs) {
@@ -193,7 +193,6 @@ class PersonDelegateData {
   static PersonDelegateData locationData(Location location) {
     return PersonDelegateData(
       name: '${location.accountName}:${location.locationName}',
-      mId: null,
       message: _statusText(location.status, location.isOnline),
       isOnline: location.isOnline,
       status: location.status,
@@ -247,14 +246,14 @@ class PersonDelegateState extends State<PersonDelegate>
   void didChangeDependencies() {
     super.didChangeDependencies();
     boxShadow = DecorationTween(
-      begin: BoxDecoration(
+      begin: const BoxDecoration(
         boxShadow: [
           BoxShadow(
             color: Colors.transparent,
             spreadRadius: appBarHeight / 3,
           ),
         ],
-        borderRadius: const BorderRadius.all(Radius.circular(appBarHeight / 3)),
+        borderRadius: BorderRadius.all(Radius.circular(appBarHeight / 3)),
         color: Colors.transparent,
       ),
       end: BoxDecoration(
@@ -552,7 +551,7 @@ Future<void> showCustomMenu(
 }) async {
   final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
 
-  final List<PopupMenuEntry<int>> items = [
+  final items = <PopupMenuEntry<int>>[
     PopupMenuItem(
       value: 0,
       child: ListTile(
@@ -564,7 +563,7 @@ Future<void> showCustomMenu(
   ];
 
   if (additionalActions != null) {
-    for (int i = 0; i < additionalActions.length; i++) {
+    for (var i = 0; i < additionalActions.length; i++) {
       items.add(
         PopupMenuItem(
           value: i + 1,
@@ -572,7 +571,7 @@ Future<void> showCustomMenu(
             contentPadding: const EdgeInsets.symmetric(horizontal: 8),
             leading: additionalActions[i].icon,
             title: Text(additionalActions[i].title,
-                style: Theme.of(context).textTheme.bodyLarge),
+                style: Theme.of(context).textTheme.bodyLarge,),
           ),
         ),
       );

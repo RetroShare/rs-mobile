@@ -72,7 +72,7 @@ Widget friendLocationShimmer() {
         ),
       ),
     );
-  });
+  },);
 }
 
 Widget changeIdentityShimmer() {
@@ -146,7 +146,7 @@ Widget changeIdentityShimmer() {
         ),
       ),
     );
-  });
+  },);
 }
 
 Widget chatTabShimmer() {
@@ -209,5 +209,5 @@ Widget chatTabShimmer() {
         itemCount: 5,
       ),
     );
-  });
+  },);
 }

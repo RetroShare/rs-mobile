@@ -22,8 +22,8 @@ class ChatsTab extends StatelessWidget {
       bottom: false,
       child: Consumer3<ChatLobby, RoomChatLobby, FriendLocations>(
         builder: (context, chatLobby, roomChat, friendLocations, _) {
-          final Set<String> processedDistantIds = {};
-          final List<Chat> distantChats = [];
+          final processedDistantIds = <String>{};
+          final distantChats = <Chat>[];
           for (final chat in roomChat.distanceChat.values) {
             if (!chat.isPublic && chat.chatId != null && !processedDistantIds.contains(chat.chatId)) {
               distantChats.add(chat);
@@ -31,7 +31,7 @@ class ChatsTab extends StatelessWidget {
             }
           }
 
-          final List<Chat> allChats = [
+          final allChats = <Chat>[
             ...chatLobby.subscribedlist,
             ...distantChats,
           ];
@@ -53,7 +53,7 @@ class ChatsTab extends StatelessWidget {
                         final chat = allChats[index];
                         // A chat is a room if it has lobby flags (rooms/lobbies) 
                         // or is explicitly in the subscribed list
-                        final bool isRoom = chat.lobbyFlags != null || 
+                        final isRoom = chat.lobbyFlags != null || 
                                            chatLobby.subscribedlist.any((c) => c.chatId == chat.chatId);
 
                         final identity = roomChat.allIdentity[chat.interlocutorId] ??
@@ -126,12 +126,12 @@ class ChatsTab extends StatelessWidget {
                                     identity.isContact
                                         ? Icons.person_remove
                                         : Icons.person_add,
-                                    color: Colors.black),
+                                    color: Colors.black,),
                                 () {
                                   Provider.of<RoomChatLobby>(context,
-                                          listen: false)
+                                          listen: false,)
                                       .toggleContacts(
-                                          identity.mId, !identity.isContact);
+                                          identity.mId, !identity.isContact,);
                                 },
                                 tapPosition,
                                 context,
@@ -139,7 +139,7 @@ class ChatsTab extends StatelessWidget {
                                   (
                                     title: 'View Details',
                                     icon: const Icon(Icons.info_outline,
-                                        color: Colors.black),
+                                        color: Colors.black,),
                                     action: () {
                                       Navigator.pushNamed(
                                         context,
@@ -151,11 +151,11 @@ class ChatsTab extends StatelessWidget {
                                   (
                                     title: 'Remove chat',
                                     icon: const Icon(Icons.delete_outline,
-                                        color: Colors.black),
+                                        color: Colors.black,),
                                     action: () {
                                       if (chat.chatId != null) {
                                         Provider.of<RoomChatLobby>(context,
-                                                listen: false)
+                                                listen: false,)
                                             .removeDistantChat(chat.chatId!);
                                       }
                                     },

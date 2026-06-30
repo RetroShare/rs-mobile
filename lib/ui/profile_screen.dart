@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/drawer.dart';
 import 'package:retroshare/common/identicon.dart';
-import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
@@ -73,7 +72,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                     context, 
                     'Type', 
                     widget.curr.signed ? 'Signed Identity' : 'Pseudonymous Identity', 
-                    widget.curr.signed ? Icons.verified : Icons.visibility_off
+                    widget.curr.signed ? Icons.verified : Icons.visibility_off,
                   ),
                   const SizedBox(height: 15),
                   if (isOwnIdentity)
@@ -186,8 +185,6 @@ class ProfileScreenState extends State<ProfileScreen> {
           borderRadius: BorderRadius.circular(15),
           gradient: const LinearGradient(
             colors: [Color(0xFF00FFFF), Color(0xFF29ABE2)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
           ),
           boxShadow: [
             BoxShadow(

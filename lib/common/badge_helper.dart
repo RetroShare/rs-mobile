@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app_badger/flutter_app_badger.dart';
 import 'package:provider/provider.dart';
@@ -12,11 +11,11 @@ class BadgeHelper {
       final roomChatLobby = Provider.of<RoomChatLobby>(context, listen: false);
 
       // Aggregate room unreads
-      final int roomUnread = chatLobby.subscribedlist.fold(0, (sum, chat) => sum + chat.unreadCount);
+      final roomUnread = chatLobby.subscribedlist.fold(0, (sum, chat) => sum + chat.unreadCount);
       
       // Aggregate distant chat unreads, ensuring we only count each unique chat once
-      final Set<String> processedDistantIds = {};
-      int distantUnread = 0;
+      final processedDistantIds = <String>{};
+      var distantUnread = 0;
       for (final chat in roomChatLobby.distanceChat.values) {
         if (!chat.isPublic && chat.chatId != null && !processedDistantIds.contains(chat.chatId)) {
           distantUnread += chat.unreadCount;
@@ -24,7 +23,7 @@ class BadgeHelper {
         }
       }
       
-      final int totalUnread = roomUnread + distantUnread;
+      final totalUnread = roomUnread + distantUnread;
 
       if (await FlutterAppBadger.isAppBadgeSupported()) {
         if (totalUnread > 0) {
