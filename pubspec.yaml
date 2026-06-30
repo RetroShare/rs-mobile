@@ -94,6 +94,7 @@ flutter:
 
   assets:
     - assets/rs-logo.png
+    - assets/bdboot.txt
     - assets/icons8/pluto-fatal-error.png
     - assets/icons8/pluto-no-messages-1.png
     - assets/icons8/pluto-sign-in.png
