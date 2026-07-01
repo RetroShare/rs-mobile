@@ -130,165 +130,109 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  PreferredSizeWidget _appBar(double height) => PreferredSize(
-        preferredSize: Size.fromHeight(150 + height),
-        child: Stack(
-          children: <Widget>[
-            Container(
-              height: 140 + height / 2,
-              width: MediaQuery.of(context).size.width,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: <Color>[
-                    Color(0xFF00FFFF),
-                    Color(0xFF29ABE2),
-                  ],
-                  begin: Alignment(-1, -4),
-                  end: Alignment(1, 4),
-                ),
-              ),
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 50),
-                  child: Text(
-                    'Retroshare',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontFamily: 'Vollkorn',
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 90,
-              left: 20,
-              right: 20,
-              child: Column(
-                children: [
-                  AppBar(
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    leading: InkWell(
-                      onTap: () {
-                        _scaffoldKey.currentState?.openDrawer();
-                      },
-                      child: Icon(
-                        Icons.menu,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    primary: false,
-                    title: Text(
-                      'Search',
-                      style: TextStyle(
-                        color: Theme.of(context).hintColor,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.start,
-                    ),
-                    actions: <Widget>[
-                      IconButton(
-                        icon: Icon(
-                          Icons.search,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        onPressed: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/search',
-                            arguments: _tabController.index,
-                          ).then((value) async {
-                            await fetchdata(context);
-                          });
-                        },
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 14,
-                        ),
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.of(context)
-                                .pushNamed('/notification')
-                                .then((value) {
-                              fetchdata(context);
-                            });
-                          },
-                          child: const NotificationIcon(),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Consumer2<ChatLobby, RoomChatLobby>(
-                    builder: (context, chatLobby, roomChatLobby, _) {
-                      // Aggregate room unreads
-                      final int roomUnread = chatLobby.subscribedlist.fold(0, (sum, chat) => sum + chat.unreadCount);
-                      
-                      // Aggregate distant chat unreads, ensuring we only count each unique chat once
-                      final Set<String> processedDistantIds = {};
-                      int distantUnread = 0;
-                      for (final chat in roomChatLobby.distanceChat.values) {
-                        if (!chat.isPublic && chat.chatId != null && !processedDistantIds.contains(chat.chatId)) {
-                          distantUnread += chat.unreadCount;
-                          processedDistantIds.add(chat.chatId!);
-                        }
-                      }
-                      
-                      final int totalUnread = roomUnread + distantUnread;
+  PreferredSizeWidget _appBar() {
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+    const appBarHeight = 56;
+    const verticalPadding = 8;
+    final totalHeight = statusBarHeight + appBarHeight + verticalPadding * 2;
+    final activeBlue = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF29ABE2),
+      brightness: Brightness.dark,
+    ).primary;
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final appBarIconColor = isLight ? const Color(0xFF29ABE2) : activeBlue;
+    final appBarTextColor = isLight ? const Color(0xFF29ABE2) : Theme.of(context).colorScheme.onSurface;
 
-                      return TabBar(
-                        controller: _tabController,
-                        indicatorColor: Colors.white,
-                        labelColor: Colors.white,
-                        unselectedLabelColor: Colors.white70,
-                        tabs: [
-                          Tab(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text('Chats'),
-                                if (totalUnread > 0) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.3),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      totalUnread.toString(),
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          const Tab(text: 'Friends'),
-                        ],
-                      );
-                    },
-                  ),
+    return PreferredSize(
+      preferredSize: Size.fromHeight(totalHeight),
+      child: Stack(
+        children: <Widget>[
+          Container(
+            height: totalHeight,
+            width: MediaQuery.of(context).size.width,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: <Color>[
+                  Color(0xFF00FFFF),
+                  Color(0xFF29ABE2),
                 ],
+                begin: Alignment(-1, -4),
+                end: Alignment(1, 4),
               ),
             ),
-          ],
-        ),
-      );
+          ),
+          Positioned(
+            top: statusBarHeight + verticalPadding,
+            left: 12,
+            right: 12,
+            height: appBarHeight.toDouble(),
+            child: AppBar(
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              titleSpacing: 0,
+              leading: IconButton(
+                icon: Icon(
+                  Icons.menu,
+                  color: appBarIconColor,
+                ),
+                onPressed: () {
+                  _scaffoldKey.currentState?.openDrawer();
+                },
+              ),
+              primary: false,
+              title: Text(
+                'RetroShare',
+                style: TextStyle(
+                  color: appBarTextColor,
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.start,
+              ),
+              actions: <Widget>[
+                IconButton(
+                  icon: Icon(
+                    Icons.search,
+                    color: appBarIconColor,
+                  ),
+                  onPressed: () {
+                    Navigator.pushNamed(
+                      context,
+                      '/search',
+                      arguments: _tabController.index,
+                    ).then((value) async {
+                      await fetchdata(context);
+                    });
+                  },
+                ),
+                IconButton(
+                  icon: const NotificationIcon(),
+                  onPressed: () {
+                    Navigator.of(context)
+                        .pushNamed('/notification')
+                        .then((value) {
+                      fetchdata(context);
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final activeBlue = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF29ABE2),
+      brightness: Brightness.dark,
+    ).primary;
+
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -300,7 +244,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         key: _scaffoldKey,
         resizeToAvoidBottomInset: false,
         drawer: drawerWidget(context),
-        appBar: _appBar(AppBar().preferredSize.height),
+        appBar: _appBar(),
         body: Stack(
           children: [
             TabBarView(
@@ -322,6 +266,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ],
         ),
         bottomNavigationBar: BottomAppBar(
+          padding: EdgeInsets.zero,
           shape: const CircularNotchedRectangle(),
           notchMargin: 7,
           child: SizedBox(
@@ -351,15 +296,17 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         
                         return Column(
                           mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Stack(
                               clipBehavior: Clip.none,
                               children: [
                                 Icon(
                                   Icons.chat_bubble_outline,
+                                  size: 26,
                                   color: _tabController.index == 0
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context).disabledColor,
+                                      ? activeBlue
+                                      : Theme.of(context).colorScheme.onSurface.withAlpha(128),
                                 ),
                                 if (totalUnread > 0)
                                   Positioned(
@@ -389,13 +336,15 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   ),
                               ],
                             ),
+                            const SizedBox(height: 2),
                             Text(
                               'Chats',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
                                 color: _tabController.index == 0
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).disabledColor,
+                                    ? activeBlue
+                                    : Theme.of(context).colorScheme.onSurface.withAlpha(128),
                               ),
                             ),
                           ],
@@ -410,20 +359,24 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     onTap: () => _tabController.animateTo(1),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.people_outline,
+                          size: 26,
                           color: _tabController.index == 1
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).disabledColor,
+                              ? activeBlue
+                              : Theme.of(context).colorScheme.onSurface.withAlpha(128),
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          'Friends',
+                          'Contacts',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                             color: _tabController.index == 1
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).disabledColor,
+                                ? activeBlue
+                                : Theme.of(context).colorScheme.onSurface.withAlpha(128),
                           ),
                         ),
                       ],
@@ -435,8 +388,8 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
         floatingActionButton: SizedBox(
-          height: 60,
-          width: 60,
+          height: 54,
+          width: 54,
           child: FittedBox(
             child: FloatingActionButton(
               backgroundColor: Colors.lightBlueAccent,

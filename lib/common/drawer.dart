@@ -257,11 +257,18 @@ class NotificationIconState extends State<NotificationIcon> {
 
   @override
   Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final activeBlue = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF29ABE2),
+      brightness: Brightness.dark,
+    ).primary;
+    final appBarIconColor = isLight ? const Color(0xFF29ABE2) : activeBlue;
+
     return Stack(
       children: [
         Icon(
           Icons.notifications,
-          color: Theme.of(context).colorScheme.primary,
+          color: appBarIconColor,
           size: 28,
         ),
         Positioned(
