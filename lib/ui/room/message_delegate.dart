@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -298,13 +299,26 @@ class MessageDelegate extends StatelessWidget {
             if (src != null && src.contains('base64,')) {
               try {
                 final base64Data = src.split('base64,').last;
-                return Image.memory(
-                  base64Decode(base64Data.trim()),
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    debugPrint('Error building image: $error');
-                    return const Icon(Icons.broken_image);
+                final decodedBytes = base64Decode(base64Data.trim());
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FullScreenPictureViewer(
+                          imageBytes: decodedBytes,
+                        ),
+                      ),
+                    );
                   },
+                  child: Image.memory(
+                    decodedBytes,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      debugPrint('Error building image: $error');
+                      return const Icon(Icons.broken_image);
+                    },
+                  ),
                 );
               } catch (e) {
                 debugPrint('Error decoding base64 image: $e');
@@ -412,4 +426,43 @@ class BubblePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+class FullScreenPictureViewer extends StatelessWidget {
+  const FullScreenPictureViewer({super.key, required this.imageBytes});
+
+  final Uint8List imageBytes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4,
+              child: Image.memory(
+                imageBytes,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            left: 10,
+            child: CircleAvatar(
+              backgroundColor: Colors.black54,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 

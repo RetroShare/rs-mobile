@@ -35,6 +35,9 @@ class MessagesTabState extends State<MessagesTab> {
 
   bool _showEmojiPicker = false;
   final ImagePicker _picker = ImagePicker();
+  File? _attachedImageFile;
+  String? _attachedImageBase64;
+  String? _attachedImageMimeType;
 
   @override
   void initState() {
@@ -131,6 +134,65 @@ class MessagesTabState extends State<MessagesTab> {
       await errorShowDialog(
         'Error Sending Image',
         'Could not send the image: $e',
+        context,
+      );
+    }
+  }
+
+
+  Future<void> _attachImage() async {
+    final imageXFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    );
+
+    if (imageXFile == null) {
+      debugPrint('Image selection cancelled.');
+      return;
+    }
+
+    final imageFile = File(imageXFile.path);
+    final chatId = widget.chat.chatId;
+
+    if (chatId == null) {
+      debugPrint('Error: Chat ID is null.');
+      return;
+    }
+
+    try {
+      final imageBytes = await imageFile.readAsBytes();
+      final bytes = imageBytes.lengthInBytes;
+      final kb = bytes / 1024;
+      final mb = kb / 1024;
+
+      if (mb < 3) {
+        final base64Image = base64.encode(imageBytes);
+        final extension = imageXFile.path.split('.').last.toLowerCase();
+        final mimeType =
+            (extension == 'png') ? 'image/png' : 'image/jpeg';
+
+        setState(() {
+          _attachedImageFile = imageFile;
+          _attachedImageBase64 = base64Image;
+          _attachedImageMimeType = mimeType;
+        });
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image Size is too large!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error attaching image: $e');
+      if (!mounted) return;
+      await errorShowDialog(
+        'Error Attaching Image',
+        'Could not attach the image: $e',
         context,
       );
     }
@@ -236,6 +298,64 @@ class MessagesTabState extends State<MessagesTab> {
               },
             ),
           ),
+          if (_attachedImageFile != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(128),
+              child: Row(
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          _attachedImageFile!,
+                          height: 55,
+                          width: 55,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        right: -6,
+                        top: -6,
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _attachedImageFile = null;
+                              _attachedImageBase64 = null;
+                              _attachedImageMimeType = null;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Image attached (will be sent with your message)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           BottomBar(
             minHeight: _bottomBarHeight,
             maxHeight: _bottomBarHeight * 2.5,
@@ -300,8 +420,8 @@ class MessagesTabState extends State<MessagesTab> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.image),
-                    tooltip: 'Send image',
-                    onPressed: _sendImage,
+                    tooltip: (widget.isRoom ?? false) ? 'Send image' : 'Attach image',
+                    onPressed: (widget.isRoom ?? false) ? _sendImage : _attachImage,
                   ),
                   IconButton(
                     icon: const Icon(Icons.send),
@@ -329,14 +449,28 @@ class MessagesTabState extends State<MessagesTab> {
 
   Future<void> _sendMessage() async {
     final isRoomChat = widget.isRoom ?? false;
-    if (msgController.text.isNotEmpty && widget.chat.chatId != null) {
+    final hasText = msgController.text.isNotEmpty;
+    final hasImage = _attachedImageBase64 != null;
+
+    if ((hasText || hasImage) && widget.chat.chatId != null) {
       try {
+        var finalMessage = msgController.text;
+        if (hasImage) {
+          final htmlImage = "<img alt='Image' src='data:$_attachedImageMimeType;base64,$_attachedImageBase64'/>";
+          finalMessage = htmlImage + (hasText ? '<br/>$finalMessage' : '');
+        }
+
         await Provider.of<RoomChatLobby>(context, listen: false).sendMessage(
           widget.chat.chatId!,
-          msgController.text,
+          finalMessage,
           isRoomChat ? ChatIdType.type3 : ChatIdType.type2,
         );
         msgController.clear();
+        setState(() {
+          _attachedImageFile = null;
+          _attachedImageBase64 = null;
+          _attachedImageMimeType = null;
+        });
       } catch (e) {
         debugPrint('Error sending message: $e');
         if (!mounted) return;
