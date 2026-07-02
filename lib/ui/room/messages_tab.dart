@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as emoji_picker;
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -39,6 +41,13 @@ class MessagesTabState extends State<MessagesTab> {
   String? _attachedImageBase64;
   String? _attachedImageMimeType;
 
+  File? _attachedFile;
+  String? _attachedFileName;
+  int? _attachedFileSize;
+  String? _attachedFileHash;
+  bool _isHashingFile = false;
+  Timer? _hashingTimer;
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +66,7 @@ class MessagesTabState extends State<MessagesTab> {
 
   @override
   void dispose() {
+    _hashingTimer?.cancel();
     msgController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -141,18 +151,38 @@ class MessagesTabState extends State<MessagesTab> {
 
 
   Future<void> _attachImage() async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildAttachmentPickerSheet(),
+    );
+  }
+
+  Future<void> _pickFromCamera() async {
+    final imageXFile = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 85,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    );
+    if (imageXFile != null) {
+      await _processPickedImage(imageXFile);
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
     final imageXFile = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
       maxWidth: 1024,
       maxHeight: 1024,
     );
-
-    if (imageXFile == null) {
-      debugPrint('Image selection cancelled.');
-      return;
+    if (imageXFile != null) {
+      await _processPickedImage(imageXFile);
     }
+  }
 
+  Future<void> _processPickedImage(XFile imageXFile) async {
     final imageFile = File(imageXFile.path);
     final chatId = widget.chat.chatId;
 
@@ -196,6 +226,270 @@ class MessagesTabState extends State<MessagesTab> {
         context,
       );
     }
+  }
+
+  Widget _buildAttachmentPickerSheet() {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurfaceVariant.withAlpha(80),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Text(
+                'Select Attachment',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildPickerOption(
+                    icon: Icons.camera_alt_rounded,
+                    color: Colors.teal,
+                    label: 'Camera',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _pickFromCamera();
+                    },
+                  ),
+                  _buildPickerOption(
+                    icon: Icons.photo_library_rounded,
+                    color: Colors.blue,
+                    label: 'Gallery',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _pickFromGallery();
+                    },
+                  ),
+                  _buildPickerOption(
+                    icon: Icons.insert_drive_file_rounded,
+                    color: Colors.orange,
+                    label: 'File',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _pickFile();
+                    },
+                  ),
+                  _buildPickerOption(
+                    icon: Icons.videocam_rounded,
+                    color: Colors.red,
+                    label: 'Video',
+                    onTap: () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Video sharing is coming soon!'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPickerOption({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: color.withAlpha(30),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles();
+      if (result == null || result.files.single.path == null) {
+        debugPrint('File selection cancelled.');
+        return;
+      }
+
+      final rawPath = result.files.single.path!;
+      final normalizedPath = rawPath.replaceAll(r'\', '/');
+      final name = result.files.single.name;
+      final size = result.files.single.size;
+
+      setState(() {
+        _attachedFile = File(rawPath);
+        _attachedFileName = name;
+        _attachedFileSize = size;
+        _attachedFileHash = null;
+        _isHashingFile = true;
+      });
+
+      final lobbyProvider = Provider.of<RoomChatLobby>(context, listen: false);
+      final authToken = lobbyProvider.authToken;
+
+      // Auto-resume hashing process if paused
+      try {
+        final pausedResp = await rsApiCall(
+          '/rsFiles/hashingProcessPaused',
+          authToken: authToken,
+        );
+        if (pausedResp['retval'] == true) {
+          debugPrint('DEBUG: RetroShare hashing process is paused. Resuming it...');
+          await rsApiCall(
+            '/rsFiles/togglePauseHashingProcess',
+            authToken: authToken,
+          );
+        }
+      } catch (e) {
+        debugPrint('Error checking/resuming hashing process: $e');
+      }
+
+      final response = await rsApiCall(
+        '/rsFiles/ExtraFileHash',
+        authToken: authToken,
+        params: {
+          'localpath': normalizedPath,
+          'period': {'xstr64': (31536000 * 10).toString()},
+          'flags': 0x40,
+        },
+      );
+      final retval = response['retval'];
+      final success = (retval is bool && retval) || (retval is int && retval == 1);
+      
+      if (!success) {
+        throw Exception('Core failed to start hashing.');
+      }
+
+      _hashingTimer?.cancel();
+      _hashingTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+        try {
+          final statusResp = await rsApiCall(
+            '/rsFiles/ExtraFileStatus',
+            authToken: authToken,
+            params: {'localpath': normalizedPath},
+          );
+          
+          debugPrint('DEBUG: /rsFiles/ExtraFileStatus response: $statusResp');
+          
+          final info = statusResp['info'] as Map?;
+          final hash = info?['hash'] as String?;
+          if (hash != null &&
+              hash.isNotEmpty &&
+              hash != '0000000000000000000000000000000000000000') {
+            var sizeInBytes = size;
+            final sizeVal = info?['size'];
+            if (sizeVal is int) {
+              sizeInBytes = sizeVal;
+            } else if (sizeVal is Map) {
+              final xstr = sizeVal['xstr64'] as String?;
+              if (xstr != null) {
+                sizeInBytes = int.tryParse(xstr) ?? size;
+              }
+            }
+
+            timer.cancel();
+            if (mounted) {
+              setState(() {
+                _attachedFileHash = hash;
+                _attachedFileSize = sizeInBytes;
+                _isHashingFile = false;
+              });
+            }
+          }
+        } catch (e) {
+          debugPrint('Error checking file hashing status: $e');
+        }
+      });
+    } catch (e) {
+      debugPrint('Error picking file: $e');
+      if (mounted) {
+        setState(() {
+          _attachedFile = null;
+          _attachedFileName = null;
+          _attachedFileSize = null;
+          _attachedFileHash = null;
+          _isHashingFile = false;
+        });
+      }
+      if (!mounted) return;
+      await errorShowDialog(
+        'Error Attaching File',
+        'Could not attach the file: $e',
+        context,
+      );
+    }
+  }
+
+  void _cancelFileAttachment() {
+    _hashingTimer?.cancel();
+    final hash = _attachedFileHash;
+    if (hash != null) {
+      final lobbyProvider = Provider.of<RoomChatLobby>(context, listen: false);
+      final authToken = lobbyProvider.authToken;
+      
+      rsApiCall(
+        '/rsFiles/extraFileRemove',
+        authToken: authToken,
+        params: {'hash': hash},
+      );
+    }
+    setState(() {
+      _attachedFile = null;
+      _attachedFileName = null;
+      _attachedFileSize = null;
+      _attachedFileHash = null;
+      _isHashingFile = false;
+    });
   }
 
   @override
@@ -356,6 +650,60 @@ class MessagesTabState extends State<MessagesTab> {
                 ],
               ),
             ),
+          if (_attachedFile != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(128),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withAlpha(30),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.insert_drive_file_rounded,
+                      color: Colors.orange,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _attachedFileName ?? 'Unknown File',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _isHashingFile
+                              ? 'Hashing file... please wait'
+                              : 'Ready to send (${(_attachedFileSize! / 1024).toStringAsFixed(1)} KB)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _isHashingFile
+                                ? Colors.orange
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.red),
+                    onPressed: _cancelFileAttachment,
+                  ),
+                ],
+              ),
+            ),
           BottomBar(
             minHeight: _bottomBarHeight,
             maxHeight: _bottomBarHeight * 2.5,
@@ -419,8 +767,12 @@ class MessagesTabState extends State<MessagesTab> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.image),
-                    tooltip: (widget.isRoom ?? false) ? 'Send image' : 'Attach image',
+                    icon: Icon(
+                      (widget.isRoom ?? false)
+                          ? Icons.image
+                          : Icons.attach_file_rounded,
+                    ),
+                    tooltip: (widget.isRoom ?? false) ? 'Send image' : 'Attach file',
                     onPressed: (widget.isRoom ?? false) ? _sendImage : _attachImage,
                   ),
                   IconButton(
@@ -451,13 +803,39 @@ class MessagesTabState extends State<MessagesTab> {
     final isRoomChat = widget.isRoom ?? false;
     final hasText = msgController.text.isNotEmpty;
     final hasImage = _attachedImageBase64 != null;
+    final hasFile = _attachedFileHash != null;
 
-    if ((hasText || hasImage) && widget.chat.chatId != null) {
+    if ((hasText || hasImage || hasFile) && widget.chat.chatId != null) {
+      if (_isHashingFile) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please wait until the file is hashed!'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
       try {
         var finalMessage = msgController.text;
+
+        if (hasFile) {
+          final fileHash = _attachedFileHash;
+          final fileSize = _attachedFileSize;
+          final fileName = _attachedFileName;
+
+          if (fileHash != null && fileSize != null && fileName != null) {
+            final encodedName = Uri.encodeComponent(fileName);
+            final fileLink = 'retroshare://file?name=$encodedName&size=$fileSize&hash=$fileHash';
+            final friendlySize = _friendlyUnit(fileSize);
+            final fileHtml = '<a href="$fileLink">$fileName</a> <font color="blue">($friendlySize)</font>';
+            finalMessage = fileHtml + (finalMessage.isNotEmpty ? '<br/>$finalMessage' : '');
+          }
+        }
+
         if (hasImage) {
           final htmlImage = "<img alt='Image' src='data:$_attachedImageMimeType;base64,$_attachedImageBase64'/>";
-          finalMessage = htmlImage + (hasText ? '<br/>$finalMessage' : '');
+          finalMessage = htmlImage + (finalMessage.isNotEmpty ? '<br/>$finalMessage' : '');
         }
 
         await Provider.of<RoomChatLobby>(context, listen: false).sendMessage(
@@ -470,6 +848,12 @@ class MessagesTabState extends State<MessagesTab> {
           _attachedImageFile = null;
           _attachedImageBase64 = null;
           _attachedImageMimeType = null;
+
+          _attachedFile = null;
+          _attachedFileName = null;
+          _attachedFileSize = null;
+          _attachedFileHash = null;
+          _isHashingFile = false;
         });
       } catch (e) {
         debugPrint('Error sending message: $e');
@@ -479,5 +863,12 @@ class MessagesTabState extends State<MessagesTab> {
         );
       }
     }
+  }
+
+  String _friendlyUnit(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }
