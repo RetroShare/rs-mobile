@@ -64,6 +64,9 @@ dependencies:
   collection: any
   logger: ^2.7.0
   open_filex: ^4.7.0
+  record: ^5.2.0
+  audioplayers: ^6.0.0
+  shared_preferences: ^2.2.3
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -137,3 +140,6 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
+
+dependency_overrides:
+  record_linux: ^1.1.1

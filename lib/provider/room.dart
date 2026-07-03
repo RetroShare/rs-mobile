@@ -534,7 +534,7 @@ class RoomChatLobby with ChangeNotifier {
       if (_lastDistantChatStatus[distantId] != status) {
         String? systemMsg;
         if (status == 2) {
-          systemMsg = 'Tunnel is secure you can talk!';
+          systemMsg = 'Tunnel is secured you can talk!';
         } else if (status == 3) {
           systemMsg = 'Your partner closed the conversation.';
         }
@@ -595,7 +595,7 @@ class RoomChatLobby with ChangeNotifier {
       if (res != null && _lastDistantChatStatus[distantId] != status) {
         String? systemMsg;
         if (status == 2) {
-          systemMsg = 'Tunnel is secure you can talk!';
+          systemMsg = 'Tunnel is secured you can talk!';
         } else if (status == 3) {
           systemMsg = 'Your partner closed the conversation.';
         }

@@ -6,7 +6,10 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as emoji_picker;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:record/record.dart';
 import 'package:retroshare/common/bottom_bar.dart';
 import 'package:retroshare/common/show_dialog.dart';
 import 'package:retroshare/common/styles.dart';
@@ -48,6 +51,14 @@ class MessagesTabState extends State<MessagesTab> {
   bool _isHashingFile = false;
   Timer? _hashingTimer;
 
+  bool _isRecording = false;
+  int _recordingDuration = 0;
+  Timer? _recordingTimer;
+  AudioRecorder? _audioRecorder;
+  List<double> _rawWaveform = [];
+  List<int> _recordedWaveformInt = [];
+  StreamSubscription<Amplitude>? _amplitudeSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -66,10 +77,267 @@ class MessagesTabState extends State<MessagesTab> {
 
   @override
   void dispose() {
+    _amplitudeSubscription?.cancel();
     _hashingTimer?.cancel();
+    _recordingTimer?.cancel();
+    _audioRecorder?.dispose();
     msgController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      final micPermission = await Permission.microphone.request();
+      if (!micPermission.isGranted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone permission is required to record voice messages.')),
+        );
+        return;
+      }
+
+      if (_audioRecorder != null) {
+        try {
+          await _audioRecorder!.dispose();
+        } catch (_) {}
+        _audioRecorder = null;
+      }
+      _audioRecorder = AudioRecorder();
+
+      final tempDir = await getTemporaryDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filePath = '${tempDir.path}/voice_msg_$timestamp.m4a';
+
+      await _audioRecorder!.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: filePath,
+      );
+
+      setState(() {
+        _isRecording = true;
+        _recordingDuration = 0;
+        _rawWaveform = [];
+        _recordedWaveformInt = [];
+      });
+
+      await _amplitudeSubscription?.cancel();
+      _amplitudeSubscription = _audioRecorder!
+          .onAmplitudeChanged(const Duration(milliseconds: 100))
+          .listen((amp) {
+            final decibels = amp.current;
+            final clamped = decibels.clamp(-60.0, 0.0);
+            final normalized = (clamped + 60.0) / 60.0;
+            if (normalized.isFinite) {
+              _rawWaveform.add(normalized);
+            }
+          });
+
+      _recordingTimer?.cancel();
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (mounted) {
+          setState(() {
+            _recordingDuration++;
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('Error starting recording: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to start recording: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    try {
+      _recordingTimer?.cancel();
+      await _amplitudeSubscription?.cancel();
+      _amplitudeSubscription = null;
+      final path = await _audioRecorder?.stop();
+      if (path != null) {
+        final file = File(path);
+        if (file.existsSync()) {
+          file.deleteSync();
+        }
+      }
+      try {
+        await _audioRecorder?.dispose();
+      } catch (_) {}
+      _audioRecorder = null;
+
+      setState(() {
+        _isRecording = false;
+        _recordingDuration = 0;
+        _rawWaveform = [];
+        _recordedWaveformInt = [];
+      });
+    } catch (e) {
+      debugPrint('Error cancelling recording: $e');
+    }
+  }
+
+  List<int> _downsampleWaveform(List<double> input, int pointsCount) {
+    if (input.isEmpty) {
+      return List<int>.filled(pointsCount, 0);
+    }
+    if (input.length <= pointsCount) {
+      return input
+          .map((v) => (v.clamp(0.0, 1.0) * 255).round().clamp(0, 255))
+          .toList();
+    }
+
+    final result = <int>[];
+    final binSize = input.length / (pointsCount / 2);
+
+    for (int i = 0; i < (pointsCount / 2).floor(); i++) {
+      final start = (i * binSize).floor();
+      final end = ((i + 1) * binSize).ceil();
+      final bin = input.sublist(start, end.clamp(start, input.length));
+
+      if (bin.isNotEmpty) {
+        final minVal = bin.reduce((a, b) => a < b ? a : b).clamp(0.0, 1.0);
+        final maxVal = bin.reduce((a, b) => a > b ? a : b).clamp(0.0, 1.0);
+        result.add((minVal * 255).round());
+        result.add((maxVal * 255).round());
+      }
+    }
+
+    while (result.length < pointsCount) {
+      result.add(0);
+    }
+    return result.take(pointsCount).toList();
+  }
+
+  Future<void> _stopAndSendRecording() async {
+    try {
+      _recordingTimer?.cancel();
+      await _amplitudeSubscription?.cancel();
+      _amplitudeSubscription = null;
+      final path = await _audioRecorder?.stop();
+      try {
+        await _audioRecorder?.dispose();
+      } catch (_) {}
+      _audioRecorder = null;
+
+      if (path == null) {
+        setState(() {
+          _isRecording = false;
+        });
+        return;
+      }
+
+      final file = File(path);
+      if (!file.existsSync()) {
+        setState(() {
+          _isRecording = false;
+        });
+        return;
+      }
+
+      final fileName = path.split('/').last;
+      final fileSize = file.lengthSync();
+
+      _recordedWaveformInt = _downsampleWaveform(_rawWaveform, 60);
+
+      setState(() {
+        _isRecording = false;
+        _attachedFile = file;
+        _attachedFileName = fileName;
+        _attachedFileSize = fileSize;
+        _attachedFileHash = null;
+        _isHashingFile = true;
+      });
+
+      final lobbyProvider = Provider.of<RoomChatLobby>(context, listen: false);
+      final authToken = lobbyProvider.authToken;
+
+      try {
+        final pausedResp = await rsApiCall(
+          '/rsFiles/hashingProcessPaused',
+          authToken: authToken,
+        );
+        if (pausedResp['retval'] == true) {
+          debugPrint('DEBUG: RetroShare hashing process is paused. Resuming it...');
+          await rsApiCall(
+            '/rsFiles/togglePauseHashingProcess',
+            authToken: authToken,
+          );
+        }
+      } catch (e) {
+        debugPrint('Error checking/resuming hashing process: $e');
+      }
+
+      final normalizedPath = path.replaceAll(r'\', '/');
+      final response = await rsApiCall(
+        '/rsFiles/ExtraFileHash',
+        authToken: authToken,
+        params: {
+          'localpath': normalizedPath,
+          'period': {'xstr64': (31536000 * 10).toString()},
+          'flags': 0x40,
+        },
+      );
+      final retval = response['retval'];
+      final success = (retval is bool && retval) || (retval is int && retval == 1);
+      
+      if (!success) {
+        throw Exception('Core failed to start hashing.');
+      }
+
+      _hashingTimer?.cancel();
+      _hashingTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+        try {
+          final statusResp = await rsApiCall(
+            '/rsFiles/ExtraFileStatus',
+            authToken: authToken,
+            params: {'localpath': normalizedPath},
+          );
+          
+          final info = statusResp['info'] as Map?;
+          final hash = info?['hash'] as String?;
+          if (hash != null &&
+              hash.isNotEmpty &&
+              hash != '0000000000000000000000000000000000000000') {
+            var sizeInBytes = fileSize;
+            final sizeVal = info?['size'];
+            if (sizeVal is int) {
+              sizeInBytes = sizeVal;
+            } else if (sizeVal is Map) {
+              final xstr = sizeVal['xstr64'] as String?;
+              if (xstr != null) {
+                sizeInBytes = int.tryParse(xstr) ?? fileSize;
+              }
+            }
+
+            timer.cancel();
+            if (mounted) {
+              setState(() {
+                _attachedFileHash = hash;
+                _attachedFileSize = sizeInBytes;
+                _isHashingFile = false;
+              });
+              await _sendMessage();
+            }
+          }
+        } catch (e) {
+          debugPrint('Error checking file hashing status: $e');
+        }
+      });
+    } catch (e) {
+      debugPrint('Error sending voice recording: $e');
+      if (mounted) {
+        setState(() {
+          _isHashingFile = false;
+          _recordedWaveformInt = [];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to hash voice message: $e')),
+        );
+      }
+    }
   }
 
   void _onEmojiSelected(emoji_picker.Emoji emoji) {
@@ -709,79 +977,123 @@ class MessagesTabState extends State<MessagesTab> {
             maxHeight: _bottomBarHeight * 2.5,
             child: Padding(
               padding: const EdgeInsets.all(8),
-              child: Row(
-                children: <Widget>[
-                  IconButton(
-                    icon: Icon(
-                      _showEmojiPicker ? Icons.keyboard : Icons.insert_emoticon,
-                    ),
-                    tooltip: _showEmojiPicker
-                        ? 'Show keyboard'
-                        : 'Show emoji picker',
-                    onPressed: () {
-                      if (!_showEmojiPicker) {
-                        _focusNode.unfocus();
-                      }
-                      if (mounted) {
-                        setState(() {
-                          _showEmojiPicker = !_showEmojiPicker;
-                        });
-                      }
-                      if (!_showEmojiPicker) {}
-                    },
-                  ),
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 15),
-                      child: TextField(
-                        onTap: () {
-                          if (_showEmojiPicker) {
+              child: _isRecording
+                  ? Row(
+                      children: <Widget>[
+                        const SizedBox(width: 8),
+                        const _RecordingDot(),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Recording: ${_formatDuration(_recordingDuration)}',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_forever_rounded, color: Colors.red),
+                          tooltip: 'Cancel recording',
+                          onPressed: _cancelRecording,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.check_circle_rounded, color: Colors.green),
+                          tooltip: 'Send voice message',
+                          onPressed: _stopAndSendRecording,
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: <Widget>[
+                        IconButton(
+                          icon: Icon(
+                            _showEmojiPicker ? Icons.keyboard : Icons.insert_emoticon,
+                          ),
+                          tooltip: _showEmojiPicker
+                              ? 'Show keyboard'
+                              : 'Show emoji picker',
+                          onPressed: () {
+                            if (!_showEmojiPicker) {
+                              _focusNode.unfocus();
+                            }
                             if (mounted) {
                               setState(() {
-                                _showEmojiPicker = false;
+                                _showEmojiPicker = !_showEmojiPicker;
                               });
                             }
-                          }
-                          _focusNode.requestFocus();
-                        },
-                        controller: msgController,
-                        keyboardType: TextInputType.multiline,
-                        maxLines: null,
-                        focusNode: _focusNode,
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          hintText: 'Type text...',
-                          hintStyle:
-                              TextStyle(color: Theme.of(context).hintColor),
+                            if (!_showEmojiPicker) {}
+                          },
                         ),
-                        style: Theme.of(context).textTheme.bodyLarge,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _sendMessage(),
-                      ),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(15),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 15),
+                            child: TextField(
+                              onTap: () {
+                                if (_showEmojiPicker) {
+                                  if (mounted) {
+                                    setState(() {
+                                      _showEmojiPicker = false;
+                                    });
+                                  }
+                                }
+                                _focusNode.requestFocus();
+                              },
+                              controller: msgController,
+                              keyboardType: TextInputType.multiline,
+                              maxLines: null,
+                              focusNode: _focusNode,
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                hintText: 'Type text...',
+                                hintStyle:
+                                    TextStyle(color: Theme.of(context).hintColor),
+                              ),
+                              style: Theme.of(context).textTheme.bodyLarge,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) => _sendMessage(),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            (widget.isRoom ?? false)
+                                ? Icons.image
+                                : Icons.attach_file_rounded,
+                          ),
+                          tooltip: (widget.isRoom ?? false) ? 'Send image' : 'Attach file',
+                          onPressed: (widget.isRoom ?? false) ? _sendImage : _attachImage,
+                        ),
+                        ListenableBuilder(
+                          listenable: msgController,
+                          builder: (context, _) {
+                            final hasText = msgController.text.isNotEmpty;
+                            final hasAttachment = _attachedImageFile != null || _attachedFile != null;
+                            final canRecord = !(widget.isRoom ?? false);
+                            if (hasText || hasAttachment || !canRecord) {
+                              return IconButton(
+                                icon: const Icon(Icons.send),
+                                tooltip: 'Send message',
+                                onPressed: _sendMessage,
+                              );
+                            } else {
+                              return IconButton(
+                                icon: const Icon(Icons.mic_rounded),
+                                tooltip: 'Record voice message',
+                                onPressed: _startRecording,
+                              );
+                            }
+                          },
+                        ),
+                      ],
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      (widget.isRoom ?? false)
-                          ? Icons.image
-                          : Icons.attach_file_rounded,
-                    ),
-                    tooltip: (widget.isRoom ?? false) ? 'Send image' : 'Attach file',
-                    onPressed: (widget.isRoom ?? false) ? _sendImage : _attachImage,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.send),
-                    tooltip: 'Send message',
-                    onPressed: _sendMessage,
-                  ),
-                ],
-              ),
             ),
           ),
           Offstage(
@@ -826,9 +1138,18 @@ class MessagesTabState extends State<MessagesTab> {
 
           if (fileHash != null && fileSize != null && fileName != null) {
             final encodedName = Uri.encodeComponent(fileName);
-            final fileLink = 'retroshare://file?name=$encodedName&size=$fileSize&hash=$fileHash';
+            var fileLink = 'retroshare://file?name=$encodedName&size=$fileSize&hash=$fileHash';
+
+            final isVoice = fileName.startsWith('voice_msg_') || fileName.endsWith('.m4a');
+            if (isVoice && _recordedWaveformInt.isNotEmpty) {
+              final waveformStr = _recordedWaveformInt.join(',');
+              fileLink += '&waveform=$waveformStr';
+            }
+
             final friendlySize = _friendlyUnit(fileSize);
-            final fileHtml = '<a href="$fileLink">$fileName</a> <font color="blue">($friendlySize)</font>';
+            final fileHtml = isVoice
+                ? '<a href="$fileLink">$fileName</a>'
+                : '<a href="$fileLink">$fileName</a> <font color="blue">($friendlySize)</font>';
             finalMessage = fileHtml + (finalMessage.isNotEmpty ? '<br/>$finalMessage' : '');
           }
         }
@@ -854,6 +1175,7 @@ class MessagesTabState extends State<MessagesTab> {
           _attachedFileSize = null;
           _attachedFileHash = null;
           _isHashingFile = false;
+          _recordedWaveformInt = [];
         });
       } catch (e) {
         debugPrint('Error sending message: $e');
@@ -870,5 +1192,52 @@ class MessagesTabState extends State<MessagesTab> {
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  String _formatDuration(int seconds) {
+    final mins = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+}
+
+class _RecordingDot extends StatefulWidget {
+  const _RecordingDot();
+
+  @override
+  State<_RecordingDot> createState() => _RecordingDotState();
+}
+
+class _RecordingDotState extends State<_RecordingDot> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _controller.drive(CurveTween(curve: Curves.easeInOut)),
+      child: Container(
+        width: 12,
+        height: 12,
+        decoration: const BoxDecoration(
+          color: Colors.red,
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
   }
 }

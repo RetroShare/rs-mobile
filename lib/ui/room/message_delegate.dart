@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:retroshare/ui/room/voice_message_widget.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
@@ -71,8 +72,8 @@ class MessageDelegate extends StatelessWidget {
     if (isLobby) {
       // Keep standard Material design for group rooms
       return FractionallySizedBox(
-        alignment: isSystem ? Alignment.center : (isIncoming ? Alignment.centerLeft : Alignment.centerRight),
-        widthFactor: isSystem ? 0.9 : 0.7,
+        alignment: isSystem ? Alignment.centerRight : (isIncoming ? Alignment.centerLeft : Alignment.centerRight),
+        widthFactor: 0.7,
         child: Card(
           color: isSystem 
               ? bubbleColor 
@@ -81,7 +82,7 @@ class MessageDelegate extends StatelessWidget {
                   : Theme.of(context).colorScheme.secondaryContainer),
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: Column(
-            crossAxisAlignment: isSystem ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               if (bubbleTitle.isNotEmpty)
                 Padding(
@@ -144,9 +145,7 @@ class MessageDelegate extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         child: Row(
-          mainAxisAlignment: isSystem
-              ? MainAxisAlignment.center
-              : (isIncoming ? MainAxisAlignment.end : MainAxisAlignment.start),
+          mainAxisAlignment: (isIncoming || isSystem) ? MainAxisAlignment.end : MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (!isIncoming && !isSystem) ...[
@@ -184,9 +183,9 @@ class MessageDelegate extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         child: Column(
-          crossAxisAlignment: isSystem
-              ? CrossAxisAlignment.center
-              : (isIncoming ? CrossAxisAlignment.end : CrossAxisAlignment.start),
+          crossAxisAlignment: (isIncoming || isSystem)
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             if (isIncoming || isSystem)
               Padding(
@@ -308,8 +307,10 @@ class MessageDelegate extends StatelessWidget {
     final fileLinkRegex = RegExp(r'<a([^>]*href=[^>]*retroshare://file[^>]*)>', caseSensitive: false);
     processedContent = processedContent.replaceAllMapped(fileLinkRegex, (match) {
       final attrs = match.group(1) ?? '';
+      final isVoice = attrs.contains('voice_msg_') || attrs.contains('.m4a');
+      final className = isVoice ? 'rs-voice-link rs-file-link' : 'rs-file-link';
       if (!attrs.contains('class=')) {
-        return '<a class="rs-file-link"$attrs>';
+        return '<a class="$className"$attrs>';
       }
       return match.group(0) ?? '';
     });
@@ -361,6 +362,7 @@ class MessageDelegate extends StatelessWidget {
               var name = 'Unknown file';
               var size = 0;
               var hash = '';
+              List<int>? waveform;
 
               if (href.startsWith('retroshare://file?')) {
                 try {
@@ -368,6 +370,10 @@ class MessageDelegate extends StatelessWidget {
                   name = Uri.decodeComponent(uri.queryParameters['name'] ?? 'Unknown file');
                   size = int.tryParse(uri.queryParameters['size'] ?? '0') ?? 0;
                   hash = uri.queryParameters['hash'] ?? '';
+                  final waveformStr = uri.queryParameters['waveform'];
+                  if (waveformStr != null && waveformStr.isNotEmpty) {
+                    waveform = waveformStr.split(',').map((s) => int.tryParse(s) ?? 0).toList();
+                  }
                 } catch (e) {
                   debugPrint('Error parsing retroshare link Uri: $e');
                 }
@@ -381,6 +387,16 @@ class MessageDelegate extends StatelessWidget {
               }
 
               if (hash.isNotEmpty) {
+                final isVoice = name.startsWith('voice_msg_') || name.endsWith('.m4a');
+                if (isVoice) {
+                  return VoiceMessageWidget(
+                    name: name,
+                    size: size,
+                    hash: hash,
+                    isIncoming: isIncoming,
+                    waveform: waveform,
+                  );
+                }
                 return FileAttachmentWidget(
                   name: name,
                   size: size,
@@ -414,6 +430,11 @@ class MessageDelegate extends StatelessWidget {
               : Theme.of(context).colorScheme.onSecondaryContainer),
         ),
         '.rs-file-link': Style(
+          margin: Margins.zero,
+          padding: HtmlPaddings.zero,
+          display: Display.block,
+        ),
+        '.rs-voice-link': Style(
           margin: Margins.zero,
           padding: HtmlPaddings.zero,
           display: Display.block,
@@ -1012,5 +1033,3 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }
-
-

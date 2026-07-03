@@ -10,6 +10,7 @@ import 'package:retroshare/ui/room/message_delegate.dart';
 import 'package:retroshare/ui/room/messages_tab.dart';
 import 'package:retroshare/ui/room/room_friends_tab.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RoomScreen extends StatefulWidget {
   const RoomScreen({super.key, this.isRoom = false, required this.chat});
@@ -35,10 +36,25 @@ class RoomScreenState extends State<RoomScreen>
             .animate(_tabController.animation!);
   }
 
+  Future<void> _loadBubbleStyle() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final styleIndex = prefs.getInt('chat_bubble_style');
+      if (styleIndex != null && mounted) {
+        setState(() {
+          _bubbleStyle = BubbleStyle.values[styleIndex];
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading bubble style: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(vsync: this, length: widget.isRoom ? 2 : 1);
+    _loadBubbleStyle();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (widget.chat.chatId == null) {
@@ -233,10 +249,16 @@ class RoomScreenState extends State<RoomScreen>
                   if (!widget.isRoom)
                     PopupMenuButton<BubbleStyle>(
                       icon: const Icon(Icons.more_vert),
-                      onSelected: (BubbleStyle result) {
+                      onSelected: (BubbleStyle result) async {
                         setState(() {
                           _bubbleStyle = result;
                         });
+                        try {
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setInt('chat_bubble_style', result.index);
+                        } catch (e) {
+                          debugPrint('Error saving bubble style: $e');
+                        }
                       },
                       itemBuilder: (BuildContext context) =>
                           <PopupMenuEntry<BubbleStyle>>[
