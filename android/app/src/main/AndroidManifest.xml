@@ -75,6 +75,27 @@
             android:name="flutterEmbedding"
             android:value="2" />
             
+        <!-- Disable Firebase Analytics and Crashlytics telemetry collection -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="false" />
+        
+        <!-- Disable Google Play Services / Measurement ADID collection -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />
+
+        <!-- Disable ML Kit (mobile_scanner) Vision Diagnostics telemetry -->
+        <meta-data
+            android:name="com.google.mlkit.VisionDiagnosticsEnabled"
+            android:value="false" />
+            
         <service
             android:name=".RetroShareServiceAndroid"
             android:exported="false"
