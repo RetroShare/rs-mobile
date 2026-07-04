@@ -661,4 +661,48 @@ class RoomChatLobby with ChangeNotifier {
       }
     }
   }
+
+  Future<void> loadChatHistory(String chatId, ChatId apiChatId) async {
+    try {
+      final response = await rsApiCall(
+        '/rsHistory/getMessages',
+        authToken: _authToken,
+        params: {
+          'chatPeerId': apiChatId.toJson(),
+          'loadCount': 50,
+        },
+      );
+      
+      final msgsList = response['msgs'] as List?;
+      if (msgsList != null) {
+        final List<ChatMessage> historyMessages = [];
+        for (final m in msgsList) {
+          if (m is Map) {
+            historyMessages.add(ChatMessage(
+              chatId: apiChatId,
+              msg: m['message'] ?? '',
+              incoming: m['incoming'] ?? true,
+              sendTime: m['sendTime'] ?? 0,
+              recvTime: m['recvTime'] ?? 0,
+              lobbyPeerGxsId: m['peerId'],
+              chatflags: 0x0004, // rsChatFlagsHistory
+            ));
+          }
+        }
+        
+        final currentList = _messagesList[chatId] ?? [];
+        if (currentList.isEmpty) {
+          _messagesList = Map.from(_messagesList)..[chatId] = historyMessages;
+        } else {
+          // Avoid duplicates
+          final Set<String> existingKeys = currentList.map((m) => '${m.msg}_${m.sendTime}').toSet();
+          final newHistory = historyMessages.where((m) => !existingKeys.contains('${m.msg}_${m.sendTime}')).toList();
+          _messagesList = Map.from(_messagesList)..[chatId] = [...newHistory, ...currentList];
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error loading chat history: $e');
+    }
+  }
 }

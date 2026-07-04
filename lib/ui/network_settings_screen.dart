@@ -73,7 +73,7 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
         backgroundColor: theme.colorScheme.surface,
         shadowColor: Colors.transparent,
         title: Text(
-          'Network Settings',
+          'Network',
           style: TextStyle(
             color: theme.colorScheme.onSurface,
             fontSize: 14.5,

@@ -191,8 +191,8 @@ Widget drawerWidget(BuildContext ctx) {
                       }
                     },
                   ),
-                  buildNavList(Icons.settings, 'Network Settings', () {
-                    Navigator.pushNamed(ctx, '/network_settings');
+                  buildNavList(Icons.settings, 'Settings', () {
+                    Navigator.pushNamed(ctx, '/settings');
                   }),
                   buildNavList(Icons.info_rounded, 'About', () {
                     Navigator.pushNamed(ctx, '/about');

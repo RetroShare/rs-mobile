@@ -73,6 +73,25 @@ class MessagesTabState extends State<MessagesTab> {
         }
       }
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final roomProvider = Provider.of<RoomChatLobby>(context, listen: false);
+      final isRoom = widget.isRoom ?? false;
+      final chatId = widget.chat.chatId;
+      if (chatId != null) {
+        final apiChatId = ChatId(
+          distantChatId: !isRoom ? chatId : null,
+          lobbyId: isRoom
+              ? ChatLobbyId(
+                  xstr64: chatId,
+                  xint64: int.tryParse(chatId, radix: 16) ?? 0,
+                )
+              : null,
+          type: isRoom ? ChatIdType.type3 : ChatIdType.type2,
+        );
+        roomProvider.loadChatHistory(chatId, apiChatId);
+      }
+    });
   }
 
   @override
