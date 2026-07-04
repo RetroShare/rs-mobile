@@ -1,11 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
-class FriendLocationDetailScreen extends StatelessWidget {
+class FriendLocationDetailScreen extends StatefulWidget {
   const FriendLocationDetailScreen({super.key, required this.location});
 
   final Location location;
+
+  @override
+  State<FriendLocationDetailScreen> createState() => _FriendLocationDetailScreenState();
+}
+
+class _FriendLocationDetailScreenState extends State<FriendLocationDetailScreen> {
+  bool _isLoading = true;
+  String _localIP = 'Loading...';
+  String _localPort = 'Loading...';
+  String _externalIP = 'Loading...';
+  String _externalPort = 'Loading...';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPeerConnectionDetails();
+  }
+
+  Future<void> _fetchPeerConnectionDetails() async {
+    try {
+      final authProvider = Provider.of<AccountCredentials>(context, listen: false);
+      final authToken = authProvider.authtoken;
+      if (authToken != null && widget.location.rsPeerId.isNotEmpty) {
+        final peerDetailsResponse = await rsApiCall(
+          '/rsPeers/getPeerDetails',
+          authToken: authToken,
+          params: {'sslId': widget.location.rsPeerId},
+        );
+        final det = peerDetailsResponse['det'] as Map? ?? {};
+        
+        final localAddr = det['mLocalAddr'] ?? det['localAddr'] ?? 'Unknown';
+        final localPort = det['mLocalPort']?.toString() ?? det['localPort']?.toString() ?? 'Unknown';
+        final extAddr = det['mExtAddr'] ?? det['extAddr'] ?? 'Unknown';
+        final extPort = det['mExtPort']?.toString() ?? det['extPort']?.toString() ?? 'Unknown';
+
+        if (mounted) {
+          setState(() {
+            _localIP = localAddr;
+            _localPort = localPort;
+            _externalIP = extAddr;
+            _externalPort = extPort;
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _localIP = '—';
+            _localPort = '—';
+            _externalIP = '—';
+            _externalPort = '—';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching peer details: $e');
+      if (mounted) {
+        setState(() {
+          _localIP = '—';
+          _localPort = '—';
+          _externalIP = '—';
+          _externalPort = '—';
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   static String _statusText(int status, bool isOnline) {
     if (!isOnline && status == 0) return 'Offline';
@@ -58,9 +128,9 @@ class FriendLocationDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final statusStr = _statusText(location.status, location.isOnline);
-    final statusClr = _statusColor(location.status, location.isOnline);
-    final statusIcn = _statusIcon(location.status, location.isOnline);
+    final statusStr = _statusText(widget.location.status, widget.location.isOnline);
+    final statusClr = _statusColor(widget.location.status, widget.location.isOnline);
+    final statusIcn = _statusIcon(widget.location.status, widget.location.isOnline);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -112,8 +182,8 @@ class FriendLocationDetailScreen extends StatelessWidget {
 
             // --- Account name ---
             Text(
-              location.accountName.isNotEmpty
-                  ? location.accountName
+              widget.location.accountName.isNotEmpty
+                  ? widget.location.accountName
                   : 'Unknown',
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -123,8 +193,8 @@ class FriendLocationDetailScreen extends StatelessWidget {
 
             // --- Location name ---
             Text(
-              location.locationName.isNotEmpty
-                  ? location.locationName
+              widget.location.locationName.isNotEmpty
+                  ? widget.location.locationName
                   : 'No location name',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.secondary,
@@ -166,43 +236,48 @@ class FriendLocationDetailScreen extends StatelessWidget {
                   _infoTile(
                     context,
                     'Account Name',
-                    location.accountName.isNotEmpty
-                        ? location.accountName
+                    widget.location.accountName.isNotEmpty
+                        ? widget.location.accountName
                         : '—',
                     Icons.person,
                   ),
                   _infoTile(
                     context,
                     'Location Name',
-                    location.locationName.isNotEmpty
-                        ? location.locationName
+                    widget.location.locationName.isNotEmpty
+                        ? widget.location.locationName
                         : '—',
                     Icons.location_on,
                   ),
                   _infoTile(
                     context,
                     'SSL Peer ID',
-                    location.rsPeerId.isNotEmpty ? location.rsPeerId : '—',
+                    widget.location.rsPeerId.isNotEmpty ? widget.location.rsPeerId : '—',
                     Icons.vpn_key,
                   ),
                   _infoTile(
                     context,
                     'PGP ID',
-                    location.rsGpgId.isNotEmpty ? location.rsGpgId : '—',
+                    widget.location.rsGpgId.isNotEmpty ? widget.location.rsGpgId : '—',
                     Icons.security,
                   ),
                   _infoTile(
                     context,
                     'Connection',
-                    location.isOnline ? 'Connected' : 'Not connected',
-                    location.isOnline ? Icons.link : Icons.link_off,
+                    widget.location.isOnline ? 'Connected' : 'Not connected',
+                    widget.location.isOnline ? Icons.link : Icons.link_off,
                   ),
                   _infoTile(
                     context,
-                    'Status',
-                    statusStr,
-                    statusIcn,
-                    valueColor: statusClr,
+                    'Local IP & Port',
+                    _isLoading ? 'Loading...' : '$_localIP:$_localPort',
+                    Icons.settings_ethernet,
+                  ),
+                  _infoTile(
+                    context,
+                    'External IP & Port',
+                    _isLoading ? 'Loading...' : '$_externalIP:$_externalPort',
+                    Icons.language,
                   ),
                 ],
               ),

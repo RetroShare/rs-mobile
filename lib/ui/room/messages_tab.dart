@@ -211,7 +211,7 @@ class MessagesTabState extends State<MessagesTab> {
     return result.take(pointsCount).toList();
   }
 
-  Future<void> _stopAndSendRecording() async {
+  Future<void> _stopAndAttachRecording() async {
     try {
       _recordingTimer?.cancel();
       await _amplitudeSubscription?.cancel();
@@ -319,7 +319,6 @@ class MessagesTabState extends State<MessagesTab> {
                 _attachedFileSize = sizeInBytes;
                 _isHashingFile = false;
               });
-              await _sendMessage();
             }
           }
         } catch (e) {
@@ -327,7 +326,7 @@ class MessagesTabState extends State<MessagesTab> {
         }
       });
     } catch (e) {
-      debugPrint('Error sending voice recording: $e');
+      debugPrint('Error attaching voice recording: $e');
       if (mounted) {
         setState(() {
           _isHashingFile = false;
@@ -757,6 +756,9 @@ class MessagesTabState extends State<MessagesTab> {
       _attachedFileSize = null;
       _attachedFileHash = null;
       _isHashingFile = false;
+      _recordedWaveformInt = [];
+      _recordingDuration = 0;
+      _rawWaveform = [];
     });
   }
 
@@ -919,58 +921,68 @@ class MessagesTabState extends State<MessagesTab> {
               ),
             ),
           if (_attachedFile != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(128),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withAlpha(30),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.insert_drive_file_rounded,
-                      color: Colors.orange,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _attachedFileName ?? 'Unknown File',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+            Builder(
+              builder: (context) {
+                final isVoice = _attachedFileName?.startsWith('voice_msg_') == true ||
+                    _attachedFileName?.endsWith('.m4a') == true;
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(128),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isVoice ? Colors.teal.withAlpha(30) : Colors.orange.withAlpha(30),
+                          shape: BoxShape.circle,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _isHashingFile
-                              ? 'Hashing file... please wait'
-                              : 'Ready to send (${(_attachedFileSize! / 1024).toStringAsFixed(1)} KB)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _isHashingFile
-                                ? Colors.orange
-                                : Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        child: Icon(
+                          isVoice ? Icons.mic_rounded : Icons.insert_drive_file_rounded,
+                          color: isVoice ? Colors.teal : Colors.orange,
+                          size: 28,
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isVoice
+                                  ? 'Voice Message (${_formatDuration(_recordingDuration)})'
+                                  : (_attachedFileName ?? 'Unknown File'),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _isHashingFile
+                                  ? (isVoice
+                                      ? 'Processing voice message... please wait'
+                                      : 'Hashing file... please wait')
+                                  : 'Ready to send (${(_attachedFileSize! / 1024).toStringAsFixed(1)} KB)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _isHashingFile
+                                    ? (isVoice ? Colors.teal : Colors.orange)
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.red),
+                        onPressed: _cancelFileAttachment,
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.red),
-                    onPressed: _cancelFileAttachment,
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           BottomBar(
             minHeight: _bottomBarHeight,
@@ -1000,8 +1012,8 @@ class MessagesTabState extends State<MessagesTab> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.check_circle_rounded, color: Colors.green),
-                          tooltip: 'Send voice message',
-                          onPressed: _stopAndSendRecording,
+                          tooltip: 'Attach voice message',
+                          onPressed: _stopAndAttachRecording,
                         ),
                       ],
                     )
