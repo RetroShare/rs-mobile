@@ -54,7 +54,7 @@ Since the compilation script requires the Linux toolchain and QEMU emulator, you
 
 1. Navigate to your repository (WSL mounts your C drive under `/mnt/c/`):
    ```bash
-   cd /mnt/c/Users/Username/Documents/GitHub/RetroShare-defnax/libretroshare
+   cd /mnt/c/Users/Username/Documents/GitHub/RetroShare/libretroshare
    ```
 2. Create/update the `local.properties` file inside WSL to point to your WSL Android SDK path:
    ```bash
@@ -66,7 +66,7 @@ Since the compilation script requires the Linux toolchain and QEMU emulator, you
    ```
 
 Once the build finishes successfully, the compiled AAR will be located at:
-`C:\Users\Username\Documents\GitHub\RetroShare-defnax\libretroshare\build\outputs\aar\libretroshare-MinApiLevel24-debug.aar`
+`C:\Users\Username\Documents\GitHub\RetroShare\libretroshare\build\outputs\aar\libretroshare-MinApiLevel24-debug.aar`
 
 ---
 
