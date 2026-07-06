@@ -31,6 +31,9 @@ RetroShare mobile client written in Flutter.
 ## Build on Windows
 Follow this file : [AndroidStudio-Flutter-Windows.md](https://github.com/RetroShare/rs-mobile/blob/master/AndroidStudio-Flutter-Windows.md)
 
+## Build libretroshare local
+Follow this file : [local_build_howto.md](https://github.com/RetroShare/rs-mobile/blob/master/local_build_howto.md)
+
 ## Installing on Local Machine:
 
 * Run below command:
