@@ -16,7 +16,8 @@ Because of this, you **cannot compile the library natively on Windows CMD or Pow
 3. Open your **WSL Ubuntu terminal** and install the compilation tools (including the autotools/cmake packages needed for C++ dependencies):
    ```bash
    sudo apt update
-   sudo apt install -y build-essential wget unzip tar python3 openjdk-17-jdk qemu-user-static cmake autoconf automake libtool pkg-config
+   sudo apt install -y build-essential wget unzip tar python3 openjdk-17-jdk qemu-user-static \
+   cmake autoconf automake libtool pkg-config doxygen
    ```
 
 ---
