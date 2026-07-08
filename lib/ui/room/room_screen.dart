@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/common/styles.dart';
+import 'package:retroshare/provider/friend_location.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare/ui/room/message_delegate.dart';
@@ -145,6 +146,32 @@ class RoomScreenState extends State<RoomScreen>
     final avatarImage = _safeDecodeBase64(interlocutorIdentity?.avatar);
     final hasAvatar = avatarImage != null;
 
+    final friendLocations = Provider.of<FriendLocations>(context);
+    final friendLocs = friendLocations.friendlist;
+    final matchingLocs = interlocutorIdentity != null && interlocutorIdentity.pgpId != null
+        ? friendLocs.where((loc) =>
+            loc.rsGpgId.isNotEmpty &&
+            loc.rsGpgId.toLowerCase() == interlocutorIdentity.pgpId!.toLowerCase() &&
+            loc.rsGpgId != '0000000000000000')
+        : const Iterable<Location>.empty();
+
+    final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
+
+    int effectiveStatus = interlocutorIdentity?.status ?? 0;
+    if (effectiveStatus == 0 && isAnyLocationOnline) {
+      effectiveStatus = 3; // Default to Online
+      for (final loc in matchingLocs) {
+        if (loc.isOnline && loc.status != 0 && loc.status != 3) {
+          effectiveStatus = loc.status;
+          break;
+        }
+      }
+    }
+
+    final showStatus = !widget.isRoom &&
+        interlocutorIdentity != null &&
+        (isAnyLocationOnline || effectiveStatus != 0);
+
     final displayName = widget.isRoom
         ? widget.chat.chatName
         : interlocutorIdentity?.name ??
@@ -207,6 +234,25 @@ class RoomScreenState extends State<RoomScreen>
                                   : null,
                             ),
                           ),
+                          if (showStatus)
+                            Positioned(
+                              bottom: 2,
+                              right: 2,
+                              child: Container(
+                                height: 14,
+                                width: 14,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Theme.of(context).colorScheme.surface,
+                                    width: 2,
+                                  ),
+                                  color: effectiveStatus != 0
+                                      ? _getStatusColor(effectiveStatus)
+                                      : Colors.lightGreenAccent,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
