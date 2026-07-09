@@ -59,11 +59,18 @@ class FriendsTabState extends State<FriendsTab> {
               // Online: 1, Away: 2, Busy: 3, Offline: 0
               // Mapping to weights for sorting: Online (0), Away (1), Busy (2), Offline (3)
               int getWeight(Identity id) {
-                // Check if any location is online (matches PersonDelegate logic)
-                final matchingLocs = friendLocations.friendlist.where((loc) =>
-                    id.pgpId != null &&
-                    loc.rsGpgId.toLowerCase() == id.pgpId!.toLowerCase() &&
-                    loc.rsGpgId != '0000000000000000');
+                final matchingLocsByOriginator = friendLocations.friendlist.where((loc) =>
+                    id.originator != null &&
+                    id.originator!.isNotEmpty &&
+                    loc.rsPeerId == id.originator);
+
+                final matchingLocs = matchingLocsByOriginator.isNotEmpty
+                    ? matchingLocsByOriginator.toList()
+                    : friendLocations.friendlist.where((loc) =>
+                        loc.rsGpgId.isNotEmpty &&
+                        id.pgpId != null &&
+                        loc.rsGpgId.toLowerCase() == id.pgpId!.toLowerCase() &&
+                        loc.rsGpgId != '0000000000000000').toList();
                 
                 final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
 

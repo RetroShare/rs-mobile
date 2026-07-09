@@ -67,11 +67,18 @@ class PersonDelegateData {
   ) {
     final friendLocs =
         Provider.of<FriendLocations>(context, listen: false).friendlist;
-    final matchingLocs = friendLocs.where((loc) =>
-        loc.rsGpgId.isNotEmpty &&
-        identity.pgpId != null &&
-        loc.rsGpgId.toLowerCase() == identity.pgpId!.toLowerCase() &&
-        loc.rsGpgId != '0000000000000000');
+    final matchingLocsByOriginator = friendLocs.where((loc) =>
+        identity.originator != null &&
+        identity.originator!.isNotEmpty &&
+        loc.rsPeerId == identity.originator);
+
+    final matchingLocs = matchingLocsByOriginator.isNotEmpty
+        ? matchingLocsByOriginator.toList()
+        : friendLocs.where((loc) =>
+            loc.rsGpgId.isNotEmpty &&
+            identity.pgpId != null &&
+            loc.rsGpgId.toLowerCase() == identity.pgpId!.toLowerCase() &&
+            loc.rsGpgId != '0000000000000000').toList();
 
     final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
 
@@ -133,11 +140,18 @@ class PersonDelegateData {
     final friendLocs =
         Provider.of<FriendLocations>(context, listen: false).friendlist;
 
-    final matchingLocs = friendLocs.where((loc) =>
-        loc.rsGpgId.isNotEmpty &&
-        identity.pgpId != null &&
-        loc.rsGpgId.toLowerCase() == identity.pgpId!.toLowerCase() &&
-        loc.rsGpgId != '0000000000000000');
+    final matchingLocsByOriginator = friendLocs.where((loc) =>
+        identity.originator != null &&
+        identity.originator!.isNotEmpty &&
+        loc.rsPeerId == identity.originator);
+
+    final matchingLocs = matchingLocsByOriginator.isNotEmpty
+        ? matchingLocsByOriginator.toList()
+        : friendLocs.where((loc) =>
+            loc.rsGpgId.isNotEmpty &&
+            identity.pgpId != null &&
+            loc.rsGpgId.toLowerCase() == identity.pgpId!.toLowerCase() &&
+            loc.rsGpgId != '0000000000000000').toList();
 
     final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
 

@@ -146,7 +146,7 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
 
           // Resolve DHT Status
           bool isDhtOn = false;
-          final dhtVal = netStatus['dhtActive'] ?? netStatus['dhtStatus'] ?? netStatus['dht'] ?? netStatus['mDhtActive'] ?? netStatus['mDhtStatus'];
+          final dhtVal = netStatus['DHTActive'] ?? netStatus['dhtActive'] ?? netStatus['dhtStatus'] ?? netStatus['dht'] ?? netStatus['mDhtActive'] ?? netStatus['mDhtStatus'];
           if (dhtVal is bool) {
             isDhtOn = dhtVal;
           } else if (dhtVal is num) {
