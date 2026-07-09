@@ -60,7 +60,15 @@ class FriendLocations with ChangeNotifier {
   Future<void> addFriendLocation(String base64Payload) async {
     var isAdded = false;
     try {
-      final inviteText = base64Payload.trim();
+      var inviteText = base64Payload.trim();
+      if (inviteText.contains('%')) {
+        try {
+          inviteText = Uri.decodeComponent(inviteText);
+          debugPrint('Decoded URL-encoded invite: $inviteText');
+        } catch (e) {
+          debugPrint('Error decoding URL-encoded invite: $e');
+        }
+      }
       if (inviteText.length < 100) {
         debugPrint('Adding short invite: $inviteText');
         isAdded = await RsPeers.acceptShortInvite(_authToken, inviteText);

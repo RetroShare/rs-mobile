@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/provider/identity.dart';
@@ -172,6 +174,25 @@ class SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  FutureBuilder<PackageInfo>(
+                    future: PackageInfo.fromPlatform(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        final version = snapshot.data!.version;
+                        final buildNumber = snapshot.data!.buildNumber;
+                        return Center(
+                          child: Text(
+                            'RetroShare Mobile v$version ($buildNumber)',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
                   ),
                   const SizedBox(height: 30),
                 ],
