@@ -104,7 +104,7 @@ class QRScannerState extends State<QRScanner>
     );
   }
 
-  Widget getHeaderBuilder() {
+  Widget getHeaderBuilder(ThemeData theme) {
     return SizedBox(
       child: Stack(
         children: <Widget>[
@@ -112,9 +112,9 @@ class QRScannerState extends State<QRScanner>
             scale: _leftHeaderScaleAnimation,
             child: FadeTransition(
               opacity: _leftHeaderFadeAnimation,
-              child: const Text(
+              child: Text(
                 'Short Invite',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: theme.colorScheme.onSurface),
               ),
             ),
           ),
@@ -122,10 +122,10 @@ class QRScannerState extends State<QRScanner>
             scale: _rightHeaderScaleAnimation,
             child: FadeTransition(
               opacity: _rightHeaderFadeAnimation,
-              child: const SizedBox(
+              child: SizedBox(
                 child: Text(
                   'Long Invite',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: theme.colorScheme.onSurface),
                 ),
               ),
             ),
@@ -178,7 +178,7 @@ class QRScannerState extends State<QRScanner>
     );
   }
 
-  PopupMenuItem popupchildWidget(String text, IconData icon, QRoperation val) {
+  PopupMenuItem popupchildWidget(String text, IconData icon, QRoperation val, ThemeData theme) {
     return PopupMenuItem(
       value: val,
       child: Row(
@@ -186,14 +186,16 @@ class QRScannerState extends State<QRScanner>
           Icon(
             icon,
             size: 20,
+            color: theme.colorScheme.onSurface,
           ),
           const SizedBox(
             width: 7,
           ),
           Text(
             text,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],
@@ -251,8 +253,9 @@ class QRScannerState extends State<QRScanner>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.colorScheme.surface,
       body: Padding(
         padding: const EdgeInsets.only(top: 40, left: 8, right: 8),
         child: Stack(
@@ -267,8 +270,9 @@ class QRScannerState extends State<QRScanner>
                         child: SizedBox(
                           width: personDelegateHeight,
                           child: IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.arrow_back,
+                              color: theme.colorScheme.onSurface,
                               size: 25,
                             ),
                             onPressed: () {
@@ -280,28 +284,33 @@ class QRScannerState extends State<QRScanner>
                       const SizedBox(height: 20),
                       Text(
                         'QR Scanner',
-                        style: Theme.of(context).textTheme.bodyLarge,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                        ),
                       ),
                       const Spacer(),
                       PopupMenuButton(
                         onSelected: (val) => onChanged(val),
-                        icon: const Icon(Icons.more_vert),
+                        icon: Icon(Icons.more_vert, color: theme.colorScheme.onSurface),
                         itemBuilder: (BuildContext context) {
                           return [
                             popupchildWidget(
                               'Save',
                               Icons.save,
                               QRoperation.save,
+                              theme,
                             ),
                             popupchildWidget(
                               'Refresh',
                               Icons.refresh,
                               QRoperation.refresh,
+                              theme,
                             ),
                             popupchildWidget(
                               'Share',
                               Icons.share_rounded,
                               QRoperation.share,
+                              theme,
                             ),
                           ];
                         },
@@ -340,6 +349,14 @@ class QRScannerState extends State<QRScanner>
                                     child: QrImageView(
                                       data: snapshot.data ?? '',
                                       size: 240,
+                                      eyeStyle: const QrEyeStyle(
+                                        eyeShape: QrEyeShape.square,
+                                        color: Colors.black,
+                                      ),
+                                      dataModuleStyle: const QrDataModuleStyle(
+                                        dataModuleShape: QrDataModuleShape.square,
+                                        color: Colors.black,
+                                      ),
                                       errorStateBuilder: (context, error) {
                                         print('QR Error: $error');
                                         return const Center(
@@ -365,7 +382,7 @@ class QRScannerState extends State<QRScanner>
                                                 IconButton(
                                                   onPressed: () async {},
                                                   icon:
-                                                      const Icon(Icons.refresh),
+                                                      const Icon(Icons.refresh, color: Colors.black54),
                                                 ),
                                                 const Text(
                                                   'Loading',
@@ -410,25 +427,25 @@ class QRScannerState extends State<QRScanner>
                             vertical: 10,
                           ),
                           child: SwitchListTile(
-                            value: check,
-                            title: getHeaderBuilder(),
-                            onChanged: (newval) {
-                              setState(() {
-                                check = newval;
-                              });
-                              if (check) {
-                                tabController.animateTo(0);
-                              } else {
-                                tabController.animateTo(1);
-                              }
-                            },
+                                    value: check,
+                                    title: getHeaderBuilder(theme),
+                                    onChanged: (newval) {
+                                      setState(() {
+                                        check = newval;
+                                      });
+                                      if (check) {
+                                        tabController.animateTo(0);
+                                      } else {
+                                        tabController.animateTo(1);
+                                      }
+                                    },
+                                  ),
+                                ),
+                                Qrinfo(theme),
+                              ],
+                            ),
                           ),
                         ),
-                        Qrinfo(),
-                      ],
-                    ),
-                  ),
-                ),
               ],
             ),
             Visibility(
@@ -459,7 +476,7 @@ class QRScannerState extends State<QRScanner>
   }
 }
 
-Widget Qrinfo() {
+Widget Qrinfo(ThemeData theme) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 13),
     child: Column(
@@ -469,15 +486,22 @@ Widget Qrinfo() {
         Text(
           'Note :',
           style: GoogleFonts.oxygen(
-            textStyle:
-                const TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+            textStyle: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 20,
+              color: theme.colorScheme.onSurface,
+            ),
           ),
         ),
         const SizedBox(height: 8),
         Text(
           '''
 Use Long invite when you want to connect with computers running a retroshare version <0.6.6. Otherwise you can use Short invite''',
-          style: GoogleFonts.oxygen(),
+          style: GoogleFonts.oxygen(
+            textStyle: TextStyle(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ),
       ],
     ),
