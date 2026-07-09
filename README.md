@@ -14,14 +14,15 @@ RetroShare mobile client written in Flutter.
 
 * Create one or more Retroshare profiles.
 * Create and delete one or more  both Pseudo and Signed Identities, and switch between them.
-* Add friend locations using classic and Short  Retroshare invites.
+* Add friend locations using classic and Short Retroshare invites.
 * Add Friend through QR scanner/QR code.
-* Create lobby chats (public and private).
-* Search public chat lobbies.
+* Create chat rooms (public and private).
+* Search public chat rooms.
 * Start distant chats with identities.
-* Send Image and Emoji in chat.
-* Get Notification of Chat Lobby Invites.
-* Flexibility to accept and deny the chat lobby invites.
+* Send Image, File and Emoji in chat.
+* Send Voice message in chat.
+* Get Notification of Chat Room Invites.
+* Flexibility to accept and deny the chat room invites.
 
 ## Future Plans 
 
