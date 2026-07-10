@@ -205,10 +205,14 @@ class PersonDelegateData {
   }
 
   static PersonDelegateData locationData(Location location) {
+    final statusText = _statusText(location.status, location.isOnline);
+    final displayMessage = location.statusMessage.isNotEmpty
+        ? '${location.statusMessage} ($statusText)'
+        : statusText;
     return PersonDelegateData(
       name: '${location.accountName}:${location.locationName}',
       mId: null,
-      message: _statusText(location.status, location.isOnline),
+      message: displayMessage,
       isOnline: location.isOnline,
       status: location.status,
       isContact: true,
