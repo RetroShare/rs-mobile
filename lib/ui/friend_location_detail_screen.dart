@@ -233,6 +233,13 @@ class _FriendLocationDetailScreenState extends State<FriendLocationDetailScreen>
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: [
+                  if (widget.location.statusMessage.isNotEmpty)
+                    _infoTile(
+                      context,
+                      'Status Message',
+                      widget.location.statusMessage,
+                      Icons.chat,
+                    ),
                   _infoTile(
                     context,
                     'Account Name',

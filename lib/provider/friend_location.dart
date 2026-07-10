@@ -25,7 +25,15 @@ class FriendLocations with ChangeNotifier {
       final locations = <Location>[];
       for (var i = 0; i < sslIds.length; i++) {
         try {
-          final details = await RsPeers.getPeerFriendDetails(sslIds[i], _authToken);
+          var details = await RsPeers.getPeerFriendDetails(sslIds[i], _authToken);
+          try {
+            final statusMessage =
+                await RsMsgs.getCustomStateString(sslIds[i], _authToken);
+            details = details.copyWith(statusMessage: statusMessage);
+          } catch (e) {
+            debugPrint(
+                'Error fetching status message for friend ${sslIds[i]}: $e');
+          }
           locations.add(details);
         } catch (e) {
           debugPrint('Error fetching details for friend ${sslIds[i]}: $e');
