@@ -246,7 +246,7 @@ class SignInScreenState extends State<SignInScreen> {
           ),
           obscureText: true,
           onChanged: (_) {
-            if (wrongPassword && mounted) {
+            if (mounted) {
               setState(() {
                 wrongPassword = false;
               });
