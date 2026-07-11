@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:retroshare/main.dart';
@@ -10,6 +12,8 @@ final BehaviorSubject<String?> selectNotificationSubject =
     BehaviorSubject<String?>();
 
 Future<void> initializeNotifications() async {
+  if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
+
   notificationAppLaunchDetails =
       await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
 
@@ -40,6 +44,8 @@ Future<void> showChatNotification(
   String title,
   String body,
 ) async {
+  if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
+
   // For multiple messages check: inbox notification
   //  var largeIconPath = await _downloadAndSaveFile(
   //      'http://via.placeholder.com/128x128/00FF00/000000', 'largeIcon');
@@ -73,6 +79,8 @@ Future<void> showLobbyInviteNotification(
   String lobbyName,
   String senderName,
 ) async {
+  if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
+
   const androidPlatformChannelSpecifics = AndroidNotificationDetails(
     'RetroshareInvites',
     'Retroshare Invites',
@@ -94,6 +102,8 @@ Future<void> showLobbyInviteNotification(
 }
 
 Future<void> showInviteCopyNotification() async {
+  if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
+
   const androidPlatformChannelSpecifics = AndroidNotificationDetails(
     'RetroshareFlutter',
     'RetroshareFlutter',

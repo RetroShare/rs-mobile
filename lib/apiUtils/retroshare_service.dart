@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:retroshare_api_wrapper/retroshare.dart' as rs;
@@ -24,6 +25,7 @@ Future<bool> _isRsApiReachable() async {
 
 class RsServiceControl {
   static Future<bool>? _startFuture;
+  static Process? _process;
 
   static Future<bool> startRetroshare() {
     _startFuture ??= _doStartRetroshare().whenComplete(() {
@@ -38,7 +40,19 @@ class RsServiceControl {
     } catch (_) {}
 
     try {
-      await rsPlatform.invokeMethod('start');
+      if (Platform.isWindows) {
+        final exePath = Platform.resolvedExecutable;
+        final exeDir = File(exePath).parent.path;
+        final servicePath = '$exeDir/retroshare-service.exe';
+        if (await File(servicePath).exists()) {
+          print('Starting Retroshare Service at $servicePath');
+          _process = await Process.start(servicePath, []);
+        } else {
+          print('retroshare-service.exe not found in app directory: $servicePath');
+        }
+      } else {
+        await rsPlatform.invokeMethod('start');
+      }
     } catch (err) {
       print('Failed to invoke RS start: $err');
     }
@@ -55,7 +69,14 @@ class RsServiceControl {
 
   static Future<void> stopRetroshare() async {
     try {
-      await rsPlatform.invokeMethod('stop');
+      if (Platform.isWindows) {
+        if (_process != null) {
+          _process!.kill();
+          _process = null;
+        }
+      } else {
+        await rsPlatform.invokeMethod('stop');
+      }
 
       await Future.delayed(const Duration(milliseconds: 3000));
       final isUp = await rs.isRetroshareRunning();
@@ -67,7 +88,15 @@ class RsServiceControl {
 
   static Future<void> restartRetroshare() async {
     try {
-      await rsPlatform.invokeMethod('restart');
+      if (Platform.isWindows) {
+        if (_process != null) {
+          _process!.kill();
+          _process = null;
+        }
+        await _doStartRetroshare();
+      } else {
+        await rsPlatform.invokeMethod('restart');
+      }
 
       await Future.delayed(const Duration(milliseconds: 300));
       final isUp = await rs.isRetroshareRunning();
