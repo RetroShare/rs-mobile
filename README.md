@@ -35,6 +35,10 @@ Follow this file : [AndroidStudio-Flutter-Windows.md](https://github.com/RetroSh
 ## Build libretroshare local
 Follow this file : [local_build_howto.md](https://github.com/RetroShare/rs-mobile/blob/master/local_build_howto.md)
 
+## Build for Windows
+
+Follow this file: [build_windows_desktop_howto.md](https://github.com/RetroShare/rs-mobile/blob/master/build_windows_desktop_howto.md)
+
 ## Installing on Local Machine:
 
 * Run below command:
