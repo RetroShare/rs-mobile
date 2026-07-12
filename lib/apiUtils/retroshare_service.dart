@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -41,12 +42,37 @@ class RsServiceControl {
 
     try {
       if (Platform.isWindows) {
+        // Clean up any zombie daemon processes from previous runs
+        try {
+          await Process.run('taskkill', ['/f', '/im', 'retroshare-service.exe']);
+        } catch (_) {}
+
         final exePath = Platform.resolvedExecutable;
         final exeDir = File(exePath).parent.path;
         final servicePath = '$exeDir/retroshare-service.exe';
         if (await File(servicePath).exists()) {
           print('Starting Retroshare Service at $servicePath');
-          _process = await Process.start(servicePath, []);
+          final dataDir = '$exeDir/data';
+          final dir = Directory(dataDir);
+          if (!await dir.exists()) {
+            await dir.create(recursive: true);
+          }
+          _process = await Process.start(servicePath, ['--base-dir', dataDir]);
+
+          // Drain stdout and stderr to prevent the process from hanging due to full buffer
+          _process!.stdout.listen((data) {
+            final output = String.fromCharCodes(data);
+            print('RS-Service stdout: $output');
+          });
+          _process!.stderr.listen((data) {
+            final output = String.fromCharCodes(data);
+            print('RS-Service stderr: $output');
+          });
+
+          unawaited(_process!.exitCode.then((code) {
+            print('retroshare-service.exe exited with code $code');
+            _process = null;
+          }));
         } else {
           print('retroshare-service.exe not found in app directory: $servicePath');
         }
@@ -67,7 +93,7 @@ class RsServiceControl {
     return false;
   }
 
-  static Future<void> stopRetroshare() async {
+  static Future<void> stopRetroshare({bool wait = true}) async {
     try {
       if (Platform.isWindows) {
         if (_process != null) {
@@ -78,9 +104,11 @@ class RsServiceControl {
         await rsPlatform.invokeMethod('stop');
       }
 
-      await Future.delayed(const Duration(milliseconds: 3000));
-      final isUp = await rs.isRetroshareRunning();
-      if (isUp) throw Exception('The service did not stop after a while');
+      if (wait) {
+        await Future.delayed(const Duration(milliseconds: 3000));
+        final isUp = await rs.isRetroshareRunning();
+        if (isUp) throw Exception('The service did not stop after a while');
+      }
     } catch (err) {
       throw Exception('The service could not be stopped');
     }

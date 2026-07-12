@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:oktoast/oktoast.dart';
 import 'package:provider/provider.dart';
+import 'package:retroshare/apiUtils/desktop_tray.dart';
 import 'package:retroshare/common/notifications.dart';
 import 'package:retroshare/common/theme_data.dart';
 import 'package:retroshare/model/app_life_cycle_state.dart';
@@ -38,6 +40,13 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     configureSelectNotificationSubject(context);
     // Used to check when the app is on background
     WidgetsBinding.instance.addObserver(LifecycleEventHandler());
+    
+    if (Platform.isWindows) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        initDesktopTray();
+      });
+    }
+
     super.initState();
   }
 
