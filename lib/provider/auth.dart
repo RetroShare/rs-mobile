@@ -15,10 +15,12 @@ class AccountCredentials with ChangeNotifier {
   Account? _lastAccountUsed;
   Account? _loggedinAccount;
   AuthToken? _authToken;
+  String? _pgpPassword;
   Account? get lastAccountUsed => _lastAccountUsed;
   List<Account> get accountList => _accountsList;
   Account? get loggedinAccount => _loggedinAccount;
   AuthToken? get getAuthToken => _authToken;
+  String? get getPgpPassword => _pgpPassword;
 
   set logginAccount(Account acc) {
     _loggedinAccount = acc;
@@ -100,6 +102,7 @@ class AccountCredentials with ChangeNotifier {
     logginAccount = currentAccount;
     // Login success 0, already logged in 1
     if (resp == 0 || resp == 1) {
+      _pgpPassword = password;
       final isAuthTokenValid =
           await getinitializeAuth(currentAccount, password);
       if (!isAuthTokenValid) {
@@ -130,6 +133,7 @@ class AccountCredentials with ChangeNotifier {
       ),
     );
     if (account.$1) {
+      _pgpPassword = password;
       _accountsList.add(account.$2);
       logginAccount = account.$2;
       final isAuthTokenValid =
