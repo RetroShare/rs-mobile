@@ -135,12 +135,7 @@ class AccountCredentials with ChangeNotifier {
     if (account.$1) {
       _pgpPassword = password;
       _accountsList.add(account.$2);
-      logginAccount = account.$2;
-      final isAuthTokenValid =
-          await getinitializeAuth(account.$2, password);
-      if (!isAuthTokenValid) throw const HttpException('AUTHTOKEN FAILED');
-
-      notifyListeners();
+      await login(account.$2, password);
     } else {
       print('DEBUG signup failed. retval: ${resp['retval']}');
       throw const HttpException('DATA INSUFFICIENT');
