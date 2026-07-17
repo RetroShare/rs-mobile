@@ -77,14 +77,14 @@ class AccountCredentials with ChangeNotifier {
         await Future.delayed(const Duration(seconds: 1));
       }
 
-      // Try locationId (SSL ID) - most robust for multiple locations
-      _authToken = AuthToken(account.locationId, deriveApiToken(account.locationId, password));
+      // Try pgpName (PGP Username) - most robust for multiple locations without core changes
+      _authToken = AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
       bool success = await RsJsonApi.isAuthTokenValid(_authToken!);
       if (success) return true;
     }
 
-    // Default back to locationId if all failed
-    _authToken = AuthToken(account.locationId, deriveApiToken(account.locationId, password));
+    // Default back to pgpName if all failed
+    _authToken = AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
     return false;
   }
 
@@ -96,8 +96,8 @@ class AccountCredentials with ChangeNotifier {
     final int resp = await RsLoginHelper.requestLogIn(
       currentAccount,
       password,
-      currentAccount.locationId,
-      deriveApiToken(currentAccount.locationId, password),
+      currentAccount.pgpName,
+      deriveApiToken(currentAccount.pgpName, password),
     );
     logginAccount = currentAccount;
     // Login success 0, already logged in 1
@@ -135,7 +135,12 @@ class AccountCredentials with ChangeNotifier {
     if (account.$1) {
       _pgpPassword = password;
       _accountsList.add(account.$2);
-      await login(account.$2, password);
+      logginAccount = account.$2;
+      final isAuthTokenValid =
+          await getinitializeAuth(account.$2, password);
+      if (!isAuthTokenValid) throw const HttpException('AUTHTOKEN FAILED');
+
+      notifyListeners();
     } else {
       print('DEBUG signup failed. retval: ${resp['retval']}');
       throw const HttpException('DATA INSUFFICIENT');
