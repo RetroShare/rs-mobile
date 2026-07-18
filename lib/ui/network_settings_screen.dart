@@ -48,10 +48,11 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
 
     Map<String, dynamic> configNetStatus = {};
     try {
-      configNetStatus = await rsApiCall(
+      final response = await rsApiCall(
         '/rsConfig/getConfigNetStatus',
         authToken: authToken,
       );
+      configNetStatus = response['status'] as Map<String, dynamic>? ?? response;
     } catch (e) {
       debugPrint('Error calling getConfigNetStatus: $e');
     }
@@ -145,25 +146,50 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
           final extPort = det['mExtPort']?.toString() ?? det['extPort']?.toString() ?? netStatus['externalPort']?.toString() ?? netStatus['extPort']?.toString() ?? netStatus['mExtPort']?.toString() ?? 'Unknown';
 
           // Resolve DHT Status
-          bool isDhtOn = false;
+          bool isDhtEnabled = false;
+          bool isDhtConnected = false;
+
           final dhtVal = netStatus['DHTActive'] ?? netStatus['dhtActive'] ?? netStatus['dhtStatus'] ?? netStatus['dht'] ?? netStatus['mDhtActive'] ?? netStatus['mDhtStatus'];
           if (dhtVal is bool) {
-            isDhtOn = dhtVal;
+            isDhtEnabled = dhtVal;
           } else if (dhtVal is num) {
-            isDhtOn = dhtVal != 0;
+            isDhtEnabled = dhtVal != 0;
           } else if (dhtVal is String) {
-            isDhtOn = dhtVal.toLowerCase() == 'true' || dhtVal == '1' || dhtVal.toLowerCase() == 'on';
+            isDhtEnabled = dhtVal.toLowerCase() == 'true' || dhtVal == '1' || dhtVal.toLowerCase() == 'on';
           } else {
             // Fallback: If network mode is public, DHT is usually on
             final netMode = netStatus['netMode'] ?? netStatus['networkMode'] ?? netStatus['mNetMode'] ?? netStatus['mNetworkMode'];
             if (netMode is num && netMode == 2) {
-              isDhtOn = true;
+              isDhtEnabled = true;
             }
           }
 
-          final dhtText = isDhtOn ? 'Active' : 'Inactive';
-          final dhtColor = isDhtOn ? Colors.green : Colors.redAccent;
-          final dhtIcon = isDhtOn ? Icons.hub_rounded : Icons.hub_outlined;
+          final netDhtOkVal = netStatus['netDhtOk'] ?? netStatus['netDhtOK'] ?? netStatus['mNetDhtOk'];
+          if (netDhtOkVal is bool) {
+            isDhtConnected = netDhtOkVal;
+          } else if (netDhtOkVal is num) {
+            isDhtConnected = netDhtOkVal != 0;
+          } else if (netDhtOkVal is String) {
+            isDhtConnected = netDhtOkVal.toLowerCase() == 'true' || netDhtOkVal == '1';
+          }
+
+          String dhtText;
+          Color dhtColor;
+          IconData dhtIcon;
+
+          if (!isDhtEnabled) {
+            dhtText = 'Inactive';
+            dhtColor = Colors.redAccent;
+            dhtIcon = Icons.hub_outlined;
+          } else if (!isDhtConnected) {
+            dhtText = 'Active (Searching...)';
+            dhtColor = Colors.orangeAccent;
+            dhtIcon = Icons.sensors_rounded;
+          } else {
+            dhtText = 'Active';
+            dhtColor = Colors.green;
+            dhtIcon = Icons.hub_rounded;
+          }
 
 
 
