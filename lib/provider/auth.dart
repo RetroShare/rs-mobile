@@ -1,17 +1,26 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
+
+String deriveApiToken(String locationId, String password) {
+  final bytes = utf8.encode('$locationId:$password');
+  return sha256.convert(bytes).toString();
+}
 
 class AccountCredentials with ChangeNotifier {
   List<Account> _accountsList = [];
   Account? _lastAccountUsed;
   Account? _loggedinAccount;
   AuthToken? _authToken;
+  String? _pgpPassword;
   Account? get lastAccountUsed => _lastAccountUsed;
   List<Account> get accountList => _accountsList;
   Account? get loggedinAccount => _loggedinAccount;
   AuthToken? get getAuthToken => _authToken;
+  String? get getPgpPassword => _pgpPassword;
 
   set logginAccount(Account acc) {
     _loggedinAccount = acc;
@@ -61,14 +70,22 @@ class AccountCredentials with ChangeNotifier {
     throw Exception('No account found for setLastAccountUsed');
   }
 
-  Future<bool> getinitializeAuth(String locationId, String password) async {
-    _authToken = AuthToken(locationId, password);
-    final success = await RsJsonApi.checkExistingAuthTokens(
-      locationId,
-      password,
-      _authToken!,
-    );
-    return success;
+  Future<bool> getinitializeAuth(Account account, String password) async {
+    // Retry logic as the core might take a moment to initialize the API for the unlocked account
+    for (int retry = 0; retry < 3; retry++) {
+      if (retry > 0) {
+        await Future.delayed(const Duration(seconds: 1));
+      }
+
+      // Try pgpName (PGP Username) - most robust for multiple locations without core changes
+      _authToken = AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
+      bool success = await RsJsonApi.isAuthTokenValid(_authToken!);
+      if (success) return true;
+    }
+
+    // Default back to pgpName if all failed
+    _authToken = AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
+    return false;
   }
 
   Future<bool> checkIsValidAuthToken() async {
@@ -76,12 +93,18 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<void> login(Account currentAccount, String password) async {
-    final int resp = await RsLoginHelper.requestLogIn(currentAccount, password);
+    final int resp = await RsLoginHelper.requestLogIn(
+      currentAccount,
+      password,
+      currentAccount.pgpName,
+      deriveApiToken(currentAccount.pgpName, password),
+    );
     logginAccount = currentAccount;
     // Login success 0, already logged in 1
     if (resp == 0 || resp == 1) {
+      _pgpPassword = password;
       final isAuthTokenValid =
-          await getinitializeAuth(currentAccount.locationName, password);
+          await getinitializeAuth(currentAccount, password);
       if (!isAuthTokenValid) {
         throw const HttpException('AUTHTOKEN FAILED');
       }
@@ -92,7 +115,14 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<void> signup(String username, String password, String nodename) async {
-    final resp = await RsLoginHelper.requestAccountCreation(username, password);
+    final resp = await RsLoginHelper.requestAccountCreation(
+      username,
+      password,
+      nodename.isEmpty ? 'mobile' : nodename,
+      username,
+      deriveApiToken(username, password),
+    );
+    print('DEBUG signup response: $resp');
     final account = (
       resp['retval']['errorNumber'] == 0,
       Account(
@@ -103,14 +133,16 @@ class AccountCredentials with ChangeNotifier {
       ),
     );
     if (account.$1) {
+      _pgpPassword = password;
       _accountsList.add(account.$2);
       logginAccount = account.$2;
       final isAuthTokenValid =
-          await getinitializeAuth(account.$2.locationName, password);
+          await getinitializeAuth(account.$2, password);
       if (!isAuthTokenValid) throw const HttpException('AUTHTOKEN FAILED');
 
       notifyListeners();
     } else {
+      print('DEBUG signup failed. retval: ${resp['retval']}');
       throw const HttpException('DATA INSUFFICIENT');
     }
   }

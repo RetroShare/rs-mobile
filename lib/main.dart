@@ -58,7 +58,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         ChangeNotifierProxyProvider<AccountCredentials, Identities>(
           create: (_) => Identities(),
           update: (_, auth, identities) =>
-              identities!..authToken = auth.authtoken,
+              identities!
+                ..authToken = auth.authtoken
+                ..pgpPassword = auth.getPgpPassword,
         ),
         ChangeNotifierProxyProvider<AccountCredentials, FriendLocations>(
           create: (_) => FriendLocations(),

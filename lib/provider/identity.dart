@@ -7,8 +7,12 @@ class Identities with ChangeNotifier {
   List<Identity> _ownidentities = [];
   Identity? _selected;
   AuthToken? _authToken;
+  String? _pgpPassword;
   set authToken(AuthToken? authToken) {
     _authToken = authToken;
+  }
+  set pgpPassword(String? pgpPassword) {
+    _pgpPassword = pgpPassword;
   }
 
   AuthToken? get authToken => _authToken;
@@ -52,7 +56,7 @@ class Identities with ChangeNotifier {
     if (_authToken == null) {
       return;
     }
-    final newIdentity = await RsIdentity.createIdentity(id, image, _authToken!);
+    final newIdentity = await RsIdentity.createIdentity(id, image, _authToken!, _pgpPassword);
     _ownidentities.add(newIdentity);
     _currentIdentity = newIdentity;
     _selected = _currentIdentity;
@@ -85,7 +89,7 @@ class Identities with ChangeNotifier {
       return;
     }
 
-    final success = await RsIdentity.updateIdentity(id, avatar, _authToken!);
+    final success = await RsIdentity.updateIdentity(id, avatar, _authToken!, _pgpPassword);
     if (!success) {
       throw 'Try Again';
     }
