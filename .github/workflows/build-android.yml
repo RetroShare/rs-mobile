@@ -1,0 +1,73 @@
+name: Build Android APK (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_mode:
+        description: 'Build Mode'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+      aar_url:
+        description: 'Direct download URL for custom libretroshare AAR (Optional)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Prepare AAR Dependency (if custom AAR URL is provided)
+        if: ${{ inputs.aar_url != '' }}
+        run: |
+          mkdir -p android/app/libs
+          echo "Downloading custom AAR from ${{ inputs.aar_url }}..."
+          curl -L "${{ inputs.aar_url }}" -o android/app/libs/libretroshare-MinApiLevel24-debug.aar
+          echo "Updating build.gradle to reference local AAR file..."
+          sed -i "s|implementation \"org.retroshare.service:libretroshare.*\"|implementation files('libs/libretroshare-MinApiLevel24-debug.aar')|g" android/app/build.gradle
+
+      - name: Install Flutter Dependencies
+        run: flutter pub get
+
+      - name: Build APK (${{ inputs.build_mode }})
+        run: |
+          if [ "${{ inputs.build_mode }}" = "release" ]; then
+            flutter build apk --release --no-codesign
+          else
+            flutter build apk --debug
+          fi
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rs-mobile-${{ inputs.build_mode }}-apk
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/apk/*/*.apk
+            android/app/build/outputs/apk/*/*.apk
+          retention-days: 14
