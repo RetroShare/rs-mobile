@@ -34,6 +34,33 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+def getGitHash = { ->
+    try {
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'rev-parse', '--short', 'HEAD'
+            standardOutput = stdout
+        }
+        return stdout.toString().trim()
+    } catch (Exception e) {
+        return 'unknown'
+    }
+}
+
+def getAppVersionName = { ->
+    if (flutterVersionName != null && flutterVersionName != '1.0') {
+        return flutterVersionName.split('\\+')[0]
+    }
+    def pubspecFile = rootProject.file('../pubspec.yaml')
+    if (pubspecFile.exists()) {
+        def matcher = pubspecFile.text =~ /version:\s*([0-9]+\.[0-9]+\.[0-9]+)/
+        if (matcher.find()) {
+            return matcher.group(1)
+        }
+    }
+    return flutterVersionName ? flutterVersionName.split('\\+')[0] : '1.0.0'
+}
+
 android {
  
     namespace = "cc.retroshare.retroshare"
@@ -72,7 +99,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
             proguardFiles 'proguard-rules.pro'
         }
     }
@@ -85,7 +112,10 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.all {
-            outputFileName = "retroshare-mobile-${variant.name}.apk"
+            def version = getAppVersionName()
+            def gitHash = getGitHash()
+            def date = new Date().format('yyyyMMdd')
+            outputFileName = "retroshare-mobile-v${version}-${gitHash}-${date}-${variant.name}.apk"
         }
     }
 
