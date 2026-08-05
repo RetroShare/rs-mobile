@@ -67,6 +67,7 @@ dependencies:
   open_filex: ^4.7.0
   record: ^5.2.0
   audioplayers: ^6.0.0
+  video_player: ^2.9.2
   shared_preferences: ^2.2.3
   package_info_plus: ^8.1.1
   nativeapi: ^0.1.4

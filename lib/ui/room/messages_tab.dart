@@ -578,14 +578,9 @@ class MessagesTabState extends State<MessagesTab> {
                     icon: Icons.videocam_rounded,
                     color: Colors.red,
                     label: 'Video',
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Video sharing is coming soon!'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
+                      await _pickVideo();
                     },
                   ),
                 ],
@@ -595,6 +590,133 @@ class MessagesTabState extends State<MessagesTab> {
         ),
       ),
     );
+  }
+
+  bool _isVideoFile(String filename) {
+    final nameLower = filename.toLowerCase();
+    return nameLower.endsWith('.mp4') ||
+        nameLower.endsWith('.mov') ||
+        nameLower.endsWith('.mkv') ||
+        nameLower.endsWith('.avi') ||
+        nameLower.endsWith('.webm') ||
+        nameLower.endsWith('.3gp') ||
+        nameLower.endsWith('.m4v');
+  }
+
+  Future<void> _pickVideo() async {
+    try {
+      final videoXFile = await _picker.pickVideo(
+        source: ImageSource.gallery,
+      );
+      if (videoXFile == null) {
+        debugPrint('Video selection cancelled.');
+        return;
+      }
+
+      final rawPath = videoXFile.path;
+      final normalizedPath = rawPath.replaceAll(r'\', '/');
+      final name = rawPath.split('/').last.split(r'\').last;
+      final file = File(rawPath);
+      final size = file.lengthSync();
+
+      setState(() {
+        _attachedFile = file;
+        _attachedFileName = name;
+        _attachedFileSize = size;
+        _attachedFileHash = null;
+        _isHashingFile = true;
+      });
+
+      final lobbyProvider = Provider.of<RoomChatLobby>(context, listen: false);
+      final authToken = lobbyProvider.authToken;
+
+      // Auto-resume hashing process if paused
+      try {
+        final pausedResp = await rsApiCall(
+          '/rsFiles/hashingProcessPaused',
+          authToken: authToken,
+        );
+        if (pausedResp['retval'] == true) {
+          debugPrint('DEBUG: RetroShare hashing process is paused. Resuming it...');
+          await rsApiCall(
+            '/rsFiles/togglePauseHashingProcess',
+            authToken: authToken,
+          );
+        }
+      } catch (e) {
+        debugPrint('Error checking/resuming hashing process: $e');
+      }
+
+      final response = await rsApiCall(
+        '/rsFiles/ExtraFileHash',
+        authToken: authToken,
+        params: {
+          'localpath': normalizedPath,
+          'period': {'xstr64': (31536000 * 10).toString()},
+          'flags': 0x40,
+        },
+      );
+      final retval = response['retval'];
+      final success = (retval is bool && retval) || (retval is int && retval == 1);
+      
+      if (!success) {
+        throw Exception('Core failed to start hashing.');
+      }
+
+      _hashingTimer?.cancel();
+      _hashingTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+        try {
+          final statusResp = await rsApiCall(
+            '/rsFiles/ExtraFileStatus',
+            authToken: authToken,
+            params: {'localpath': normalizedPath},
+          );
+          
+          final info = statusResp['info'] as Map?;
+          final hash = info?['hash'] as String?;
+          if (hash != null &&
+              hash.isNotEmpty &&
+              hash != '0000000000000000000000000000000000000000') {
+            var sizeInBytes = size;
+            final sizeVal = info?['size'];
+            if (sizeVal is int) {
+              sizeInBytes = sizeVal;
+            } else if (sizeVal is Map) {
+              final xstr = sizeVal['xstr64'] as String?;
+              if (xstr != null) {
+                sizeInBytes = int.tryParse(xstr) ?? size;
+              }
+            }
+
+            timer.cancel();
+            if (mounted) {
+              setState(() {
+                _attachedFileHash = hash;
+                _attachedFileSize = sizeInBytes;
+                _isHashingFile = false;
+              });
+            }
+          }
+        } catch (e) {
+          debugPrint('Error checking video hashing status: $e');
+        }
+      });
+    } catch (e) {
+      debugPrint('Error picking video: $e');
+      if (mounted) {
+        setState(() {
+          _attachedFile = null;
+          _attachedFileName = null;
+          _attachedFileSize = null;
+          _attachedFileHash = null;
+          _isHashingFile = false;
+        });
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to attach video: $e')),
+      );
+    }
   }
 
   Widget _buildPickerOption({
@@ -818,7 +940,7 @@ class MessagesTabState extends State<MessagesTab> {
                       itemCount: msgList.length,
                       itemBuilder: (BuildContext context, int index) {
                         final message = msgList[index];
-                        final key = UniqueKey();
+                        final key = ValueKey(message.msgId ?? '${message.sendTime}_${message.msg}_$index');
                         
                         String bubbleTitle = '';
                         final bool isSystem = ((message.chatflags ?? 0) & 0x0008) != 0;
@@ -944,6 +1066,14 @@ class MessagesTabState extends State<MessagesTab> {
               builder: (context) {
                 final isVoice = _attachedFileName?.startsWith('voice_msg_') == true ||
                     _attachedFileName?.endsWith('.m4a') == true;
+                final isVideo = _isVideoFile(_attachedFileName ?? '');
+                final accentColor = isVoice
+                    ? Colors.teal
+                    : (isVideo ? Colors.red : Colors.orange);
+                final iconData = isVoice
+                    ? Icons.mic_rounded
+                    : (isVideo ? Icons.videocam_rounded : Icons.insert_drive_file_rounded);
+
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(128),
@@ -952,12 +1082,12 @@ class MessagesTabState extends State<MessagesTab> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: isVoice ? Colors.teal.withAlpha(30) : Colors.orange.withAlpha(30),
+                          color: accentColor.withAlpha(30),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          isVoice ? Icons.mic_rounded : Icons.insert_drive_file_rounded,
-                          color: isVoice ? Colors.teal : Colors.orange,
+                          iconData,
+                          color: accentColor,
                           size: 28,
                         ),
                       ),
@@ -982,12 +1112,14 @@ class MessagesTabState extends State<MessagesTab> {
                               _isHashingFile
                                   ? (isVoice
                                       ? 'Processing voice message... please wait'
-                                      : 'Hashing file... please wait')
+                                      : (isVideo
+                                          ? 'Hashing video... please wait'
+                                          : 'Hashing file... please wait'))
                                   : 'Ready to send (${(_attachedFileSize! / 1024).toStringAsFixed(1)} KB)',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: _isHashingFile
-                                    ? (isVoice ? Colors.teal : Colors.orange)
+                                    ? accentColor
                                     : Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
