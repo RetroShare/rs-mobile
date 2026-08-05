@@ -32,7 +32,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '11'
           cache: 'gradle'
 
       - name: Set up Flutter SDK
@@ -54,13 +54,38 @@ jobs:
       - name: Install Flutter Dependencies
         run: flutter pub get
 
-      - name: Build APK (${{ inputs.build_mode }})
+      - name: Build APK (${{ inputs.build_mode }}) - diagnostic
         run: |
+          set -euo pipefail
+          mkdir -p buildlogs
+
+          echo "=== Versions ==="
+          flutter --version || true
+          java -version || true
+          echo "=== Flutter doctor ==="
+          flutter doctor -v || true
+
+          echo "=== Pub get ==="
+          flutter pub get || true
+
           if [ "${{ inputs.build_mode }}" = "release" ]; then
-            flutter build apk --release --no-codesign
+            echo "Running flutter build apk --release (verbose)"
+            flutter build apk --release --no-codesign -v > buildlogs/flutter_build_verbose.log 2>&1 || true
+            echo "If flutter build failed, running Gradle fallback to get stacktrace..."
+            (cd android && ./gradlew assembleRelease --stacktrace --info) > buildlogs/gradle_fallback_release.log 2>&1 || true
           else
-            flutter build apk --debug
+            echo "Running flutter build apk --debug (verbose)"
+            flutter build apk --debug -v > buildlogs/flutter_build_verbose.log 2>&1 || true
+            echo "If flutter build failed, running Gradle fallback to get stacktrace..."
+            (cd android && ./gradlew assembleDebug --stacktrace --info) > buildlogs/gradle_fallback_debug.log 2>&1 || true
           fi
+
+      - name: Upload build logs artifact (diagnostic)
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: buildlogs
+          retention-days: 7
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
