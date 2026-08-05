@@ -93,6 +93,7 @@ jobs:
           name: rs-mobile-${{ inputs.build_mode }}-apk
           path: |
             build/app/outputs/flutter-apk/*.apk
-            build/app/outputs/apk/*/*.apk
-            android/app/build/outputs/apk/*/*.apk
+            build/app/outputs/apk/**/*.apk
+            android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
           retention-days: 14
