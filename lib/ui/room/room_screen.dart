@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/identicon.dart';
+import 'package:retroshare/common/person_delegate.dart';
 import 'package:retroshare/common/styles.dart';
 import 'package:retroshare/provider/friend_location.dart';
 import 'package:retroshare/provider/room.dart';
@@ -108,6 +109,11 @@ class RoomScreenState extends State<RoomScreen>
   void dispose() {
     _statusRefreshTimer?.cancel();
     _tabController.dispose();
+    // Clear current chat so new messages are counted as unread
+    try {
+      final roomProvider = Provider.of<RoomChatLobby>(context, listen: false);
+      roomProvider.updateCurrentChat(null);
+    } catch (_) {}
     super.dispose();
   }
 
@@ -148,11 +154,8 @@ class RoomScreenState extends State<RoomScreen>
 
     final friendLocations = Provider.of<FriendLocations>(context);
     final friendLocs = friendLocations.friendlist;
-    final matchingLocs = interlocutorIdentity != null && interlocutorIdentity.pgpId != null
-        ? friendLocs.where((loc) =>
-            loc.rsGpgId.isNotEmpty &&
-            loc.rsGpgId.toLowerCase() == interlocutorIdentity.pgpId!.toLowerCase() &&
-            loc.rsGpgId != '0000000000000000')
+    final matchingLocs = interlocutorIdentity != null
+        ? PersonDelegateData.getMatchingLocations(interlocutorIdentity, friendLocs)
         : const Iterable<Location>.empty();
 
     final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);

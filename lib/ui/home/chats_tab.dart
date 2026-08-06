@@ -63,13 +63,24 @@ class ChatsTab extends StatelessWidget {
                               isContact: false,
                               name: chat.chatName,
                             );
+                        final chatMessages = (chat.chatId != null)
+                            ? roomChat.messagesList[chat.chatId]
+                            : null;
+                        final lastMessage = (chatMessages != null && chatMessages.isNotEmpty)
+                            ? chatMessages.last
+                            : null;
+
                         return PersonDelegate(
                           data: isRoom
-                              ? PersonDelegateData.chatData(chat)
+                              ? PersonDelegateData.chatData(
+                                  chat,
+                                  lastMessage: lastMessage,
+                                )
                               : PersonDelegateData.distantChatData(
                                   chat,
                                   identity,
                                   context,
+                                  lastMessage: lastMessage,
                                 ),
                           onAvatarPressed: isRoom
                               ? null
