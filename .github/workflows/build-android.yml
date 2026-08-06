@@ -70,17 +70,23 @@ jobs:
 
           if [ "${{ inputs.build_mode }}" = "release" ]; then
             echo "Running flutter build apk --release (verbose)"
-            flutter build apk --release --no-codesign -v > buildlogs/flutter_build_verbose.log 2>&1 || true
+            # fail the job if flutter build fails so we don't try to upload nonexistent APKs
+            flutter build apk --release --no-codesign -v > buildlogs/flutter_build_verbose.log 2>&1
             echo "If flutter build failed, running Gradle fallback to get stacktrace..."
             (cd android && ./gradlew assembleRelease --stacktrace --info) > buildlogs/gradle_fallback_release.log 2>&1 || true
           else
             echo "Running flutter build apk --debug (verbose)"
-            flutter build apk --debug -v > buildlogs/flutter_build_verbose.log 2>&1 || true
+            # fail the job if flutter build fails so we don't try to upload nonexistent APKs
+            flutter build apk --debug -v > buildlogs/flutter_build_verbose.log 2>&1
             echo "If flutter build failed, running Gradle fallback to get stacktrace..."
             (cd android && ./gradlew assembleDebug --stacktrace --info) > buildlogs/gradle_fallback_debug.log 2>&1 || true
           fi
 
+          echo "=== APK files (if any) ==="
+          find build -type f -name '*.apk' -ls || true
+
       - name: Upload build logs artifact (diagnostic)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
@@ -88,6 +94,7 @@ jobs:
           retention-days: 7
 
       - name: Upload APK Artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: rs-mobile-${{ inputs.build_mode }}-apk
