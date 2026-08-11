@@ -147,13 +147,56 @@ class PersonDelegateData {
     List<Location> friendLocs,
   ) {
     if (!identity.isContact) return [];
-    if (identity.originator == null || identity.originator!.isEmpty) return [];
+
+    final ownerPgpId = identity.pgpId?.trim().toLowerCase();
+    if (ownerPgpId == null ||
+        ownerPgpId.isEmpty ||
+        ownerPgpId == '0000000000000000') {
+      return [];
+    }
 
     return friendLocs
         .where((loc) =>
-            loc.rsPeerId.isNotEmpty &&
-            loc.rsPeerId.toLowerCase() == identity.originator!.toLowerCase())
+            loc.rsGpgId.isNotEmpty &&
+            loc.rsGpgId.toLowerCase() == ownerPgpId)
         .toList();
+  }
+
+  static ({bool isOnline, int status, String statusMessage})
+      resolveLocationPresence(
+    Identity identity,
+    List<Location> friendLocs,
+  ) {
+    final onlineLocations = getMatchingLocations(identity, friendLocs)
+        .where((loc) => loc.isOnline)
+        .toList();
+
+    if (onlineLocations.isEmpty) {
+      return (isOnline: false, status: 0, statusMessage: '');
+    }
+
+    // Several locations can belong to the same PGP account. Originator may
+    // select the particular location, but only after PGP ownership has been
+    // verified above. Presence is a secondary hint and may be stale.
+    final location = onlineLocations.firstWhere(
+      (loc) =>
+          identity.originator != null &&
+          identity.originator!.isNotEmpty &&
+          loc.rsPeerId.toLowerCase() == identity.originator!.toLowerCase(),
+      orElse: () => onlineLocations.firstWhere(
+        (loc) => identity.status != 0 && loc.status == identity.status,
+        orElse: () => onlineLocations.firstWhere(
+          (loc) => loc.status != 0 || loc.statusMessage.isNotEmpty,
+          orElse: () => onlineLocations.first,
+        ),
+      ),
+    );
+
+    return (
+      isOnline: true,
+      status: location.status == 0 ? 3 : location.status,
+      statusMessage: location.statusMessage,
+    );
   }
 
   static PersonDelegateData distantChatData(
@@ -164,20 +207,7 @@ class PersonDelegateData {
   }) {
     final friendLocs =
         Provider.of<FriendLocations>(context, listen: false).friendlist;
-    final matchingLocs = getMatchingLocations(identity, friendLocs);
-
-    final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
-
-    int effectiveStatus = identity.status;
-    if (effectiveStatus == 0 && isAnyLocationOnline) {
-      effectiveStatus = 3; // Default to Online
-      for (final loc in matchingLocs) {
-        if (loc.isOnline && loc.status != 0 && loc.status != 3) {
-          effectiveStatus = loc.status;
-          break;
-        }
-      }
-    }
+    final presence = resolveLocationPresence(identity, friendLocs);
 
     String messageText = '';
     String formattedTime = '';
@@ -208,8 +238,8 @@ class PersonDelegateData {
           : null,
       message: messageText,
       time: formattedTime,
-      status: effectiveStatus,
-      isOnline: isAnyLocationOnline,
+      status: presence.status,
+      isOnline: presence.isOnline,
       isContact: identity.isContact,
       isMessage: true,
       isTime: formattedTime.isNotEmpty,
@@ -250,30 +280,7 @@ class PersonDelegateData {
     final friendLocs =
         Provider.of<FriendLocations>(context, listen: false).friendlist;
 
-    final matchingLocs = getMatchingLocations(identity, friendLocs);
-
-    final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
-
-    int effectiveStatus = identity.status;
-    if (effectiveStatus == 0 && isAnyLocationOnline) {
-      effectiveStatus = 3; // Default to Online
-      for (final loc in matchingLocs) {
-        if (loc.isOnline && loc.status != 0 && loc.status != 3) {
-          effectiveStatus = loc.status;
-          break;
-        }
-      }
-    }
-
-    String statusMsg = '';
-    if (identity.isContact) {
-      for (final loc in matchingLocs) {
-        if (loc.statusMessage.isNotEmpty) {
-          statusMsg = loc.statusMessage;
-          if (loc.isOnline) break;
-        }
-      }
-    }
+    final presence = resolveLocationPresence(identity, friendLocs);
 
     final unreadCount = currentIdenInfo != null
         ? Provider.of<RoomChatLobby>(context, listen: false)
@@ -286,9 +293,9 @@ class PersonDelegateData {
       image: identity.avatar != null && identity.avatar!.isNotEmpty
           ? MemoryImage(base64Decode(identity.avatar!))
           : null,
-      message: statusMsg,
-      status: effectiveStatus,
-      isOnline: isAnyLocationOnline,
+      message: presence.statusMessage,
+      status: presence.status,
+      isOnline: presence.isOnline,
       isContact: identity.isContact,
       isMessage: true,
       // ignore: avoid_bool_literals_in_conditional_expressions
