@@ -6,11 +6,11 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:retroshare/ui/room/voice_message_widget.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/provider/room.dart';
+import 'package:retroshare/ui/room/voice_message_widget.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 import 'package:video_player/video_player.dart';
 
@@ -41,12 +41,12 @@ class MessageDelegate extends StatelessWidget {
     final isLobby = data.isLobbyMessage();
 
     // RetroShare Chat Flags
-    const int rsChatFlagsHistory = 0x0004;
-    const int rsChatFlagsSystem = 0x0008;
+    const rsChatFlagsHistory = 0x0004;
+    const rsChatFlagsSystem = 0x0008;
 
-    final bool isHistory = ((data.chatflags ?? 0) & rsChatFlagsHistory) != 0;
-    final bool isSystem = ((data.chatflags ?? 0) & rsChatFlagsSystem) != 0;
-    final bool isOffline = data.online == false;
+    final isHistory = ((data.chatflags ?? 0) & rsChatFlagsHistory) != 0;
+    final isSystem = ((data.chatflags ?? 0) & rsChatFlagsSystem) != 0;
+    final isOffline = data.online == false;
 
     // Determine colors based on flags and state
     Color bubbleColor;
@@ -147,11 +147,9 @@ class MessageDelegate extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         child: Row(
           mainAxisAlignment: (isIncoming || isSystem) ? MainAxisAlignment.end : MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (!isIncoming && !isSystem) ...[
-              _buildLabel(context, bubbleTitle, formattedTime, isIncoming,
-                  isCompact: false),
+              _buildLabel(context, bubbleTitle, formattedTime, isIncoming,),
               const SizedBox(width: 4),
             ],
             Flexible(
@@ -160,11 +158,11 @@ class MessageDelegate extends StatelessWidget {
                     color: bubbleColor,
                     borderColor: borderColor,
                     isIncoming: isIncoming,
-                    isSystem: isSystem),
+                    isSystem: isSystem,),
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                   child: _buildHtmlContent(context, messageContent, true,
-                      textColor: Colors.black),
+                      textColor: Colors.black,),
                 ),
               ),
             ),
@@ -173,8 +171,7 @@ class MessageDelegate extends StatelessWidget {
               if (isSystem)
                 _buildSystemLabel(context, bubbleTitle, formattedTime)
               else
-                _buildLabel(context, bubbleTitle, formattedTime, isIncoming,
-                    isCompact: false),
+                _buildLabel(context, bubbleTitle, formattedTime, isIncoming,),
             ],
           ],
         ),
@@ -213,11 +210,11 @@ class MessageDelegate extends StatelessWidget {
                         color: bubbleColor,
                         borderColor: borderColor,
                         isIncoming: isIncoming,
-                        isSystem: isSystem),
+                        isSystem: isSystem,),
                     child: Container(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                       child: _buildHtmlContent(context, messageContent, true,
-                          textColor: Colors.black),
+                          textColor: Colors.black,),
                     ),
                   ),
                 ),
@@ -268,8 +265,7 @@ class MessageDelegate extends StatelessWidget {
   }
 
   Widget _buildLabel(
-      BuildContext context, String title, String time, bool isIncoming,
-      {bool isCompact = false}) {
+      BuildContext context, String title, String time, bool isIncoming,) {
     return Column(
       crossAxisAlignment:
           isIncoming ? CrossAxisAlignment.start : CrossAxisAlignment.end,
@@ -305,7 +301,7 @@ class MessageDelegate extends StatelessWidget {
     });
 
     // Ensure all retroshare file links have the class for block layout styling
-    final fileLinkRegex = RegExp(r'<a([^>]*href=[^>]*retroshare://file[^>]*)>', caseSensitive: false);
+    final fileLinkRegex = RegExp('<a([^>]*href=[^>]*retroshare://file[^>]*)>', caseSensitive: false);
     processedContent = processedContent.replaceAllMapped(fileLinkRegex, (match) {
       final attrs = match.group(1) ?? '';
       final isVoice = attrs.contains('voice_msg_') || attrs.contains('.m4a');
@@ -450,16 +446,16 @@ class MessageDelegate extends StatelessWidget {
 }
 
 class BubblePainter extends CustomPainter {
-  final Color color;
-  final Color borderColor;
-  final bool isIncoming;
-  final bool isSystem;
 
   BubblePainter(
       {required this.color,
       required this.borderColor,
       required this.isIncoming,
-      this.isSystem = false});
+      this.isSystem = false,});
+  final Color color;
+  final Color borderColor;
+  final bool isIncoming;
+  final bool isSystem;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -480,7 +476,7 @@ class BubblePainter extends CustomPainter {
       // Centered rounded rectangle without beak for system messages
       path.addRRect(RRect.fromRectAndRadius(
           Rect.fromLTWH(0, 0, size.width, size.height),
-          const Radius.circular(radius)));
+          const Radius.circular(radius),),);
     } else if (isIncoming) {
       // Beak on the right
       path.moveTo(radius, 0);
@@ -1318,9 +1314,9 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
                   aspectRatio: clampedAspectRatio,
                   child: _isInitialized
                       ? VideoPlayer(_controller)
-                      : Container(
+                      : const ColoredBox(
                           color: Colors.black26,
-                          child: const Center(
+                          child: Center(
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           ),
                         ),
@@ -1365,10 +1361,10 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             SliderTheme(
-                              data: SliderThemeData(
+                              data: const SliderThemeData(
                                 trackHeight: 3,
-                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                                overlayShape: RoundSliderOverlayShape(overlayRadius: 10),
                                 activeTrackColor: Colors.redAccent,
                                 inactiveTrackColor: Colors.white30,
                                 thumbColor: Colors.redAccent,
@@ -1378,7 +1374,6 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
                                       0.0,
                                       _controller.value.duration.inMilliseconds.toDouble(),
                                     ),
-                                min: 0.0,
                                 max: _controller.value.duration.inMilliseconds.toDouble(),
                                 onChanged: (value) {
                                   _controller.seekTo(Duration(milliseconds: value.toInt()));
@@ -1584,7 +1579,6 @@ class _FullScreenVideoViewerState extends State<FullScreenVideoViewer> {
                             0.0,
                             _controller.value.duration.inMilliseconds.toDouble(),
                           ),
-                      min: 0.0,
                       max: _controller.value.duration.inMilliseconds.toDouble(),
                       activeColor: Colors.redAccent,
                       inactiveColor: Colors.white30,

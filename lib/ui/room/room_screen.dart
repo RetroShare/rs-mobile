@@ -160,7 +160,7 @@ class RoomScreenState extends State<RoomScreen>
 
     final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
 
-    int effectiveStatus = interlocutorIdentity?.status ?? 0;
+    var effectiveStatus = interlocutorIdentity?.status ?? 0;
     if (effectiveStatus == 0 && isAnyLocationOnline) {
       effectiveStatus = 3; // Default to Online
       for (final loc in matchingLocs) {

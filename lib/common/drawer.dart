@@ -9,8 +9,6 @@ import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/common/show_dialog.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare/provider/identity.dart';
-import 'package:retroshare/provider/room.dart';
-import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 Widget drawerWidget(BuildContext ctx) {
@@ -97,7 +95,6 @@ Widget drawerWidget(BuildContext ctx) {
                               child: Center(
                                 child: Identicon(
                                   id: curr.currentIdentity!.mId,
-                                  size: 100,
                                   borderRadius: 18,
                                 ),
                               ),

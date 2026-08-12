@@ -46,7 +46,7 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
 
     final peerDetails = peerDetailsResponse['det'] ?? {};
 
-    Map<String, dynamic> configNetStatus = {};
+    var configNetStatus = <String, dynamic>{};
     try {
       final response = await rsApiCall(
         '/rsConfig/getConfigNetStatus',
@@ -103,7 +103,7 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
           } else if (snapshot.hasError) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -146,8 +146,8 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
           final extPort = det['mExtPort']?.toString() ?? det['extPort']?.toString() ?? netStatus['externalPort']?.toString() ?? netStatus['extPort']?.toString() ?? netStatus['mExtPort']?.toString() ?? 'Unknown';
 
           // Resolve DHT Status
-          bool isDhtEnabled = false;
-          bool isDhtConnected = false;
+          var isDhtEnabled = false;
+          var isDhtConnected = false;
 
           final dhtVal = netStatus['DHTActive'] ?? netStatus['dhtActive'] ?? netStatus['dhtStatus'] ?? netStatus['dht'] ?? netStatus['mDhtActive'] ?? netStatus['mDhtStatus'];
           if (dhtVal is bool) {
@@ -196,7 +196,7 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

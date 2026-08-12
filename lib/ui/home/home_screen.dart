@@ -280,11 +280,11 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: Consumer2<ChatLobby, RoomChatLobby>(
                       builder: (context, chatLobby, roomChatLobby, _) {
                         // Aggregate room unreads
-                        final int roomUnread = chatLobby.subscribedlist.fold(0, (sum, chat) => sum + chat.unreadCount);
+                        final roomUnread = chatLobby.subscribedlist.fold(0, (sum, chat) => sum + chat.unreadCount);
                         
                         // Aggregate distant chat unreads, ensuring we only count each unique chat once
-                        final Set<String> processedDistantIds = {};
-                        int distantUnread = 0;
+                        final processedDistantIds = <String>{};
+                        var distantUnread = 0;
                         for (final chat in roomChatLobby.distanceChat.values) {
                           if (!chat.isPublic && chat.chatId != null && !processedDistantIds.contains(chat.chatId)) {
                             distantUnread += chat.unreadCount;
@@ -292,7 +292,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           }
                         }
                         
-                        final int totalUnread = roomUnread + distantUnread;
+                        final totalUnread = roomUnread + distantUnread;
                         
                         return Column(
                           mainAxisSize: MainAxisSize.min,

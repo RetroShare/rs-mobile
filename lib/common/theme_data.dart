@@ -5,7 +5,6 @@ final lightTheme = ThemeData(
   brightness: Brightness.light,
   colorScheme: ColorScheme.fromSeed(
     seedColor: const Color(0xFF29ABE2),
-    brightness: Brightness.light,
     surface: Colors.white,
   ),
   fontFamily: 'Oxygen',

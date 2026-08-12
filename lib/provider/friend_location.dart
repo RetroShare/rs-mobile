@@ -32,7 +32,7 @@ class FriendLocations with ChangeNotifier {
             details = details.copyWith(statusMessage: statusMessage);
           } catch (e) {
             debugPrint(
-                'Error fetching status message for friend ${sslIds[i]}: $e');
+                'Error fetching status message for friend ${sslIds[i]}: $e',);
           }
           locations.add(details);
         } catch (e) {
@@ -105,7 +105,7 @@ class FriendLocations with ChangeNotifier {
 
     // Refresh the list multiple times as the core might take a few seconds to update
     await fetchfriendLocation();
-    Future.delayed(const Duration(seconds: 2), () => fetchfriendLocation());
-    Future.delayed(const Duration(seconds: 5), () => fetchfriendLocation());
+    Future.delayed(const Duration(seconds: 2), fetchfriendLocation);
+    Future.delayed(const Duration(seconds: 5), fetchfriendLocation);
   }
 }

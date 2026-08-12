@@ -72,7 +72,7 @@ class RsServiceControl {
           unawaited(_process!.exitCode.then((code) {
             print('retroshare-service.exe exited with code $code');
             _process = null;
-          }));
+          }),);
         } else {
           print('retroshare-service.exe not found in app directory: $servicePath');
         }

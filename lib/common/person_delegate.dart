@@ -74,7 +74,7 @@ class PersonDelegateData {
         'Sep',
         'Oct',
         'Nov',
-        'Dec'
+        'Dec',
       ];
       final monthStr = months[messageTime.month - 1];
       return '$monthStr ${messageTime.day}';
@@ -85,19 +85,19 @@ class PersonDelegateData {
     if (htmlText.isEmpty) return '';
 
     // 1. Remove <style>...</style> and <script>...</script> blocks including content
-    String cleaned = htmlText
+    var cleaned = htmlText
         .replaceAll(
-            RegExp(r'<style[^>]*>[\s\S]*?<\/style>', caseSensitive: false), '')
+            RegExp(r'<style[^>]*>[\s\S]*?<\/style>', caseSensitive: false), '',)
         .replaceAll(
-            RegExp(r'<script[^>]*>[\s\S]*?<\/script>', caseSensitive: false), '');
+            RegExp(r'<script[^>]*>[\s\S]*?<\/script>', caseSensitive: false), '',);
 
     // 2. Replace breaks and paragraph ends with space to avoid word joining
     cleaned = cleaned
         .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), ' ')
-        .replaceAll(RegExp(r'</p>', caseSensitive: false), ' ');
+        .replaceAll(RegExp('</p>', caseSensitive: false), ' ');
 
     // 3. Strip all HTML/XML tags
-    cleaned = cleaned.replaceAll(RegExp(r'<[^>]*>'), '');
+    cleaned = cleaned.replaceAll(RegExp('<[^>]*>'), '');
 
     // 4. Decode HTML entities
     cleaned = cleaned
@@ -117,8 +117,8 @@ class PersonDelegateData {
     Chat chatData, {
     ChatMessage? lastMessage,
   }) {
-    String messageText = chatData.lobbyTopic ?? '';
-    String formattedTime = '';
+    var messageText = chatData.lobbyTopic ?? '';
+    var formattedTime = '';
 
     if (lastMessage != null) {
       final cleanMsg = stripHtmlTags(lastMessage.msg ?? '');
@@ -158,7 +158,7 @@ class PersonDelegateData {
     return friendLocs
         .where((loc) =>
             loc.rsGpgId.isNotEmpty &&
-            loc.rsGpgId.toLowerCase() == ownerPgpId)
+            loc.rsGpgId.toLowerCase() == ownerPgpId,)
         .toList();
   }
 
@@ -209,8 +209,8 @@ class PersonDelegateData {
         Provider.of<FriendLocations>(context, listen: false).friendlist;
     final presence = resolveLocationPresence(identity, friendLocs);
 
-    String messageText = '';
-    String formattedTime = '';
+    var messageText = '';
+    var formattedTime = '';
 
     if (lastMessage != null) {
       final cleanMsg = stripHtmlTags(lastMessage.msg ?? '');
@@ -328,7 +328,6 @@ class PersonDelegateData {
         : statusText;
     return PersonDelegateData(
       name: '${location.accountName}:${location.locationName}',
-      mId: null,
       message: displayMessage,
       isOnline: location.isOnline,
       status: location.status,
@@ -382,14 +381,14 @@ class PersonDelegateState extends State<PersonDelegate>
   void didChangeDependencies() {
     super.didChangeDependencies();
     boxShadow = DecorationTween(
-      begin: BoxDecoration(
+      begin: const BoxDecoration(
         boxShadow: [
           BoxShadow(
             color: Colors.transparent,
             spreadRadius: appBarHeight / 3,
           ),
         ],
-        borderRadius: const BorderRadius.all(Radius.circular(appBarHeight / 3)),
+        borderRadius: BorderRadius.all(Radius.circular(appBarHeight / 3)),
         color: Colors.transparent,
       ),
       end: BoxDecoration(
@@ -705,7 +704,7 @@ Future<void> showCustomMenu(
 }) async {
   final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
 
-  final List<PopupMenuEntry<int>> items = [
+  final items = <PopupMenuEntry<int>>[
     PopupMenuItem(
       value: 0,
       child: ListTile(
@@ -717,7 +716,7 @@ Future<void> showCustomMenu(
   ];
 
   if (additionalActions != null) {
-    for (int i = 0; i < additionalActions.length; i++) {
+    for (var i = 0; i < additionalActions.length; i++) {
       items.add(
         PopupMenuItem(
           value: i + 1,
@@ -725,7 +724,7 @@ Future<void> showCustomMenu(
             contentPadding: const EdgeInsets.symmetric(horizontal: 8),
             leading: additionalActions[i].icon,
             title: Text(additionalActions[i].title,
-                style: Theme.of(context).textTheme.bodyLarge),
+                style: Theme.of(context).textTheme.bodyLarge,),
           ),
         ),
       );

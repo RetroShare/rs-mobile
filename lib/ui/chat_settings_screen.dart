@@ -164,7 +164,7 @@ class ChatSettingsScreenState extends State<ChatSettingsScreen> {
                     isDark ? 'Switch to light mode' : 'Switch to dark mode',
                   ),
                   value: isDark,
-                  activeColor: theme.colorScheme.primary,
+                  activeThumbColor: theme.colorScheme.primary,
                   onChanged: (bool value) {
                     if (value) {
                       AdaptiveTheme.of(context).setDark();
@@ -275,14 +275,12 @@ class ChatSettingsScreenState extends State<ChatSettingsScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              _isLoadingHistory
-                  ? const Center(
+              if (_isLoadingHistory) const Center(
                       child: Padding(
-                        padding: EdgeInsets.all(16.0),
+                        padding: EdgeInsets.all(16),
                         child: CircularProgressIndicator(),
                       ),
-                    )
-                  : Card(
+                    ) else Card(
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -300,7 +298,7 @@ class ChatSettingsScreenState extends State<ChatSettingsScreen> {
                             ),
                             subtitle: const Text('Save history for distant chats'),
                             value: _distantHistory,
-                            activeColor: theme.colorScheme.primary,
+                            activeThumbColor: theme.colorScheme.primary,
                             onChanged: (bool value) => _toggleHistory(3, value),
                             secondary: Container(
                               padding: const EdgeInsets.all(8),
@@ -319,7 +317,7 @@ class ChatSettingsScreenState extends State<ChatSettingsScreen> {
                             ),
                             subtitle: const Text('Save history for chat rooms'),
                             value: _lobbyHistory,
-                            activeColor: theme.colorScheme.primary,
+                            activeThumbColor: theme.colorScheme.primary,
                             onChanged: (bool value) => _toggleHistory(2, value),
                             secondary: Container(
                               padding: const EdgeInsets.all(8),
@@ -338,7 +336,7 @@ class ChatSettingsScreenState extends State<ChatSettingsScreen> {
                             ),
                             subtitle: const Text('Save history for private chats with friends'),
                             value: _privateHistory,
-                            activeColor: theme.colorScheme.primary,
+                            activeThumbColor: theme.colorScheme.primary,
                             onChanged: (bool value) => _toggleHistory(1, value),
                             secondary: Container(
                               padding: const EdgeInsets.all(8),
