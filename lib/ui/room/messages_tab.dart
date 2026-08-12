@@ -940,7 +940,7 @@ class MessagesTabState extends State<MessagesTab> {
                       itemCount: msgList.length,
                       itemBuilder: (BuildContext context, int index) {
                         final message = msgList[index];
-                        final key = ValueKey(message.msgId ?? '${message.sendTime}_${message.msg}_$index');
+                        final key = ValueKey('${message.sendTime}_${message.msg}_$index');
                         
                         String bubbleTitle = '';
                         final bool isSystem = ((message.chatflags ?? 0) & 0x0008) != 0;

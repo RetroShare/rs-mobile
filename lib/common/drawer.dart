@@ -3,11 +3,14 @@ import 'dart:convert';
 import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/common/show_dialog.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare/provider/identity.dart';
+import 'package:retroshare/provider/room.dart';
+import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 Widget drawerWidget(BuildContext ctx) {
@@ -203,13 +206,19 @@ Widget drawerWidget(BuildContext ctx) {
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'V 1.0.1',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.blueAccent,
-          ),
+        FutureBuilder<PackageInfo>(
+          future: PackageInfo.fromPlatform(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const SizedBox.shrink();
+            return Text(
+              'v${snapshot.data!.version}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.blueAccent,
+              ),
+            );
+          },
         ),
         const SizedBox(
           height: 20,

@@ -25,11 +25,6 @@ class FriendsTabState extends State<FriendsTab> {
         .toggleContacts(gxsId, false);
   }
 
-  void _addToContacts(String gxsId) {
-    Provider.of<RoomChatLobby>(context, listen: false)
-        .toggleContacts(gxsId, true);
-  }
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -38,17 +33,6 @@ class FriendsTabState extends State<FriendsTab> {
       child: Consumer3<RoomChatLobby, FriendLocations, Identities>(
         builder: (context, roomChat, friendLocations, identities, _) {
           final List<Identity> rawFriendsList = roomChat.friendsIdsList;
-          final List<Chat> distantChats = roomChat.distanceChat.values
-              .toList()
-              .where(
-                (chat) =>
-                    roomChat.allIdentity[chat.interlocutorId] == null ||
-                    roomChat.allIdentity[chat.interlocutorId]!.isContact ==
-                        false,
-              )
-              .toSet()
-              .toList();
-          final Map<String, Identity> allIdentities = roomChat.allIdentity;
 
           // Apply sorting to friendsList
           List<Identity> friendsList = List.from(rawFriendsList);
@@ -59,18 +43,10 @@ class FriendsTabState extends State<FriendsTab> {
               // Online: 1, Away: 2, Busy: 3, Offline: 0
               // Mapping to weights for sorting: Online (0), Away (1), Busy (2), Offline (3)
               int getWeight(Identity id) {
-                final matchingLocsByOriginator = friendLocations.friendlist.where((loc) =>
-                    id.originator != null &&
-                    id.originator!.isNotEmpty &&
-                    loc.rsPeerId == id.originator);
-
-                final matchingLocs = matchingLocsByOriginator.isNotEmpty
-                    ? matchingLocsByOriginator.toList()
-                    : friendLocations.friendlist.where((loc) =>
-                        loc.rsGpgId.isNotEmpty &&
-                        id.pgpId != null &&
-                        loc.rsGpgId.toLowerCase() == id.pgpId!.toLowerCase() &&
-                        loc.rsGpgId != '0000000000000000').toList();
+                final matchingLocs = PersonDelegateData.getMatchingLocations(
+                  id,
+                  friendLocations.friendlist,
+                );
                 
                 final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
 
@@ -123,13 +99,11 @@ class FriendsTabState extends State<FriendsTab> {
                   ),
                 ),
                 SliverPadding(
-                  padding: EdgeInsets.only(
+                  padding: const EdgeInsets.only(
                     left: 8,
                     top: 8,
                     right: 16,
-                    bottom: (distantChats.isEmpty)
-                        ? homeScreenBottomBarHeight * 2
-                        : 8.0,
+                    bottom: homeScreenBottomBarHeight * 2,
                   ),
                   sliver: SliverFixedExtentList(
                     itemExtent: personDelegateHeight,
@@ -203,98 +177,6 @@ class FriendsTabState extends State<FriendsTab> {
                           );
                       },
                       childCount: friendsList.length,
-                    ),
-                  ),
-                ),
-                SliverOpacity(
-                  opacity:
-                      (distantChats.isNotEmpty) && (distantChats.isNotEmpty)
-                          ? 1.0
-                          : 0.0,
-                  sliver: sliverPersistentHeader('People', context),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.only(
-                    left: 8,
-                    top: 8,
-                    right: 16,
-                    bottom: homeScreenBottomBarHeight * 2,
-                  ),
-                  sliver: SliverFixedExtentList(
-                    itemExtent: personDelegateHeight,
-                    delegate: SliverChildBuilderDelegate(
-                      (BuildContext context, int index) {
-                        final actualId =
-                            allIdentities[distantChats[index].interlocutorId] ??
-                                Identity(
-                                  mId: distantChats[index].interlocutorId,
-                                  signed: false,
-                                  isContact: false,
-                                );
-                        final bool isMe = identities.currentIdentity?.mId == actualId.mId;
-
-                        return PersonDelegate(
-                          data: PersonDelegateData.identityData(
-                            actualId,
-                            context,
-                          ),
-                          onAvatarPressed: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/profile',
-                              arguments: {'id': actualId},
-                            );
-                          },
-                          onLongPress: isMe ? null : (Offset tapPosition) {
-                              showCustomMenu(
-                                'Add to contacts',
-                                const Icon(
-                                  Icons.add,
-                                  color: Colors.black,
-                                ),
-                                () => _addToContacts(actualId.mId),
-                                tapPosition,
-                                context,
-                                additionalActions: [
-                                  (
-                                    title: 'View Details',
-                                    icon: const Icon(Icons.info_outline,
-                                        color: Colors.black),
-                                    action: () {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/profile',
-                                        arguments: {'id': actualId},
-                                      );
-                                    },
-                                  ),
-                                ],
-                              );
-                            },
-                            onPressed: isMe ? null : () async {
-                              final curr = Provider.of<Identities>(
-                                context,
-                                listen: false,
-                              ).currentIdentity;
-                              if (curr == null) return;
-                              final chatData = await Provider.of<RoomChatLobby>(
-                                context,
-                                listen: false,
-                              ).getChat(curr, actualId);
-                              if (chatData == null) return;
-                              if (!context.mounted) return;
-                              await Navigator.pushNamed(
-                                context,
-                                '/room',
-                                arguments: {
-                                  'isRoom': false,
-                                  'chatData': chatData,
-                                },
-                              );
-                            },
-                          );
-                      },
-                      childCount: distantChats.toSet().length,
                     ),
                   ),
                 ),

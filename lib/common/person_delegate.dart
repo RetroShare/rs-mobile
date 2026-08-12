@@ -46,52 +46,189 @@ class PersonDelegateData {
   final IconData icon;
   final MemoryImage? image;
 
+  static String formatChatTimestamp(int? timestampInSeconds) {
+    if (timestampInSeconds == null || timestampInSeconds <= 0) return '';
+
+    final messageTime =
+        DateTime.fromMillisecondsSinceEpoch(timestampInSeconds * 1000);
+    final now = DateTime.now();
+
+    final isToday = messageTime.year == now.year &&
+        messageTime.month == now.month &&
+        messageTime.day == now.day;
+
+    if (isToday) {
+      final hour = messageTime.hour.toString().padLeft(2, '0');
+      final minute = messageTime.minute.toString().padLeft(2, '0');
+      return '$hour:$minute';
+    } else {
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ];
+      final monthStr = months[messageTime.month - 1];
+      return '$monthStr ${messageTime.day}';
+    }
+  }
+
+  static String stripHtmlTags(String htmlText) {
+    if (htmlText.isEmpty) return '';
+
+    // 1. Remove <style>...</style> and <script>...</script> blocks including content
+    String cleaned = htmlText
+        .replaceAll(
+            RegExp(r'<style[^>]*>[\s\S]*?<\/style>', caseSensitive: false), '')
+        .replaceAll(
+            RegExp(r'<script[^>]*>[\s\S]*?<\/script>', caseSensitive: false), '');
+
+    // 2. Replace breaks and paragraph ends with space to avoid word joining
+    cleaned = cleaned
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), ' ')
+        .replaceAll(RegExp(r'</p>', caseSensitive: false), ' ');
+
+    // 3. Strip all HTML/XML tags
+    cleaned = cleaned.replaceAll(RegExp(r'<[^>]*>'), '');
+
+    // 4. Decode HTML entities
+    cleaned = cleaned
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&apos;', "'");
+
+    return cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
   /// Generate generic chat person delegate data for DRY
-  static PersonDelegateData chatData(Chat chatData) {
+  static PersonDelegateData chatData(
+    Chat chatData, {
+    ChatMessage? lastMessage,
+  }) {
+    String messageText = chatData.lobbyTopic ?? '';
+    String formattedTime = '';
+
+    if (lastMessage != null) {
+      final cleanMsg = stripHtmlTags(lastMessage.msg ?? '');
+      if (cleanMsg.isNotEmpty) {
+        messageText = cleanMsg;
+      }
+      formattedTime = formatChatTimestamp(lastMessage.sendTime);
+    }
+
     return PersonDelegateData(
       name: chatData.chatName ?? 'Unknown Chat',
-      message: chatData.lobbyTopic ?? '',
+      message: messageText,
+      time: formattedTime,
       mId: chatData.chatId?.toString(),
       isRoom: true, // Lobbies are always rooms, even if private
       isMessage: true,
+      isTime: formattedTime.isNotEmpty,
       icon: (chatData.isPublic) ? Icons.public : Icons.lock,
       isUnread: (chatData.unreadCount) > 0,
       unreadCount: chatData.unreadCount,
     );
   }
 
+  static List<Location> getMatchingLocations(
+    Identity identity,
+    List<Location> friendLocs,
+  ) {
+    if (!identity.isContact) return [];
+
+    final ownerPgpId = identity.pgpId?.trim().toLowerCase();
+    if (ownerPgpId == null ||
+        ownerPgpId.isEmpty ||
+        ownerPgpId == '0000000000000000') {
+      return [];
+    }
+
+    return friendLocs
+        .where((loc) =>
+            loc.rsGpgId.isNotEmpty &&
+            loc.rsGpgId.toLowerCase() == ownerPgpId)
+        .toList();
+  }
+
+  static ({bool isOnline, int status, String statusMessage})
+      resolveLocationPresence(
+    Identity identity,
+    List<Location> friendLocs,
+  ) {
+    final onlineLocations = getMatchingLocations(identity, friendLocs)
+        .where((loc) => loc.isOnline)
+        .toList();
+
+    if (onlineLocations.isEmpty) {
+      return (isOnline: false, status: 0, statusMessage: '');
+    }
+
+    // Several locations can belong to the same PGP account. Originator may
+    // select the particular location, but only after PGP ownership has been
+    // verified above. Presence is a secondary hint and may be stale.
+    final location = onlineLocations.firstWhere(
+      (loc) =>
+          identity.originator != null &&
+          identity.originator!.isNotEmpty &&
+          loc.rsPeerId.toLowerCase() == identity.originator!.toLowerCase(),
+      orElse: () => onlineLocations.firstWhere(
+        (loc) => identity.status != 0 && loc.status == identity.status,
+        orElse: () => onlineLocations.firstWhere(
+          (loc) => loc.status != 0 || loc.statusMessage.isNotEmpty,
+          orElse: () => onlineLocations.first,
+        ),
+      ),
+    );
+
+    return (
+      isOnline: true,
+      status: location.status == 0 ? 3 : location.status,
+      statusMessage: location.statusMessage,
+    );
+  }
+
   static PersonDelegateData distantChatData(
     Chat chat,
     Identity identity,
-    BuildContext context,
-  ) {
+    BuildContext context, {
+    ChatMessage? lastMessage,
+  }) {
     final friendLocs =
         Provider.of<FriendLocations>(context, listen: false).friendlist;
-    final matchingLocsByOriginator = friendLocs.where((loc) =>
-        identity.originator != null &&
-        identity.originator!.isNotEmpty &&
-        loc.rsPeerId == identity.originator);
+    final presence = resolveLocationPresence(identity, friendLocs);
 
-    final matchingLocs = matchingLocsByOriginator.isNotEmpty
-        ? matchingLocsByOriginator.toList()
-        : friendLocs.where((loc) =>
-            loc.rsGpgId.isNotEmpty &&
-            identity.pgpId != null &&
-            loc.rsGpgId.toLowerCase() == identity.pgpId!.toLowerCase() &&
-            loc.rsGpgId != '0000000000000000').toList();
+    String messageText = '';
+    String formattedTime = '';
 
-    final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
-
-    int effectiveStatus = identity.status;
-    if (effectiveStatus == 0 && isAnyLocationOnline) {
-      effectiveStatus = 3; // Default to Online
-      for (final loc in matchingLocs) {
-        if (loc.isOnline && loc.status != 0 && loc.status != 3) {
-          effectiveStatus = loc.status;
-          break;
-        }
+    if (lastMessage != null) {
+      final cleanMsg = stripHtmlTags(lastMessage.msg ?? '');
+      if (cleanMsg.isNotEmpty) {
+        messageText = cleanMsg;
       }
+      formattedTime = formatChatTimestamp(lastMessage.sendTime);
     }
+
+    final currentIdenInfo =
+        Provider.of<Identities>(context, listen: false).currentIdentity;
+    final roomChat = Provider.of<RoomChatLobby>(context, listen: false);
+    final calculatedUnread = currentIdenInfo != null
+        ? roomChat.getUnreadCount(identity, currentIdenInfo)
+        : 0;
+    final finalUnread = chat.unreadCount > 0
+        ? chat.unreadCount
+        : calculatedUnread;
 
     return PersonDelegateData(
       name: identity.name ?? chat.chatName ?? 'Unknown Identity',
@@ -99,12 +236,15 @@ class PersonDelegateData {
       image: identity.avatar != null && identity.avatar!.isNotEmpty
           ? MemoryImage(base64Decode(identity.avatar!))
           : null,
-      status: effectiveStatus,
-      isOnline: isAnyLocationOnline,
+      message: messageText,
+      time: formattedTime,
+      status: presence.status,
+      isOnline: presence.isOnline,
       isContact: identity.isContact,
       isMessage: true,
-      isUnread: chat.unreadCount > 0,
-      unreadCount: chat.unreadCount,
+      isTime: formattedTime.isNotEmpty,
+      isUnread: finalUnread > 0,
+      unreadCount: finalUnread,
     );
   }
 
@@ -140,31 +280,7 @@ class PersonDelegateData {
     final friendLocs =
         Provider.of<FriendLocations>(context, listen: false).friendlist;
 
-    final matchingLocsByOriginator = friendLocs.where((loc) =>
-        identity.originator != null &&
-        identity.originator!.isNotEmpty &&
-        loc.rsPeerId == identity.originator);
-
-    final matchingLocs = matchingLocsByOriginator.isNotEmpty
-        ? matchingLocsByOriginator.toList()
-        : friendLocs.where((loc) =>
-            loc.rsGpgId.isNotEmpty &&
-            identity.pgpId != null &&
-            loc.rsGpgId.toLowerCase() == identity.pgpId!.toLowerCase() &&
-            loc.rsGpgId != '0000000000000000').toList();
-
-    final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
-
-    int effectiveStatus = identity.status;
-    if (effectiveStatus == 0 && isAnyLocationOnline) {
-      effectiveStatus = 3; // Default to Online
-      for (final loc in matchingLocs) {
-        if (loc.isOnline && loc.status != 0 && loc.status != 3) {
-          effectiveStatus = loc.status;
-          break;
-        }
-      }
-    }
+    final presence = resolveLocationPresence(identity, friendLocs);
 
     final unreadCount = currentIdenInfo != null
         ? Provider.of<RoomChatLobby>(context, listen: false)
@@ -177,8 +293,9 @@ class PersonDelegateData {
       image: identity.avatar != null && identity.avatar!.isNotEmpty
           ? MemoryImage(base64Decode(identity.avatar!))
           : null,
-      status: effectiveStatus,
-      isOnline: isAnyLocationOnline,
+      message: presence.statusMessage,
+      status: presence.status,
+      isOnline: presence.isOnline,
       isContact: identity.isContact,
       isMessage: true,
       // ignore: avoid_bool_literals_in_conditional_expressions
@@ -486,7 +603,15 @@ class PersonDelegateState extends State<PersonDelegate>
                           widget.data.message.isNotEmpty,
                       child: Text(
                         widget.data.message,
-                        style: Theme.of(context).textTheme.bodyLarge,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.color
+                                  ?.withOpacity(0.7),
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -494,23 +619,33 @@ class PersonDelegateState extends State<PersonDelegate>
               ),
             ),
             Visibility(
-              visible: widget.data.isTime || widget.data.isUnread,
+              visible: (widget.data.isTime && widget.data.time.isNotEmpty) ||
+                  (widget.data.isUnread && widget.data.unreadCount > 0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  if (widget.data.isTime)
+                  if (widget.data.isTime && widget.data.time.isNotEmpty)
                     Text(
                       widget.data.time,
-                      style: Theme.of(context).textTheme.labelSmall,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.color
+                                ?.withOpacity(0.6),
+                          ),
                     ),
                   if (widget.data.isUnread && widget.data.unreadCount > 0)
                     Container(
                       margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor,
+                        borderRadius: const BorderRadius.all(Radius.circular(10)),
                       ),
                       constraints: const BoxConstraints(
                         minWidth: 20,
