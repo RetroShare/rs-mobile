@@ -128,7 +128,7 @@ Widget drawerWidget(BuildContext ctx) {
                                   arguments: {'id': curr.currentIdentity},
                                 );
                               },
-                              icon: const Icon(
+                              icon: const FaIcon(
                                 FontAwesomeIcons.userPen,
                                 size: 18,
                                 color: Colors.blue,
@@ -138,7 +138,7 @@ Widget drawerWidget(BuildContext ctx) {
                               onPressed: () {
                                 showdeleteDialog(context);
                               },
-                              icon: const Icon(
+                              icon: const FaIcon(
                                 FontAwesomeIcons.trash,
                                 size: 18,
                                 color: Colors.red,

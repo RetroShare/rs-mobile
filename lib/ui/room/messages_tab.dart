@@ -763,7 +763,7 @@ class MessagesTabState extends State<MessagesTab> {
 
   Future<void> _pickFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles();
+      final result = await FilePicker.pickFiles();
       if (result == null || result.files.single.path == null) {
         debugPrint('File selection cancelled.');
         return;

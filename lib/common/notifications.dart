@@ -22,7 +22,7 @@ Future<void> initializeNotifications() async {
   const initializationSettings =
       InitializationSettings(android: initializationSettingsAndroid);
   await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
+    settings: initializationSettings,
     onDidReceiveNotificationResponse:
         (NotificationResponse notificationResponse) async {
       final payload = notificationResponse.payload;
@@ -66,10 +66,10 @@ Future<void> showChatNotification(
   const platformChannelSpecifics =
       NotificationDetails(android: androidPlatformChannelSpecifics);
   await flutterLocalNotificationsPlugin.show(
-    int.tryParse(chatId) ?? 0,
-    title,
-    body,
-    platformChannelSpecifics,
+    id: int.tryParse(chatId) ?? 0,
+    title: title,
+    body: body,
+    notificationDetails: platformChannelSpecifics,
     payload: chatId,
   );
 }
@@ -93,10 +93,10 @@ Future<void> showLobbyInviteNotification(
       NotificationDetails(android: androidPlatformChannelSpecifics);
   
   await flutterLocalNotificationsPlugin.show(
-    lobbyId.hashCode,
-    'New Chat Room Invite',
-    '$senderName invited you to join "$lobbyName"',
-    platformChannelSpecifics,
+    id: lobbyId.hashCode,
+    title: 'New Chat Room Invite',
+    body: '$senderName invited you to join "$lobbyName"',
+    notificationDetails: platformChannelSpecifics,
     payload: '/notification', // Navigate to notifications screen on tap
   );
 }
@@ -113,9 +113,9 @@ Future<void> showInviteCopyNotification() async {
   const platformChannelSpecifics =
       NotificationDetails(android: androidPlatformChannelSpecifics);
   await flutterLocalNotificationsPlugin.show(
-    1111,
-    'Invite copied!',
-    'Your RetroShare invite was copied to your clipboard',
-    platformChannelSpecifics,
+    id: 1111,
+    title: 'Invite copied!',
+    body: 'Your RetroShare invite was copied to your clipboard',
+    notificationDetails: platformChannelSpecifics,
   );
 }

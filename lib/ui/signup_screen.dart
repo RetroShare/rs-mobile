@@ -350,7 +350,7 @@ class SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
                   onPressed: () async {
-                    FilePickerResult? result = await FilePicker.platform.pickFiles(
+                    FilePickerResult? result = await FilePicker.pickFiles(
                       type: FileType.custom,
                       allowedExtensions: ['txt', 'crt', 'asc'],
                     );

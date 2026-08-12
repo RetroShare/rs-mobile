@@ -148,4 +148,6 @@ flutter:
   # see https://flutter.dev/custom-fonts/#from-packages
 
 dependency_overrides:
+  # 14.x requires the AGP 9 built-in Kotlin toolchain.
+  permission_handler_android: 13.0.1
   record_linux: ^1.1.1
