@@ -87,9 +87,13 @@ class PersonDelegateData {
     // 1. Remove <style>...</style> and <script>...</script> blocks including content
     var cleaned = htmlText
         .replaceAll(
-            RegExp(r'<style[^>]*>[\s\S]*?<\/style>', caseSensitive: false), '',)
+          RegExp(r'<style[^>]*>[\s\S]*?<\/style>', caseSensitive: false),
+          '',
+        )
         .replaceAll(
-            RegExp(r'<script[^>]*>[\s\S]*?<\/script>', caseSensitive: false), '',);
+          RegExp(r'<script[^>]*>[\s\S]*?<\/script>', caseSensitive: false),
+          '',
+        );
 
     // 2. Replace breaks and paragraph ends with space to avoid word joining
     cleaned = cleaned
@@ -156,9 +160,10 @@ class PersonDelegateData {
     }
 
     return friendLocs
-        .where((loc) =>
-            loc.rsGpgId.isNotEmpty &&
-            loc.rsGpgId.toLowerCase() == ownerPgpId,)
+        .where(
+          (loc) =>
+              loc.rsGpgId.isNotEmpty && loc.rsGpgId.toLowerCase() == ownerPgpId,
+        )
         .toList();
   }
 
@@ -226,9 +231,8 @@ class PersonDelegateData {
     final calculatedUnread = currentIdenInfo != null
         ? roomChat.getUnreadCount(identity, currentIdenInfo)
         : 0;
-    final finalUnread = chat.unreadCount > 0
-        ? chat.unreadCount
-        : calculatedUnread;
+    final finalUnread =
+        chat.unreadCount > 0 ? chat.unreadCount : calculatedUnread;
 
     return PersonDelegateData(
       name: identity.name ?? chat.chatName ?? 'Unknown Identity',
@@ -643,8 +647,11 @@ class PersonDelegateState extends State<PersonDelegate>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
-                        borderRadius: const BorderRadius.all(Radius.circular(10)),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF8EDFFF)
+                            : Theme.of(context).colorScheme.primary,
+                        borderRadius:
+                            const BorderRadius.all(Radius.circular(10)),
                       ),
                       constraints: const BoxConstraints(
                         minWidth: 20,
@@ -653,8 +660,11 @@ class PersonDelegateState extends State<PersonDelegate>
                       child: Center(
                         child: Text(
                           widget.data.unreadCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFF07151C)
+                                    : Theme.of(context).colorScheme.onPrimary,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -723,8 +733,10 @@ Future<void> showCustomMenu(
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 8),
             leading: additionalActions[i].icon,
-            title: Text(additionalActions[i].title,
-                style: Theme.of(context).textTheme.bodyLarge,),
+            title: Text(
+              additionalActions[i].title,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
           ),
         ),
       );

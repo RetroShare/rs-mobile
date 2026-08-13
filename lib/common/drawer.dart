@@ -49,7 +49,7 @@ Widget drawerWidget(BuildContext ctx) {
       children: [
         Container(
           alignment: Alignment.center,
-          margin: const EdgeInsets.only(top: 2),
+          padding: const EdgeInsets.only(top: 24),
           height: MediaQuery.of(ctx).size.height * .35,
           child: Stack(
             children: [
@@ -70,8 +70,8 @@ Widget drawerWidget(BuildContext ctx) {
                             );
                           },
                           child: Container(
-                            height: 100,
-                            width: 100,
+                            height: 120,
+                            width: 120,
                             decoration: (curr.currentIdentity!.avatar == null)
                                 ? BoxDecoration(
                                     borderRadius: BorderRadius.circular(18),
