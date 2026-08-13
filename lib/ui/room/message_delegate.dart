@@ -16,6 +16,68 @@ import 'package:video_player/video_player.dart';
 
 enum BubbleStyle { bubble, compact }
 
+int emojiOnlyMessageCount(String message) {
+  final content = message.trim();
+  if (content.isEmpty || content.contains('<') || content.contains('>')) {
+    return 0;
+  }
+
+  var count = 0;
+  for (final character in content.characters) {
+    if (character.trim().isEmpty) continue;
+    if (!_isEmojiCharacter(character)) return 0;
+    count++;
+  }
+  return count;
+}
+
+bool _isEmojiCharacter(String character) {
+  var hasEmojiBase = false;
+  for (final rune in character.runes) {
+    if ((rune >= 0x1F000 && rune <= 0x1FAFF) ||
+        (rune >= 0x2600 && rune <= 0x27BF) ||
+        (rune >= 0x2300 && rune <= 0x23FF) ||
+        rune == 0x00A9 ||
+        rune == 0x00AE ||
+        rune == 0x2122 ||
+        rune == 0x3030 ||
+        rune == 0x303D ||
+        rune == 0x3297 ||
+        rune == 0x3299) {
+      hasEmojiBase = true;
+      continue;
+    }
+
+    final isEmojiComponent = rune == 0x200D ||
+        rune == 0x20E3 ||
+        (rune >= 0xFE00 && rune <= 0xFE0F) ||
+        (rune >= 0xE0020 && rune <= 0xE007F) ||
+        (rune >= 0x1F3FB && rune <= 0x1F3FF) ||
+        (rune >= 0x30 && rune <= 0x39) ||
+        rune == 0x23 ||
+        rune == 0x2A;
+    if (!isEmojiComponent) return false;
+  }
+  return hasEmojiBase || character.runes.contains(0x20E3);
+}
+
+double? emojiOnlyMessageFontSize(String message) {
+  switch (emojiOnlyMessageCount(message)) {
+    case 1:
+      return 96;
+    case 2:
+      return 64;
+    case 3:
+      return 52;
+    case 4:
+      return 44;
+    case 5:
+      return 38;
+    default:
+      return emojiOnlyMessageCount(message) > 5 ? 28 : null;
+  }
+}
+
 class MessageDelegate extends StatelessWidget {
   const MessageDelegate({
     super.key,
@@ -73,11 +135,13 @@ class MessageDelegate extends StatelessWidget {
     if (isLobby) {
       // Keep standard Material design for group rooms
       return FractionallySizedBox(
-        alignment: isSystem ? Alignment.centerRight : (isIncoming ? Alignment.centerLeft : Alignment.centerRight),
+        alignment: isSystem
+            ? Alignment.centerRight
+            : (isIncoming ? Alignment.centerLeft : Alignment.centerRight),
         widthFactor: 0.7,
         child: Card(
-          color: isSystem 
-              ? bubbleColor 
+          color: isSystem
+              ? bubbleColor
               : (!isIncoming
                   ? Theme.of(context).colorScheme.primaryContainer
                   : Theme.of(context).colorScheme.secondaryContainer),
@@ -96,7 +160,9 @@ class MessageDelegate extends StatelessWidget {
                           ? Colors.black87
                           : (!isIncoming
                               ? Theme.of(context).colorScheme.onPrimaryContainer
-                              : Theme.of(context).colorScheme.onSecondaryContainer),
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .onSecondaryContainer),
                       fontSize: 12,
                     ),
                   ),
@@ -110,8 +176,9 @@ class MessageDelegate extends StatelessWidget {
                       bottom: 8,
                       top: bubbleTitle.isNotEmpty ? 4 : 10,
                     ),
-                    child:
-                        _buildHtmlContent(context, messageContent, isIncoming, textColor: isSystem ? Colors.black : null),
+                    child: _buildHtmlContent(
+                        context, messageContent, isIncoming,
+                        textColor: isSystem ? Colors.black : null),
                   ),
                   if (!isSystem)
                     Positioned(
@@ -146,23 +213,35 @@ class MessageDelegate extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         child: Row(
-          mainAxisAlignment: (isIncoming || isSystem) ? MainAxisAlignment.end : MainAxisAlignment.start,
+          mainAxisAlignment: (isIncoming || isSystem)
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
           children: [
             if (!isIncoming && !isSystem) ...[
-              _buildLabel(context, bubbleTitle, formattedTime, isIncoming,),
+              _buildLabel(
+                context,
+                bubbleTitle,
+                formattedTime,
+                isIncoming,
+              ),
               const SizedBox(width: 4),
             ],
             Flexible(
               child: CustomPaint(
                 painter: BubblePainter(
-                    color: bubbleColor,
-                    borderColor: borderColor,
-                    isIncoming: isIncoming,
-                    isSystem: isSystem,),
+                  color: bubbleColor,
+                  borderColor: borderColor,
+                  isIncoming: isIncoming,
+                  isSystem: isSystem,
+                ),
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                  child: _buildHtmlContent(context, messageContent, true,
-                      textColor: Colors.black,),
+                  child: _buildHtmlContent(
+                    context,
+                    messageContent,
+                    true,
+                    textColor: Colors.black,
+                  ),
                 ),
               ),
             ),
@@ -171,7 +250,12 @@ class MessageDelegate extends StatelessWidget {
               if (isSystem)
                 _buildSystemLabel(context, bubbleTitle, formattedTime)
               else
-                _buildLabel(context, bubbleTitle, formattedTime, isIncoming,),
+                _buildLabel(
+                  context,
+                  bubbleTitle,
+                  formattedTime,
+                  isIncoming,
+                ),
             ],
           ],
         ),
@@ -189,7 +273,9 @@ class MessageDelegate extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4, right: 8),
                 child: Text(
-                  isSystem ? '$bubbleTitle - $formattedTime' : '$formattedTime - $bubbleTitle',
+                  isSystem
+                      ? '$bubbleTitle - $formattedTime'
+                      : '$formattedTime - $bubbleTitle',
                   style: TextStyle(
                     fontSize: 11,
                     color: Theme.of(context)
@@ -202,19 +288,26 @@ class MessageDelegate extends StatelessWidget {
             Row(
               mainAxisAlignment: isSystem
                   ? MainAxisAlignment.center
-                  : (isIncoming ? MainAxisAlignment.end : MainAxisAlignment.start),
+                  : (isIncoming
+                      ? MainAxisAlignment.end
+                      : MainAxisAlignment.start),
               children: [
                 Flexible(
                   child: CustomPaint(
                     painter: BubblePainter(
-                        color: bubbleColor,
-                        borderColor: borderColor,
-                        isIncoming: isIncoming,
-                        isSystem: isSystem,),
+                      color: bubbleColor,
+                      borderColor: borderColor,
+                      isIncoming: isIncoming,
+                      isSystem: isSystem,
+                    ),
                     child: Container(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                      child: _buildHtmlContent(context, messageContent, true,
-                          textColor: Colors.black,),
+                      child: _buildHtmlContent(
+                        context,
+                        messageContent,
+                        true,
+                        textColor: Colors.black,
+                      ),
                     ),
                   ),
                 ),
@@ -265,7 +358,11 @@ class MessageDelegate extends StatelessWidget {
   }
 
   Widget _buildLabel(
-      BuildContext context, String title, String time, bool isIncoming,) {
+    BuildContext context,
+    String title,
+    String time,
+    bool isIncoming,
+  ) {
     return Column(
       crossAxisAlignment:
           isIncoming ? CrossAxisAlignment.start : CrossAxisAlignment.end,
@@ -290,19 +387,25 @@ class MessageDelegate extends StatelessWidget {
     );
   }
 
-  Widget _buildHtmlContent(BuildContext context, String content, bool isIncoming, {Color? textColor}) {
+  Widget _buildHtmlContent(
+      BuildContext context, String content, bool isIncoming,
+      {Color? textColor}) {
     var processedContent = content;
+    final emojiFontSize = emojiOnlyMessageFontSize(content);
     final fileFontRegex = RegExp(
       r'(<a[^>]*href=[^>]*retroshare://file[^>]*>.*?</a>)[^<]*(<(font|span)[^>]*>)?\(\s*\d+([.,]\d+)?\s*(B|KB|MB|GB|TB)\s*\)(</(font|span)>)?',
       caseSensitive: false,
     );
-    processedContent = processedContent.replaceAllMapped(fileFontRegex, (match) {
+    processedContent =
+        processedContent.replaceAllMapped(fileFontRegex, (match) {
       return match.group(1) ?? '';
     });
 
     // Ensure all retroshare file links have the class for block layout styling
-    final fileLinkRegex = RegExp('<a([^>]*href=[^>]*retroshare://file[^>]*)>', caseSensitive: false);
-    processedContent = processedContent.replaceAllMapped(fileLinkRegex, (match) {
+    final fileLinkRegex = RegExp('<a([^>]*href=[^>]*retroshare://file[^>]*)>',
+        caseSensitive: false);
+    processedContent =
+        processedContent.replaceAllMapped(fileLinkRegex, (match) {
       final attrs = match.group(1) ?? '';
       final isVoice = attrs.contains('voice_msg_') || attrs.contains('.m4a');
       final className = isVoice ? 'rs-voice-link rs-file-link' : 'rs-file-link';
@@ -364,12 +467,16 @@ class MessageDelegate extends StatelessWidget {
               if (href.startsWith('retroshare://file?')) {
                 try {
                   final uri = Uri.parse(href);
-                  name = Uri.decodeComponent(uri.queryParameters['name'] ?? 'Unknown file');
+                  name = Uri.decodeComponent(
+                      uri.queryParameters['name'] ?? 'Unknown file');
                   size = int.tryParse(uri.queryParameters['size'] ?? '0') ?? 0;
                   hash = uri.queryParameters['hash'] ?? '';
                   final waveformStr = uri.queryParameters['waveform'];
                   if (waveformStr != null && waveformStr.isNotEmpty) {
-                    waveform = waveformStr.split(',').map((s) => int.tryParse(s) ?? 0).toList();
+                    waveform = waveformStr
+                        .split(',')
+                        .map((s) => int.tryParse(s) ?? 0)
+                        .toList();
                   }
                 } catch (e) {
                   debugPrint('Error parsing retroshare link Uri: $e');
@@ -384,7 +491,8 @@ class MessageDelegate extends StatelessWidget {
               }
 
               if (hash.isNotEmpty) {
-                final isVoice = name.startsWith('voice_msg_') || name.endsWith('.m4a');
+                final isVoice =
+                    name.startsWith('voice_msg_') || name.endsWith('.m4a');
                 if (isVoice) {
                   return VoiceMessageWidget(
                     name: name,
@@ -406,9 +514,10 @@ class MessageDelegate extends StatelessWidget {
             return Text(
               text,
               style: TextStyle(
-                color: textColor ?? (!isIncoming
-                    ? Theme.of(context).colorScheme.onPrimaryContainer
-                    : Theme.of(context).colorScheme.onSecondaryContainer),
+                color: textColor ??
+                    (!isIncoming
+                        ? Theme.of(context).colorScheme.onPrimaryContainer
+                        : Theme.of(context).colorScheme.onSecondaryContainer),
                 decoration: TextDecoration.underline,
               ),
             );
@@ -420,11 +529,14 @@ class MessageDelegate extends StatelessWidget {
           margin: Margins.zero,
           padding: HtmlPaddings.zero,
           fontSize: FontSize(
-            Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14,
+            emojiFontSize ??
+                Theme.of(context).textTheme.bodyMedium?.fontSize ??
+                14,
           ),
-          color: textColor ?? (!isIncoming
-              ? Theme.of(context).colorScheme.onPrimaryContainer
-              : Theme.of(context).colorScheme.onSecondaryContainer),
+          color: textColor ??
+              (!isIncoming
+                  ? Theme.of(context).colorScheme.onPrimaryContainer
+                  : Theme.of(context).colorScheme.onSecondaryContainer),
         ),
         '.rs-file-link': Style(
           margin: Margins.zero,
@@ -446,12 +558,12 @@ class MessageDelegate extends StatelessWidget {
 }
 
 class BubblePainter extends CustomPainter {
-
-  BubblePainter(
-      {required this.color,
-      required this.borderColor,
-      required this.isIncoming,
-      this.isSystem = false,});
+  BubblePainter({
+    required this.color,
+    required this.borderColor,
+    required this.isIncoming,
+    this.isSystem = false,
+  });
   final Color color;
   final Color borderColor;
   final bool isIncoming;
@@ -474,22 +586,27 @@ class BubblePainter extends CustomPainter {
 
     if (isSystem) {
       // Centered rounded rectangle without beak for system messages
-      path.addRRect(RRect.fromRectAndRadius(
+      path.addRRect(
+        RRect.fromRectAndRadius(
           Rect.fromLTWH(0, 0, size.width, size.height),
-          const Radius.circular(radius),),);
+          const Radius.circular(radius),
+        ),
+      );
     } else if (isIncoming) {
       // Beak on the right
       path.moveTo(radius, 0);
       path.lineTo(size.width - radius - beakWidth, 0);
-      path.quadraticBezierTo(size.width - beakWidth, 0, size.width - beakWidth, radius);
-      
+      path.quadraticBezierTo(
+          size.width - beakWidth, 0, size.width - beakWidth, radius);
+
       // Right side with beak
       path.lineTo(size.width - beakWidth, 10);
       path.lineTo(size.width, 15);
       path.lineTo(size.width - beakWidth, 20);
-      
+
       path.lineTo(size.width - beakWidth, size.height - radius);
-      path.quadraticBezierTo(size.width - beakWidth, size.height, size.width - radius - beakWidth, size.height);
+      path.quadraticBezierTo(size.width - beakWidth, size.height,
+          size.width - radius - beakWidth, size.height);
       path.lineTo(radius, size.height);
       path.quadraticBezierTo(0, size.height, 0, size.height - radius);
       path.lineTo(0, radius);
@@ -500,15 +617,17 @@ class BubblePainter extends CustomPainter {
       path.lineTo(size.width - radius, 0);
       path.quadraticBezierTo(size.width, 0, size.width, radius);
       path.lineTo(size.width, size.height - radius);
-      path.quadraticBezierTo(size.width, size.height, size.width - radius, size.height);
+      path.quadraticBezierTo(
+          size.width, size.height, size.width - radius, size.height);
       path.lineTo(radius + beakWidth, size.height);
-      path.quadraticBezierTo(beakWidth, size.height, beakWidth, size.height - radius);
-      
+      path.quadraticBezierTo(
+          beakWidth, size.height, beakWidth, size.height - radius);
+
       // Left side with beak
       path.lineTo(beakWidth, 20);
       path.lineTo(0, 15);
       path.lineTo(beakWidth, 10);
-      
+
       path.lineTo(beakWidth, radius);
       path.quadraticBezierTo(beakWidth, 0, radius + beakWidth, 0);
     }
@@ -617,7 +736,8 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
       );
 
       final retval = detailsResp['retval'];
-      final hasDetails = (retval is bool && retval) || (retval is int && retval == 1);
+      final hasDetails =
+          (retval is bool && retval) || (retval is int && retval == 1);
 
       if (hasDetails && detailsResp['info'] != null) {
         final info = detailsResp['info'] as Map;
@@ -627,7 +747,9 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
 
         // Construct correct full path if it doesn't already end with the filename
         var fullPath = dirPath;
-        if (dirPath.isNotEmpty && !dirPath.endsWith(fname) && !dirPath.endsWith(widget.name)) {
+        if (dirPath.isNotEmpty &&
+            !dirPath.endsWith(fname) &&
+            !dirPath.endsWith(widget.name)) {
           if (dirPath.endsWith('/') || dirPath.endsWith(r'\')) {
             fullPath = '$dirPath$fname';
           } else {
@@ -638,7 +760,9 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
 
         final fileExists = fullPath.isNotEmpty && File(fullPath).existsSync();
 
-        if (downloadStatus == 1 || downloadStatus == 4 || (downloadStatus == 0 && fileExists)) {
+        if (downloadStatus == 1 ||
+            downloadStatus == 4 ||
+            (downloadStatus == 0 && fileExists)) {
           final wasCompleted = _isCompleted;
           final wasChecking = _isChecking;
 
@@ -660,9 +784,9 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
             unawaited(_saveToGallery());
           }
         } else if (downloadStatus == 3 ||
-                   downloadStatus == 5 ||
-                   downloadStatus == 2 ||
-                   downloadStatus == 7) {
+            downloadStatus == 5 ||
+            downloadStatus == 2 ||
+            downloadStatus == 7) {
           final transferedVal = info['transfered'];
           var transfered = 0;
           if (transferedVal is int) {
@@ -698,7 +822,8 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
               _isDownloading = true;
               _isCompleted = false;
               _progress = pct;
-              _statusText = 'Downloading ${(pct * 100).toStringAsFixed(1)}% (${speed.toStringAsFixed(1)} KB/s)';
+              _statusText =
+                  'Downloading ${(pct * 100).toStringAsFixed(1)}% (${speed.toStringAsFixed(1)} KB/s)';
             });
           }
 
@@ -761,7 +886,8 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
       );
 
       final retval = response['retval'];
-      final success = (retval is bool && retval) || (retval is int && retval == 1);
+      final success =
+          (retval is bool && retval) || (retval is int && retval == 1);
 
       if (success) {
         setState(() {
@@ -791,7 +917,8 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
       );
 
       final retval = response['retval'];
-      final success = (retval is bool && retval) || (retval is int && retval == 1);
+      final success =
+          (retval is bool && retval) || (retval is int && retval == 1);
 
       if (success) {
         _statusTimer?.cancel();
@@ -868,7 +995,8 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
       }
 
       final result = await ImageGallerySaverPlus.saveFile(path);
-      if (result != null && (result['isSuccess'] == true || result['isSuccess'] == 'true')) {
+      if (result != null &&
+          (result['isSuccess'] == true || result['isSuccess'] == 'true')) {
         await Fluttertoast.showToast(msg: 'Saved to Gallery successfully!');
       } else {
         await Fluttertoast.showToast(msg: 'Failed to save to Gallery.');
@@ -1009,8 +1137,10 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
               child: CircularProgressIndicator(
                 value: _progress > 0 ? _progress : null,
                 strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
-                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                backgroundColor:
+                    theme.colorScheme.primary.withValues(alpha: 0.2),
               ),
             ),
             const Icon(
@@ -1048,7 +1178,8 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
   String _friendlyUnit(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }
@@ -1072,7 +1203,8 @@ class InChatVideoPlayerWidget extends StatefulWidget {
   final VoidCallback onOpenFile;
 
   @override
-  State<InChatVideoPlayerWidget> createState() => _InChatVideoPlayerWidgetState();
+  State<InChatVideoPlayerWidget> createState() =>
+      _InChatVideoPlayerWidgetState();
 }
 
 class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
@@ -1193,7 +1325,8 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
   String _friendlyUnit(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
@@ -1219,7 +1352,8 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.movie_creation_outlined, color: Colors.red, size: 28),
+            const Icon(Icons.movie_creation_outlined,
+                color: Colors.red, size: 28),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -1227,11 +1361,13 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
                 children: [
                   Text(
                     widget.filename,
-                    style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, color: textColor),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  Text('Video downloaded (${_friendlyUnit(widget.fileSize)})', style: TextStyle(fontSize: 11, color: subTextColor)),
+                  Text('Video downloaded (${_friendlyUnit(widget.fileSize)})',
+                      style: TextStyle(fontSize: 11, color: subTextColor)),
                 ],
               ),
             ),
@@ -1252,7 +1388,8 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
       );
     }
 
-    final rawAspectRatio = _isInitialized ? _controller.value.aspectRatio : 16 / 9;
+    final rawAspectRatio =
+        _isInitialized ? _controller.value.aspectRatio : 16 / 9;
     final clampedAspectRatio = rawAspectRatio.clamp(0.75, 1.78);
 
     return Container(
@@ -1317,14 +1454,18 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
                       : const ColoredBox(
                           color: Colors.black26,
                           child: Center(
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
                           ),
                         ),
                 ),
                 // Play / Pause Overlay Center Icon
-                if (_isInitialized && (_showControls || !_controller.value.isPlaying))
+                if (_isInitialized &&
+                    (_showControls || !_controller.value.isPlaying))
                   AnimatedOpacity(
-                    opacity: _showControls || !_controller.value.isPlaying ? 1.0 : 0.0,
+                    opacity: _showControls || !_controller.value.isPlaying
+                        ? 1.0
+                        : 0.0,
                     duration: const Duration(milliseconds: 200),
                     child: CircleAvatar(
                       radius: 28,
@@ -1332,7 +1473,9 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
                       child: IconButton(
                         iconSize: 32,
                         icon: Icon(
-                          _controller.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                          _controller.value.isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
                           color: Colors.white,
                         ),
                         onPressed: _togglePlay,
@@ -1346,7 +1489,9 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
                     left: 0,
                     right: 0,
                     child: AnimatedOpacity(
-                      opacity: _showControls || !_controller.value.isPlaying ? 1.0 : 0.0,
+                      opacity: _showControls || !_controller.value.isPlaying
+                          ? 1.0
+                          : 0.0,
                       duration: const Duration(milliseconds: 200),
                       child: Container(
                         decoration: const BoxDecoration(
@@ -1356,27 +1501,35 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
                             end: Alignment.bottomCenter,
                           ),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             SliderTheme(
                               data: const SliderThemeData(
                                 trackHeight: 3,
-                                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                                overlayShape: RoundSliderOverlayShape(overlayRadius: 10),
+                                thumbShape: RoundSliderThumbShape(
+                                    enabledThumbRadius: 6),
+                                overlayShape:
+                                    RoundSliderOverlayShape(overlayRadius: 10),
                                 activeTrackColor: Colors.redAccent,
                                 inactiveTrackColor: Colors.white30,
                                 thumbColor: Colors.redAccent,
                               ),
                               child: Slider(
-                                value: _controller.value.position.inMilliseconds.toDouble().clamp(
+                                value: _controller.value.position.inMilliseconds
+                                    .toDouble()
+                                    .clamp(
                                       0.0,
-                                      _controller.value.duration.inMilliseconds.toDouble(),
+                                      _controller.value.duration.inMilliseconds
+                                          .toDouble(),
                                     ),
-                                max: _controller.value.duration.inMilliseconds.toDouble(),
+                                max: _controller.value.duration.inMilliseconds
+                                    .toDouble(),
                                 onChanged: (value) {
-                                  _controller.seekTo(Duration(milliseconds: value.toInt()));
+                                  _controller.seekTo(
+                                      Duration(milliseconds: value.toInt()));
                                 },
                               ),
                             ),
@@ -1385,14 +1538,19 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
                               children: [
                                 Text(
                                   '${_formatDuration(_controller.value.position)} / ${_formatDuration(_controller.value.duration)}',
-                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold),
                                 ),
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
                                       icon: Icon(
-                                        _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                                        _isMuted
+                                            ? Icons.volume_off_rounded
+                                            : Icons.volume_up_rounded,
                                         color: Colors.white,
                                         size: 18,
                                       ),
@@ -1402,7 +1560,8 @@ class _InChatVideoPlayerWidgetState extends State<InChatVideoPlayerWidget> {
                                     ),
                                     const SizedBox(width: 8),
                                     IconButton(
-                                      icon: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 20),
+                                      icon: const Icon(Icons.fullscreen_rounded,
+                                          color: Colors.white, size: 20),
                                       onPressed: _openFullScreen,
                                       constraints: const BoxConstraints(),
                                       padding: const EdgeInsets.all(4),
@@ -1543,7 +1702,10 @@ class _FullScreenVideoViewerState extends State<FullScreenVideoViewer> {
                     Expanded(
                       child: Text(
                         widget.filename,
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1559,7 +1721,9 @@ class _FullScreenVideoViewerState extends State<FullScreenVideoViewer> {
                 child: IconButton(
                   iconSize: 40,
                   icon: Icon(
-                    _controller.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    _controller.value.isPlaying
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
                     color: Colors.white,
                   ),
                   onPressed: _togglePlay,
@@ -1575,9 +1739,12 @@ class _FullScreenVideoViewerState extends State<FullScreenVideoViewer> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Slider(
-                      value: _controller.value.position.inMilliseconds.toDouble().clamp(
+                      value: _controller.value.position.inMilliseconds
+                          .toDouble()
+                          .clamp(
                             0.0,
-                            _controller.value.duration.inMilliseconds.toDouble(),
+                            _controller.value.duration.inMilliseconds
+                                .toDouble(),
                           ),
                       max: _controller.value.duration.inMilliseconds.toDouble(),
                       activeColor: Colors.redAccent,
@@ -1591,11 +1758,13 @@ class _FullScreenVideoViewerState extends State<FullScreenVideoViewer> {
                       children: [
                         Text(
                           _formatDuration(_controller.value.position),
-                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 12),
                         ),
                         Text(
                           _formatDuration(_controller.value.duration),
-                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 12),
                         ),
                       ],
                     ),
