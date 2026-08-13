@@ -13,11 +13,18 @@ class ChatSettingsScreen extends StatefulWidget {
 }
 
 class ChatSettingsScreenState extends State<ChatSettingsScreen> {
+  static const int _acceptChatFromEveryone = 0;
+  static const int _acceptChatFromContacts = 1;
+  static const int _acceptChatFromNobody = 2;
+
   int _bubbleStyleIndex = 0; // 0: Bubble, 1: Compact
+  int _distantChatPermissionFlags = _acceptChatFromEveryone;
   bool _distantHistory = false;
   bool _lobbyHistory = false;
   bool _privateHistory = false;
   bool _isLoadingHistory = true;
+  bool _isLoadingChatPermissions = true;
+  bool _isSavingChatPermissions = false;
 
   @override
   void initState() {
@@ -25,7 +32,79 @@ class ChatSettingsScreenState extends State<ChatSettingsScreen> {
     _loadBubbleStyle();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadHistorySettings();
+      _loadChatPermissions();
     });
+  }
+
+  Future<void> _loadChatPermissions() async {
+    try {
+      final authToken =
+          Provider.of<AccountCredentials>(context, listen: false).authtoken;
+      if (authToken == null) return;
+
+      final response = await rsApiCall(
+        '/rsChats/getDistantChatPermissionFlags',
+        authToken: authToken,
+      );
+      final flags = response['retval'];
+
+      if (mounted && flags is num) {
+        setState(() {
+          final value = flags.toInt();
+          _distantChatPermissionFlags =
+              value >= _acceptChatFromEveryone && value <= _acceptChatFromNobody
+                  ? value
+                  : _acceptChatFromEveryone;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading distant chat permissions: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingChatPermissions = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _setChatPermissions(int flags) async {
+    final previousFlags = _distantChatPermissionFlags;
+    setState(() {
+      _distantChatPermissionFlags = flags;
+      _isSavingChatPermissions = true;
+    });
+
+    try {
+      final authToken =
+          Provider.of<AccountCredentials>(context, listen: false).authtoken;
+      if (authToken == null) throw StateError('Not authenticated');
+
+      final response = await rsApiCall(
+        '/rsChats/setDistantChatPermissionFlags',
+        authToken: authToken,
+        params: {'flags': flags},
+      );
+      if (response['retval'] != true) {
+        throw StateError('API rejected the chat permission change');
+      }
+    } catch (e) {
+      debugPrint('Error setting distant chat permissions: $e');
+      if (mounted) {
+        setState(() {
+          _distantChatPermissionFlags = previousFlags;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update chat permissions.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingChatPermissions = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadBubbleStyle() async {
@@ -54,13 +133,17 @@ class ChatSettingsScreenState extends State<ChatSettingsScreen> {
 
   Future<void> _loadHistorySettings() async {
     try {
-      final authProvider = Provider.of<AccountCredentials>(context, listen: false);
+      final authProvider =
+          Provider.of<AccountCredentials>(context, listen: false);
       final authToken = authProvider.authtoken;
       if (authToken == null) return;
 
-      final distResp = await rsApiCall('/rsHistory/getEnable', authToken: authToken, params: {'chat_type': 3});
-      final lobbyResp = await rsApiCall('/rsHistory/getEnable', authToken: authToken, params: {'chat_type': 2});
-      final privResp = await rsApiCall('/rsHistory/getEnable', authToken: authToken, params: {'chat_type': 1});
+      final distResp = await rsApiCall('/rsHistory/getEnable',
+          authToken: authToken, params: {'chat_type': 3});
+      final lobbyResp = await rsApiCall('/rsHistory/getEnable',
+          authToken: authToken, params: {'chat_type': 2});
+      final privResp = await rsApiCall('/rsHistory/getEnable',
+          authToken: authToken, params: {'chat_type': 1});
 
       if (mounted) {
         setState(() {
@@ -82,7 +165,8 @@ class ChatSettingsScreenState extends State<ChatSettingsScreen> {
 
   Future<void> _toggleHistory(int type, bool value) async {
     try {
-      final authProvider = Provider.of<AccountCredentials>(context, listen: false);
+      final authProvider =
+          Provider.of<AccountCredentials>(context, listen: false);
       final authToken = authProvider.authtoken;
       if (authToken == null) return;
 
@@ -176,18 +260,22 @@ class ChatSettingsScreenState extends State<ChatSettingsScreen> {
                   secondary: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.purple.withAlpha(30) : Colors.yellow.withAlpha(30),
+                      color: isDark
+                          ? Colors.purple.withAlpha(30)
+                          : Colors.yellow.withAlpha(30),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                      isDark
+                          ? Icons.dark_mode_rounded
+                          : Icons.light_mode_rounded,
                       color: isDark ? Colors.purple : Colors.orange,
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // Bubble Style Section
               Text(
                 'Message Bubble Style',
@@ -266,6 +354,72 @@ class ChatSettingsScreenState extends State<ChatSettingsScreen> {
               ),
               const SizedBox(height: 24),
 
+              // Distant chat permissions
+              Text(
+                'Chat Permissions',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: theme.colorScheme.outlineVariant.withAlpha(128),
+                  ),
+                ),
+                color: theme.colorScheme.surfaceContainerHighest.withAlpha(50),
+                child: ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.withAlpha(30),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.security_rounded,
+                      color: Colors.indigo,
+                    ),
+                  ),
+                  title: const Text(
+                    'Accept chat from',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  trailing: _isLoadingChatPermissions
+                      ? const SizedBox.square(
+                          dimension: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : DropdownButton<int>(
+                          value: _distantChatPermissionFlags,
+                          underline: const SizedBox.shrink(),
+                          onChanged: _isSavingChatPermissions
+                              ? null
+                              : (value) {
+                                  if (value != null) _setChatPermissions(value);
+                                },
+                          items: const [
+                            DropdownMenuItem(
+                              value: _acceptChatFromEveryone,
+                              child: Text('Everyone'),
+                            ),
+                            DropdownMenuItem(
+                              value: _acceptChatFromContacts,
+                              child: Text('Contacts only'),
+                            ),
+                            DropdownMenuItem(
+                              value: _acceptChatFromNobody,
+                              child: Text('Nobody'),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
               // History Section
               Text(
                 'History Settings',
@@ -275,81 +429,89 @@ class ChatSettingsScreenState extends State<ChatSettingsScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              if (_isLoadingHistory) const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(),
-                      ),
-                    ) else Card(
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: theme.colorScheme.outlineVariant.withAlpha(128),
+              if (_isLoadingHistory)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: theme.colorScheme.outlineVariant.withAlpha(128),
+                    ),
+                  ),
+                  color:
+                      theme.colorScheme.surfaceContainerHighest.withAlpha(50),
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        title: const Text(
+                          'Distant Chats History',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: const Text('Save history for distant chats'),
+                        value: _distantHistory,
+                        activeThumbColor: theme.colorScheme.primary,
+                        onChanged: (bool value) => _toggleHistory(3, value),
+                        secondary: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withAlpha(30),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.forum_rounded,
+                              color: Colors.blue),
                         ),
                       ),
-                      color: theme.colorScheme.surfaceContainerHighest.withAlpha(50),
-                      child: Column(
-                        children: [
-                          SwitchListTile(
-                            title: const Text(
-                              'Distant Chats History',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: const Text('Save history for distant chats'),
-                            value: _distantHistory,
-                            activeThumbColor: theme.colorScheme.primary,
-                            onChanged: (bool value) => _toggleHistory(3, value),
-                            secondary: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withAlpha(30),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.forum_rounded, color: Colors.blue),
-                            ),
+                      _divider(theme),
+                      SwitchListTile(
+                        title: const Text(
+                          'Chat Rooms History',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: const Text('Save history for chat rooms'),
+                        value: _lobbyHistory,
+                        activeThumbColor: theme.colorScheme.primary,
+                        onChanged: (bool value) => _toggleHistory(2, value),
+                        secondary: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withAlpha(30),
+                            shape: BoxShape.circle,
                           ),
-                          _divider(theme),
-                          SwitchListTile(
-                            title: const Text(
-                              'Chat Rooms History',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: const Text('Save history for chat rooms'),
-                            value: _lobbyHistory,
-                            activeThumbColor: theme.colorScheme.primary,
-                            onChanged: (bool value) => _toggleHistory(2, value),
-                            secondary: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withAlpha(30),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.meeting_room_rounded, color: Colors.orange),
-                            ),
-                          ),
-                          _divider(theme),
-                          SwitchListTile(
-                            title: const Text(
-                              'Private Chats History',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: const Text('Save history for private chats with friends'),
-                            value: _privateHistory,
-                            activeThumbColor: theme.colorScheme.primary,
-                            onChanged: (bool value) => _toggleHistory(1, value),
-                            secondary: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.teal.withAlpha(30),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.chat_bubble_rounded, color: Colors.teal),
-                            ),
-                          ),
-                        ],
+                          child: const Icon(Icons.meeting_room_rounded,
+                              color: Colors.orange),
+                        ),
                       ),
-                    ),
+                      _divider(theme),
+                      SwitchListTile(
+                        title: const Text(
+                          'Private Chats History',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: const Text(
+                            'Save history for private chats with friends'),
+                        value: _privateHistory,
+                        activeThumbColor: theme.colorScheme.primary,
+                        onChanged: (bool value) => _toggleHistory(1, value),
+                        secondary: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.withAlpha(30),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.chat_bubble_rounded,
+                              color: Colors.teal),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
