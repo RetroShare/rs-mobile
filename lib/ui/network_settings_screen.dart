@@ -27,7 +27,8 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
   }
 
   Future<Map<String, dynamic>> _fetchNetworkDetails() async {
-    final authProvider = Provider.of<AccountCredentials>(context, listen: false);
+    final authProvider =
+        Provider.of<AccountCredentials>(context, listen: false);
     final authToken = authProvider.authtoken;
     if (authToken == null) {
       throw Exception('Not authenticated. Please log in.');
@@ -107,17 +108,20 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
+                    const Icon(Icons.error_outline,
+                        size: 64, color: Colors.redAccent),
                     const SizedBox(height: 16),
                     Text(
                       'Failed to load network status',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       snapshot.error.toString(),
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.secondary),
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: theme.colorScheme.secondary),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
@@ -138,40 +142,81 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
           final ownSslId = data['ownSslId'] as String;
 
           // Resolve internal IP & Port
-          final localAddr = det['mLocalAddr'] ?? det['localAddr'] ?? netStatus['localAddr'] ?? netStatus['mLocalAddr'] ?? 'Unknown';
-          final localPort = det['mLocalPort']?.toString() ?? det['localPort']?.toString() ?? netStatus['localPort']?.toString() ?? netStatus['mLocalPort']?.toString() ?? 'Unknown';
+          final localAddr = det['mLocalAddr'] ??
+              det['localAddr'] ??
+              netStatus['localAddr'] ??
+              netStatus['mLocalAddr'] ??
+              'Unknown';
+          final localPort = det['mLocalPort']?.toString() ??
+              det['localPort']?.toString() ??
+              netStatus['localPort']?.toString() ??
+              netStatus['mLocalPort']?.toString() ??
+              'Unknown';
 
           // Resolve external IP & Port
-          final extAddr = det['mExtAddr'] ?? det['extAddr'] ?? netStatus['externalAddr'] ?? netStatus['extAddr'] ?? netStatus['mExtAddr'] ?? 'Unknown';
-          final extPort = det['mExtPort']?.toString() ?? det['extPort']?.toString() ?? netStatus['externalPort']?.toString() ?? netStatus['extPort']?.toString() ?? netStatus['mExtPort']?.toString() ?? 'Unknown';
+          final extAddr = det['mExtAddr'] ??
+              det['extAddr'] ??
+              netStatus['externalAddr'] ??
+              netStatus['extAddr'] ??
+              netStatus['mExtAddr'] ??
+              'Unknown';
+          final extPort = det['mExtPort']?.toString() ??
+              det['extPort']?.toString() ??
+              netStatus['externalPort']?.toString() ??
+              netStatus['extPort']?.toString() ??
+              netStatus['mExtPort']?.toString() ??
+              'Unknown';
 
           // Resolve DHT Status
           var isDhtEnabled = false;
           var isDhtConnected = false;
 
-          final dhtVal = netStatus['DHTActive'] ?? netStatus['dhtActive'] ?? netStatus['dhtStatus'] ?? netStatus['dht'] ?? netStatus['mDhtActive'] ?? netStatus['mDhtStatus'];
+          final dhtVal = netStatus['DHTActive'] ??
+              netStatus['dhtActive'] ??
+              netStatus['dhtStatus'] ??
+              netStatus['dht'] ??
+              netStatus['mDhtActive'] ??
+              netStatus['mDhtStatus'];
           if (dhtVal is bool) {
             isDhtEnabled = dhtVal;
           } else if (dhtVal is num) {
             isDhtEnabled = dhtVal != 0;
           } else if (dhtVal is String) {
-            isDhtEnabled = dhtVal.toLowerCase() == 'true' || dhtVal == '1' || dhtVal.toLowerCase() == 'on';
+            isDhtEnabled = dhtVal.toLowerCase() == 'true' ||
+                dhtVal == '1' ||
+                dhtVal.toLowerCase() == 'on';
           } else {
             // Fallback: If network mode is public, DHT is usually on
-            final netMode = netStatus['netMode'] ?? netStatus['networkMode'] ?? netStatus['mNetMode'] ?? netStatus['mNetworkMode'];
+            final netMode = netStatus['netMode'] ??
+                netStatus['networkMode'] ??
+                netStatus['mNetMode'] ??
+                netStatus['mNetworkMode'];
             if (netMode is num && netMode == 2) {
               isDhtEnabled = true;
             }
           }
 
-          final netDhtOkVal = netStatus['netDhtOk'] ?? netStatus['netDhtOK'] ?? netStatus['mNetDhtOk'];
+          final netDhtOkVal = netStatus['netDhtOk'] ??
+              netStatus['netDhtOK'] ??
+              netStatus['mNetDhtOk'];
           if (netDhtOkVal is bool) {
             isDhtConnected = netDhtOkVal;
           } else if (netDhtOkVal is num) {
             isDhtConnected = netDhtOkVal != 0;
           } else if (netDhtOkVal is String) {
-            isDhtConnected = netDhtOkVal.toLowerCase() == 'true' || netDhtOkVal == '1';
+            isDhtConnected =
+                netDhtOkVal.toLowerCase() == 'true' || netDhtOkVal == '1';
           }
+
+          final dhtRsNetworkSize = _readInt(
+            netStatus['netDhtRsNetSize'] ?? netStatus['mNetDhtRsNetSize'],
+          );
+          final dhtNetworkSize = _readInt(
+            netStatus['netDhtNetSize'] ?? netStatus['mNetDhtNetSize'],
+          );
+          final dhtNetworkValues = isDhtEnabled && isDhtConnected
+              ? '${_friendlyCount(dhtRsNetworkSize)} (${_friendlyCount(dhtNetworkSize)})'
+              : null;
 
           String dhtText;
           Color dhtColor;
@@ -191,8 +236,6 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
             dhtIcon = Icons.hub_rounded;
           }
 
-
-
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             child: Padding(
@@ -203,11 +246,13 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
                   // Dashboard Badge Header
                   Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                       decoration: BoxDecoration(
                         color: dhtColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: dhtColor.withOpacity(0.3), width: 1.5),
+                        border: Border.all(
+                            color: dhtColor.withOpacity(0.3), width: 1.5),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -266,7 +311,8 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
 
                   _statusTile(
                     context: context,
-                    title: 'Distributed Hash Table (DHT)',
+                    title: 'DHT',
+                    subtitle: dhtNetworkValues,
                     value: dhtText,
                     icon: dhtIcon,
                     color: dhtColor,
@@ -411,6 +457,7 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
   Widget _statusTile({
     required BuildContext context,
     required String title,
+    String? subtitle,
     required String value,
     required IconData icon,
     required Color color,
@@ -446,6 +493,17 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.secondary,
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -467,5 +525,27 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
         ],
       ),
     );
+  }
+
+  int _readInt(dynamic value) {
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    if (value is Map) {
+      return _readInt(value['xint64'] ?? value['xstr64'] ?? value['value']);
+    }
+    return 0;
+  }
+
+  String _friendlyCount(int value) {
+    if (value < 1000) return value.toString();
+
+    const suffixes = ['k', 'M', 'G', 'T'];
+    var scaled = value.toDouble();
+    var suffixIndex = -1;
+    while (scaled >= 1000 && suffixIndex < suffixes.length - 1) {
+      scaled /= 1000;
+      suffixIndex++;
+    }
+    return '${scaled.toStringAsFixed(1)} ${suffixes[suffixIndex]}';
   }
 }
