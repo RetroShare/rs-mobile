@@ -72,14 +72,14 @@ class AccountCredentials with ChangeNotifier {
 
   Future<bool> getinitializeAuth(Account account, String password) async {
     // Retry logic as the core might take a moment to initialize the API for the unlocked account
-    for (int retry = 0; retry < 3; retry++) {
+    for (var retry = 0; retry < 3; retry++) {
       if (retry > 0) {
         await Future.delayed(const Duration(seconds: 1));
       }
 
       // Try pgpName (PGP Username) - most robust for multiple locations without core changes
       _authToken = AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
-      bool success = await RsJsonApi.isAuthTokenValid(_authToken!);
+      final success = await RsJsonApi.isAuthTokenValid(_authToken!);
       if (success) return true;
     }
 

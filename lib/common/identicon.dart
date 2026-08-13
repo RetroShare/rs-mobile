@@ -3,9 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 class Identicon extends StatelessWidget {
-  final String id;
-  final double size;
-  final double borderRadius;
 
   const Identicon({
     super.key,
@@ -13,6 +10,9 @@ class Identicon extends StatelessWidget {
     this.size = 100,
     this.borderRadius = 0,
   });
+  final String id;
+  final double size;
+  final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +22,7 @@ class Identicon extends StatelessWidget {
     try {
       // Try to treat as hex (RetroShare GXS ID)
       if (id.length >= 10 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(id)) {
-        final List<int> bytes = [];
+        final bytes = <int>[];
         for (var i = 0; i < id.length; i += 2) {
           bytes.add(int.parse(id.substring(i, i + 2), radix: 16));
         }
@@ -46,16 +46,16 @@ class Identicon extends StatelessWidget {
 }
 
 class IdenticonPainter extends CustomPainter {
-  final Uint8List hash;
 
   IdenticonPainter({required this.hash});
+  final Uint8List hash;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (hash.isEmpty) return;
 
-    final width = 5;
-    final height = 5;
+    const width = 5;
+    const height = 5;
     final cellSize = size.width / width;
 
     // Use different parts of the hash for color and pattern

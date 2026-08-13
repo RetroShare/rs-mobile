@@ -32,10 +32,10 @@ class FriendsTabState extends State<FriendsTab> {
       bottom: false,
       child: Consumer3<RoomChatLobby, FriendLocations, Identities>(
         builder: (context, roomChat, friendLocations, identities, _) {
-          final List<Identity> rawFriendsList = roomChat.friendsIdsList;
+          final rawFriendsList = roomChat.friendsIdsList;
 
           // Apply sorting to friendsList
-          List<Identity> friendsList = List.from(rawFriendsList);
+          final friendsList = List<Identity>.from(rawFriendsList);
           if (_sortOption == ContactSortOption.name) {
             friendsList.sort((a, b) => (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase()));
           } else if (_sortOption == ContactSortOption.state) {
@@ -50,7 +50,7 @@ class FriendsTabState extends State<FriendsTab> {
                 
                 final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
 
-                int effectiveStatus = id.status;
+                var effectiveStatus = id.status;
                 if (effectiveStatus == 0 && isAnyLocationOnline) {
                   effectiveStatus = 3; // Default to Online
                   for (final loc in matchingLocs) {
@@ -66,8 +66,8 @@ class FriendsTabState extends State<FriendsTab> {
                 if (effectiveStatus == 2) return 2; // Busy
                 return 3; // Offline / Inactive
               }
-              int weightA = getWeight(a);
-              int weightB = getWeight(b);
+              final weightA = getWeight(a);
+              final weightB = getWeight(b);
               if (weightA != weightB) return weightA.compareTo(weightB);
               return (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase());
             });
@@ -109,7 +109,7 @@ class FriendsTabState extends State<FriendsTab> {
                     itemExtent: personDelegateHeight,
                     delegate: SliverChildBuilderDelegate(
                       (BuildContext context, int index) {
-                        final bool isMe = identities.currentIdentity?.mId == friendsList[index].mId;
+                        final isMe = identities.currentIdentity?.mId == friendsList[index].mId;
                         return PersonDelegate(
                           data: PersonDelegateData.identityData(
                             friendsList[index],
@@ -138,7 +138,7 @@ class FriendsTabState extends State<FriendsTab> {
                                   (
                                     title: 'View Details',
                                     icon: const Icon(Icons.info_outline,
-                                        color: Colors.black),
+                                        color: Colors.black,),
                                     action: () {
                                       Navigator.pushNamed(
                                         context,

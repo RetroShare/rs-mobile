@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'package:flutter_window_close/flutter_window_close.dart';
 import 'package:nativeapi/nativeapi.dart';

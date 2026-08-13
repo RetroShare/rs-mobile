@@ -32,13 +32,14 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: '17'
           cache: 'gradle'
 
       - name: Set up Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.8'
+          # Keep CI aligned with the SDK used to verify the Android build locally.
+          flutter-version: '3.41.9'
           channel: 'stable'
           cache: true
 
@@ -52,7 +53,7 @@ jobs:
           sed -i "s|implementation \"org.retroshare.service:libretroshare.*\"|implementation files('libs/libretroshare-MinApiLevel24-debug.aar')|g" android/app/build.gradle
 
       - name: Install Flutter Dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build APK (${{ inputs.build_mode }}) - diagnostic
         run: |
@@ -66,20 +67,26 @@ jobs:
           flutter doctor -v || true
 
           echo "=== Pub get ==="
-          flutter pub get || true
+          flutter pub get --enforce-lockfile
 
           if [ "${{ inputs.build_mode }}" = "release" ]; then
             echo "Running flutter build apk --release (verbose)"
-            # fail the job if flutter build fails so we don't try to upload nonexistent APKs
-            flutter build apk --release --no-codesign -v > buildlogs/flutter_build_verbose.log 2>&1
-            echo "If flutter build failed, running Gradle fallback to get stacktrace..."
-            (cd android && ./gradlew assembleRelease --stacktrace --info) > buildlogs/gradle_fallback_release.log 2>&1 || true
+            set +e
+            flutter build apk --release -v > buildlogs/flutter_build_verbose.log 2>&1
+            build_status=$?
+            set -e
           else
             echo "Running flutter build apk --debug (verbose)"
-            # fail the job if flutter build fails so we don't try to upload nonexistent APKs
+            set +e
             flutter build apk --debug -v > buildlogs/flutter_build_verbose.log 2>&1
-            echo "If flutter build failed, running Gradle fallback to get stacktrace..."
-            (cd android && ./gradlew assembleDebug --stacktrace --info) > buildlogs/gradle_fallback_debug.log 2>&1 || true
+            build_status=$?
+            set -e
+          fi
+
+          if [ "$build_status" -ne 0 ]; then
+            echo "=== Flutter build failed; last 300 log lines ==="
+            tail -n 300 buildlogs/flutter_build_verbose.log
+            exit "$build_status"
           fi
 
           echo "=== APK files (if any) ==="

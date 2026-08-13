@@ -349,14 +349,6 @@ class QRScannerState extends State<QRScanner>
                                     child: QrImageView(
                                       data: snapshot.data ?? '',
                                       size: 240,
-                                      eyeStyle: const QrEyeStyle(
-                                        eyeShape: QrEyeShape.square,
-                                        color: Colors.black,
-                                      ),
-                                      dataModuleStyle: const QrDataModuleStyle(
-                                        dataModuleShape: QrDataModuleShape.square,
-                                        color: Colors.black,
-                                      ),
                                       errorStateBuilder: (context, error) {
                                         print('QR Error: $error');
                                         return const Center(

@@ -129,7 +129,7 @@ class MessagesTabState extends State<MessagesTab> {
       final filePath = '${tempDir.path}/voice_msg_$timestamp.m4a';
 
       await _audioRecorder!.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc),
+        const RecordConfig(),
         path: filePath,
       );
 
@@ -211,7 +211,7 @@ class MessagesTabState extends State<MessagesTab> {
     final result = <int>[];
     final binSize = input.length / (pointsCount / 2);
 
-    for (int i = 0; i < (pointsCount / 2).floor(); i++) {
+    for (var i = 0; i < (pointsCount / 2).floor(); i++) {
       final start = (i * binSize).floor();
       final end = ((i + 1) * binSize).ceil();
       final bin = input.sublist(start, end.clamp(start, input.length));
@@ -402,11 +402,11 @@ class MessagesTabState extends State<MessagesTab> {
       final mb = kb / 1024;
 
       if (mb < 3) {
-        final String base64Image = base64.encode(imageBytes);
-        final String extension = imageXFile.path.split('.').last.toLowerCase();
-        final String mimeType =
+        final base64Image = base64.encode(imageBytes);
+        final extension = imageXFile.path.split('.').last.toLowerCase();
+        final mimeType =
             (extension == 'png') ? 'image/png' : 'image/jpeg';
-        final String htmlText =
+        final htmlText =
             "<img alt='Image' src='data:$mimeType;base64,$base64Image'/>";
 
         if (!mounted) return;
@@ -763,7 +763,7 @@ class MessagesTabState extends State<MessagesTab> {
 
   Future<void> _pickFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles();
+      final result = await FilePicker.pickFiles();
       if (result == null || result.files.single.path == null) {
         debugPrint('File selection cancelled.');
         return;
@@ -942,8 +942,8 @@ class MessagesTabState extends State<MessagesTab> {
                         final message = msgList[index];
                         final key = ValueKey('${message.sendTime}_${message.msg}_$index');
                         
-                        String bubbleTitle = '';
-                        final bool isSystem = ((message.chatflags ?? 0) & 0x0008) != 0;
+                        var bubbleTitle = '';
+                        final isSystem = ((message.chatflags ?? 0) & 0x0008) != 0;
 
                         if (isSystem) {
                           bubbleTitle = 'Status';

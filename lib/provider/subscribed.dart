@@ -18,14 +18,14 @@ class ChatLobby with ChangeNotifier {
       final invites = await RsMsgs.getPendingChatLobbyInvites(authToken);
       if (invites == null || invites.isEmpty) return;
 
-      bool foundNew = false;
+      var foundNew = false;
       for (final invite in invites) {
         final lobbyId = invite['lobby_id']?['xstr64'] ?? '';
         if (lobbyId.isNotEmpty && !_notifiedInvites.contains(lobbyId)) {
           final lobbyName = invite['lobby_name'] ?? 'Unknown Room';
           final peerId = invite['peer_id']?.toString() ?? '0';
           
-          String senderName = 'A friend';
+          var senderName = 'A friend';
           try {
             final peerDetails = await RsPeers.getPeerDetails(peerId, authToken);
             senderName = peerDetails.accountName;
@@ -54,7 +54,7 @@ class ChatLobby with ChangeNotifier {
         (c) => c.chatId == chatId,
         orElse: () => Chat(ownIdToUse: '', interlocutorId: '', isPublic: true),
       );
-      final int existingUnread = existingChat.chatId != null ? existingChat.unreadCount : 0;
+      final existingUnread = existingChat.chatId != null ? existingChat.unreadCount : 0;
 
       chatsList.add(
         Chat(
@@ -96,7 +96,7 @@ class ChatLobby with ChangeNotifier {
         (c) => c.chatId == chatId,
         orElse: () => Chat(ownIdToUse: '', interlocutorId: '', isPublic: true),
       );
-      final int existingUnread = existingChat.chatId != null ? existingChat.unreadCount : 0;
+      final existingUnread = existingChat.chatId != null ? existingChat.unreadCount : 0;
 
       chatsList.add(
         Chat(
