@@ -308,7 +308,8 @@ class SignUpScreenState extends State<SignUpScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.file_download, color: Theme.of(context).colorScheme.primary, size: 20),
+          Icon(Icons.file_download,
+              color: Theme.of(context).colorScheme.primary, size: 20),
           const SizedBox(width: 8),
           Text(
             'Import existing account',
@@ -323,10 +324,10 @@ class SignUpScreenState extends State<SignUpScreen> {
   }
 
   void _showImportDialog(BuildContext context) {
+    final screenContext = context;
     final certController = TextEditingController();
     final passController = TextEditingController();
     var isLoading = false;
-    var importType = 0; // 0: Full Location, 1: PGP Key only
 
     showDialog(
       context: context,
@@ -337,21 +338,15 @@ class SignUpScreenState extends State<SignUpScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButton<int>(
-                  value: importType,
-                  isExpanded: true,
-                  items: const [
-                    DropdownMenuItem(value: 0, child: Text('Import Full Location')),
-                    DropdownMenuItem(value: 1, child: Text('Import PGP Key & Create Node')),
-                  ],
-                  onChanged: (val) => setState(() => importType = val!),
+                const Text(
+                  'Import an exported RetroShare profile (.asc) and create a new mobile node using its existing PGP key.',
                 ),
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
                   onPressed: () async {
                     final result = await FilePicker.pickFiles(
                       type: FileType.custom,
-                      allowedExtensions: ['txt', 'crt', 'asc'],
+                      allowedExtensions: ['asc'],
                     );
                     if (result != null) {
                       final file = File(result.files.single.path!);
@@ -360,17 +355,15 @@ class SignUpScreenState extends State<SignUpScreen> {
                     }
                   },
                   icon: const Icon(Icons.attach_file),
-                  label: const Text('Pick Certificate File'),
+                  label: const Text('Choose Profile File (.asc)'),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: certController,
                   maxLines: 5,
-                  decoration: InputDecoration(
-                    hintText: importType == 0 
-                      ? 'Paste RetroShare certificate here...' 
-                      : 'Paste PGP private key (.asc) here...',
-                    border: const OutlineInputBorder(),
+                  decoration: const InputDecoration(
+                    hintText: 'Paste exported RetroShare profile here...',
+                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -378,7 +371,7 @@ class SignUpScreenState extends State<SignUpScreen> {
                   controller: passController,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    hintText: 'Password',
+                    hintText: 'Profile password',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -391,42 +384,65 @@ class SignUpScreenState extends State<SignUpScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: isLoading ? null : () async {
-                if (certController.text.isEmpty || passController.text.isEmpty) {
-                  showToast('Please fill all fields');
-                  return;
-                }
-                setState(() => isLoading = true);
-                try {
-                  final authProvider = Provider.of<AccountCredentials>(context, listen: false);
-                  final rawContent = certController.text.trim();
-                  
-                  if (importType == 0) {
-                    // For full location import, it's usually already base64 encoded by the export process
-                    await authProvider.importAccount(rawContent, passController.text);
-                  } else {
-                    // For PGP key, we send the raw content (which might be armored text)
-                    await authProvider.importIdentityAndCreateLocation(rawContent, passController.text);
-                  }
-                  
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    showToast('Import successful');
-                    Navigator.pop(context); // Go back to sign in
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    showToast('Import failed: $e');
-                  }
-                } finally {
-                  if (context.mounted) {
-                    setState(() => isLoading = false);
-                  }
-                }
-              },
-              child: isLoading 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Import'),
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (certController.text.isEmpty ||
+                          passController.text.isEmpty) {
+                        showToast('Please fill all fields');
+                        return;
+                      }
+                      setState(() => isLoading = true);
+                      try {
+                        final authProvider = Provider.of<AccountCredentials>(
+                            context,
+                            listen: false);
+                        final rawContent = certController.text.trim();
+
+                        await authProvider.importIdentityAndCreateLocation(
+                          rawContent,
+                          passController.text,
+                          nodeName: nodeNameController.text,
+                        );
+
+                        if (!context.mounted) return;
+                        Navigator.pop(context);
+                        if (!screenContext.mounted) return;
+
+                        final identities = Provider.of<Identities>(
+                          screenContext,
+                          listen: false,
+                        )..authToken = authProvider.authtoken;
+                        await identities.fetchOwnidenities();
+                        if (!screenContext.mounted) return;
+
+                        showToast('Profile imported successfully');
+                        if (identities.ownIdentity.isEmpty) {
+                          await Navigator.of(screenContext)
+                              .pushReplacementNamed(
+                            '/create_identity',
+                            arguments: true,
+                          );
+                        } else {
+                          await Navigator.of(screenContext)
+                              .pushReplacementNamed('/home');
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          showToast('Import failed: $e');
+                        }
+                      } finally {
+                        if (context.mounted) {
+                          setState(() => isLoading = false);
+                        }
+                      }
+                    },
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Import'),
             ),
           ],
         ),

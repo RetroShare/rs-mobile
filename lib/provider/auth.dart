@@ -78,13 +78,15 @@ class AccountCredentials with ChangeNotifier {
       }
 
       // Try pgpName (PGP Username) - most robust for multiple locations without core changes
-      _authToken = AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
+      _authToken =
+          AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
       final success = await RsJsonApi.isAuthTokenValid(_authToken!);
       if (success) return true;
     }
 
     // Default back to pgpName if all failed
-    _authToken = AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
+    _authToken =
+        AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
     return false;
   }
 
@@ -136,8 +138,7 @@ class AccountCredentials with ChangeNotifier {
       _pgpPassword = password;
       _accountsList.add(account.$2);
       logginAccount = account.$2;
-      final isAuthTokenValid =
-          await getinitializeAuth(account.$2, password);
+      final isAuthTokenValid = await getinitializeAuth(account.$2, password);
       if (!isAuthTokenValid) throw const HttpException('AUTHTOKEN FAILED');
 
       notifyListeners();
@@ -150,7 +151,8 @@ class AccountCredentials with ChangeNotifier {
   Future<void> importAccount(String base64Cert, String password) async {
     try {
       final resp = await RsLoginHelper.importLocation(base64Cert, password);
-      if (resp['retval'] == true || (resp['retval'] is Map && resp['retval']['errorNumber'] == 0)) {
+      if (resp['retval'] == true ||
+          (resp['retval'] is Map && resp['retval']['errorNumber'] == 0)) {
         await fetchAuthAccountList();
         notifyListeners();
       } else {
@@ -161,27 +163,90 @@ class AccountCredentials with ChangeNotifier {
     }
   }
 
-  Future<void> importIdentityAndCreateLocation(String pgpKeyContent, String password) async {
+  Future<void> importIdentityAndCreateLocation(
+    String pgpKeyContent,
+    String password, {
+    String nodeName = 'mobile',
+  }) async {
     try {
-      final importResp = await RsAccounts.importIdentity(pgpKeyContent);
-      if (importResp['retval'] != true) {
-        throw HttpException(importResp['errorMessage'] ?? 'Import Identity failed');
+      final importResp = await rsApiCall(
+        '/rsAccounts/importIdentityFromString',
+        params: {'data': pgpKeyContent},
+      );
+      if (!_isSuccessfulResult(importResp['retval'])) {
+        throw HttpException(
+          _apiErrorMessage(importResp, 'The PGP profile could not be imported'),
+        );
       }
 
-      final String? gpgId = importResp['gpg_id'];
-      if (gpgId == null) {
-        throw const HttpException('Import Identity failed: gpg_id not found');
+      final pgpId = (importResp['pgpId'] ?? importResp['gpgId'])?.toString();
+      if (pgpId == null || pgpId.isEmpty) {
+        throw const HttpException(
+            'The imported profile did not return a PGP ID');
       }
 
-      final createResp = await RsLoginHelper.createLocation(gpgId, password);
-      if (createResp['retval'] != true) {
-        throw HttpException(createResp['errorMessage'] ?? 'Create Location failed');
+      final locationName = nodeName.trim().isEmpty ? 'mobile' : nodeName.trim();
+      final apiUser = 'mobile-$pgpId';
+      final apiPass = deriveApiToken(apiUser, password);
+      final createResp = await rsApiCall(
+        '/rsLoginHelper/createLocationV2',
+        params: {
+          'pgpId': pgpId,
+          'locationName': locationName,
+          // The core ignores pgpName when an existing pgpId is supplied.
+          'pgpName': '',
+          'password': password,
+          'apiUser': apiUser,
+          'apiPass': apiPass,
+        },
+      );
+      if (!_isSuccessfulResult(createResp['retval'])) {
+        throw HttpException(
+          _apiErrorMessage(
+              createResp, 'Could not create a location from this profile'),
+        );
       }
 
+      _pgpPassword = password;
+      _authToken = AuthToken(apiUser, apiPass);
       await fetchAuthAccountList();
+
+      final locationId = createResp['locationId']?.toString();
+      Account? importedAccount;
+      for (final account in _accountsList) {
+        if ((locationId != null && account.locationId == locationId) ||
+            account.pgpId == pgpId) {
+          importedAccount = account;
+          if (locationId != null && account.locationId == locationId) break;
+        }
+      }
+      if (importedAccount == null) {
+        throw const HttpException(
+          'The new location was created but could not be found in the account list',
+        );
+      }
+      _loggedinAccount = importedAccount;
+      _lastAccountUsed = importedAccount;
       notifyListeners();
     } catch (e) {
+      if (e is HttpException) rethrow;
       throw HttpException(e.toString());
     }
+  }
+
+  bool _isSuccessfulResult(dynamic result) {
+    if (result is bool) return result;
+    if (result is num) return result == 1 || result == 0;
+    if (result is Map) return result['errorNumber'] == 0;
+    return false;
+  }
+
+  String _apiErrorMessage(Map response, String fallback) {
+    final retval = response['retval'];
+    final message = response['errorMsg'] ??
+        response['errorMessage'] ??
+        (retval is Map ? retval['errorMessage'] : null);
+    final text = message?.toString().trim();
+    return text == null || text.isEmpty ? fallback : text;
   }
 }
