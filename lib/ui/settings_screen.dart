@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/identicon.dart';
+import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare/provider/identity.dart';
+import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,6 +16,117 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class SettingsScreenState extends State<SettingsScreen> {
+  String _statusMessage = '';
+  int _presenceStatus = 0;
+  bool _isLoadingStatus = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadStatusMessage());
+  }
+
+  Future<void> _loadStatusMessage() async {
+    try {
+      final authToken =
+          Provider.of<AccountCredentials>(context, listen: false).authtoken;
+      if (authToken == null) return;
+      final status = await RsChats.getOwnCustomStateString(authToken);
+      final presenceStatus = await RsStatus.getOwnStatus(authToken);
+      if (mounted) {
+        setState(() {
+          _statusMessage = status;
+          _presenceStatus = presenceStatus;
+        });
+      }
+    } catch (error) {
+      debugPrint('Failed to load own status message: $error');
+    } finally {
+      if (mounted) setState(() => _isLoadingStatus = false);
+    }
+  }
+
+  Color _presenceColor() {
+    switch (_presenceStatus) {
+      case 1:
+        return Colors.amber;
+      case 2:
+        return Colors.red;
+      case 3:
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Future<void> _setPresenceStatus(int status) async {
+    try {
+      final authToken =
+          Provider.of<AccountCredentials>(context, listen: false).authtoken;
+      if (authToken == null) return;
+      final success = await RsStatus.sendStatus(status, authToken);
+      if (!success) throw Exception('sendStatus returned false');
+      if (mounted) setState(() => _presenceStatus = status);
+    } catch (error) {
+      debugPrint('Failed to update own presence status: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update online status.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _editStatusMessage() async {
+    final controller = TextEditingController(text: _statusMessage);
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit status message'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 160,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Status shown to your direct friends',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    // showDialog may complete before its focused TextField is fully unmounted.
+    // Disposing synchronously can trigger a framework _dependents assertion.
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+    if (value == null || !mounted) return;
+
+    try {
+      final authToken =
+          Provider.of<AccountCredentials>(context, listen: false).authtoken;
+      if (authToken == null) return;
+      await RsChats.setCustomStateString(value, authToken);
+      if (mounted) setState(() => _statusMessage = value);
+    } catch (error) {
+      debugPrint('Failed to update own status message: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update status message.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -42,31 +155,76 @@ class SettingsScreenState extends State<SettingsScreen> {
                   Center(
                     child: Column(
                       children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withAlpha(26),
-                                blurRadius: 10,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                            color: theme.colorScheme.surfaceContainerHighest,
-                          ),
-                          child: ClipOval(
-                            child: currentId.avatar != null && currentId.avatar!.isNotEmpty
-                                ? Image.memory(
-                                    base64.decode(currentId.avatar!),
-                                    fit: BoxFit.cover,
-                                  )
-                                : Identicon(
-                                    id: currentId.mId,
-                                    borderRadius: 50,
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: 100,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withAlpha(26),
+                                    blurRadius: 10,
+                                    spreadRadius: 2,
                                   ),
-                          ),
+                                ],
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
+                              ),
+                              child: ClipOval(
+                                child: currentId.avatar != null &&
+                                        currentId.avatar!.isNotEmpty
+                                    ? Image.memory(
+                                        base64.decode(currentId.avatar!),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Identicon(
+                                        id: currentId.mId,
+                                        borderRadius: 50,
+                                      ),
+                              ),
+                            ),
+                            Positioned(
+                              right: -2,
+                              bottom: -2,
+                              child: PopupMenuButton<int>(
+                                tooltip: 'Change online status',
+                                initialValue: _presenceStatus,
+                                onSelected: _setPresenceStatus,
+                                itemBuilder: (context) => [
+                                  _presenceMenuItem(
+                                    value: 3,
+                                    label: 'Online',
+                                    color: Colors.green,
+                                  ),
+                                  _presenceMenuItem(
+                                    value: 1,
+                                    label: 'Away',
+                                    color: Colors.amber,
+                                  ),
+                                  _presenceMenuItem(
+                                    value: 2,
+                                    label: 'Busy',
+                                    color: Colors.red,
+                                  ),
+                                ],
+                                child: Container(
+                                  width: 27,
+                                  height: 27,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _presenceColor(),
+                                    border: Border.all(
+                                      color: theme.colorScheme.surface,
+                                      width: 4,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -77,21 +235,54 @@ class SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(height: 6),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            currentId.mId,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.secondary,
-                              fontFamily: 'monospace',
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: _isLoadingStatus ? null : _editStatusMessage,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      _isLoadingStatus
+                                          ? 'Loading status…'
+                                          : _statusMessage.isEmpty
+                                              ? 'Add a status message'
+                                              : _statusMessage,
+                                      style:
+                                          theme.textTheme.bodyMedium?.copyWith(
+                                        color: _statusMessage.isEmpty
+                                            ? theme.colorScheme.onSurfaceVariant
+                                            : theme.colorScheme.onSurface,
+                                        fontStyle: _statusMessage.isEmpty
+                                            ? FontStyle.italic
+                                            : FontStyle.normal,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Icon(
+                                    Icons.edit_rounded,
+                                    size: 17,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ],
+                              ),
                             ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
                           decoration: BoxDecoration(
                             color: currentId.signed
                                 ? Colors.teal.withAlpha(26)
@@ -99,9 +290,13 @@ class SettingsScreenState extends State<SettingsScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            currentId.signed ? 'Signed Identity' : 'Pseudonymous Identity',
+                            currentId.signed
+                                ? 'Signed Identity'
+                                : 'Pseudonymous Identity',
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: currentId.signed ? Colors.teal : Colors.orange,
+                              color: currentId.signed
+                                  ? Colors.teal
+                                  : Colors.orange,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -118,10 +313,12 @@ class SettingsScreenState extends State<SettingsScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
-                          color: theme.colorScheme.outlineVariant.withAlpha(128),
+                          color:
+                              theme.colorScheme.outlineVariant.withAlpha(128),
                         ),
                       ),
-                      color: theme.colorScheme.surfaceContainerHighest.withAlpha(50),
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withAlpha(50),
                       child: Column(
                         children: [
                           _settingsTile(
@@ -186,7 +383,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                           child: Text(
                             'RetroShare Mobile v$version ($buildNumber)',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withAlpha(150),
                             ),
                           ),
                         );
@@ -207,6 +405,30 @@ class SettingsScreenState extends State<SettingsScreen> {
       indent: 64,
       endIndent: 16,
       color: theme.colorScheme.outlineVariant.withAlpha(100),
+    );
+  }
+
+  PopupMenuItem<int> _presenceMenuItem({
+    required int value,
+    required String label,
+    required Color color,
+  }) {
+    return PopupMenuItem<int>(
+      value: value,
+      child: Row(
+        children: [
+          Container(
+            width: 13,
+            height: 13,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(label),
+        ],
+      ),
     );
   }
 

@@ -28,7 +28,7 @@ class FriendLocations with ChangeNotifier {
           var details = await RsPeers.getPeerFriendDetails(sslIds[i], _authToken);
           try {
             final statusMessage =
-                await RsMsgs.getCustomStateString(sslIds[i], _authToken);
+                await RsChats.getCustomStateString(sslIds[i], _authToken);
             details = details.copyWith(statusMessage: statusMessage);
           } catch (e) {
             debugPrint(
