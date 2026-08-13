@@ -10,6 +10,7 @@ import 'package:retroshare/ui/friend_location_detail_screen.dart';
 import 'package:retroshare/ui/friends_locations_screen.dart';
 import 'package:retroshare/ui/home/home_screen.dart';
 import 'package:retroshare/ui/launch_transition_screen.dart';
+import 'package:retroshare/ui/mobile_services_settings_screen.dart';
 import 'package:retroshare/ui/network_settings_screen.dart';
 import 'package:retroshare/ui/notification_screen.dart';
 import 'package:retroshare/ui/profile_screen.dart';
@@ -120,6 +121,10 @@ class RouteGenerator {
         return _errorRoute();
       case '/network_settings':
         return MaterialPageRoute(builder: (_) => const NetworkSettingsScreen());
+      case '/mobile_services_settings':
+        return MaterialPageRoute(
+          builder: (_) => const MobileServicesSettingsScreen(),
+        );
       case '/settings':
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
       case '/chat_settings':

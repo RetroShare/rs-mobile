@@ -981,7 +981,7 @@ packages:
     description:
       path: "."
       ref: master
-      resolved-ref: "452e614f2f5945beb773a66bd5f6d268db974537"
+      resolved-ref: "50ed2381a248fdd4e269202bc320af950875792a"
       url: "https://github.com/RetroShare/Retroshare-Wrapper.git"
     source: git
     version: "0.1.0"

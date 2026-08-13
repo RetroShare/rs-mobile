@@ -1199,6 +1199,8 @@ class MessagesTabState extends State<MessagesTab> {
                             ),
                             padding: const EdgeInsets.symmetric(horizontal: 15),
                             child: TextField(
+                              keyboardAppearance:
+                                  Theme.of(context).brightness,
                               onTap: () {
                                 if (_showEmojiPicker) {
                                   if (mounted) {
@@ -1266,6 +1268,36 @@ class MessagesTabState extends State<MessagesTab> {
               child: emoji_picker.EmojiPicker(
                 onEmojiSelected: (category, emoji) => _onEmojiSelected(emoji),
                 onBackspacePressed: _onBackspacePressed,
+                config: emoji_picker.Config(
+                  emojiViewConfig: emoji_picker.EmojiViewConfig(
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                  ),
+                  categoryViewConfig: emoji_picker.CategoryViewConfig(
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surfaceContainer,
+                    indicatorColor: Theme.of(context).colorScheme.primary,
+                    iconColor:
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                    iconColorSelected: Theme.of(context).colorScheme.primary,
+                    backspaceColor: Theme.of(context).colorScheme.primary,
+                    dividerColor: Theme.of(context).dividerColor,
+                  ),
+                  searchViewConfig: emoji_picker.SearchViewConfig(
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                    buttonIconColor:
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                    inputTextStyle: Theme.of(context).textTheme.bodyLarge,
+                    hintTextStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Theme.of(context).hintColor,
+                        ),
+                  ),
+                  skinToneConfig: emoji_picker.SkinToneConfig(
+                    dialogBackgroundColor:
+                        Theme.of(context).colorScheme.surfaceContainerHigh,
+                    indicatorColor:
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
             ),
           ),

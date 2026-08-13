@@ -360,6 +360,20 @@ class SettingsScreenState extends State<SettingsScreen> {
                           _divider(theme),
                           _settingsTile(
                             context: context,
+                            icon: Icons.widgets_rounded,
+                            iconBgColor: Colors.indigo,
+                            title: 'Mobile Services',
+                            subtitle: 'Forums, channels, boards',
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/mobile_services_settings',
+                              );
+                            },
+                          ),
+                          _divider(theme),
+                          _settingsTile(
+                            context: context,
                             icon: Icons.security_rounded,
                             iconBgColor: Colors.green,
                             title: 'Privacy & Security',
