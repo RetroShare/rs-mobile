@@ -4,8 +4,10 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:html/parser.dart' as html_parser;
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
@@ -415,10 +417,13 @@ class MessageDelegate extends StatelessWidget {
       return match.group(0) ?? '';
     });
 
-    return Html(
-      data: processedContent,
-      shrinkWrap: true,
-      extensions: [
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onLongPress: () => _copyMessageText(context, content),
+      child: Html(
+        data: processedContent,
+        shrinkWrap: true,
+        extensions: [
         TagExtension(
           tagsToExtend: {'img'},
           builder: (extensionContext) {
@@ -523,7 +528,7 @@ class MessageDelegate extends StatelessWidget {
             );
           },
         ),
-      ],
+        ],
       style: {
         'body': Style(
           margin: Margins.zero,
@@ -553,6 +558,41 @@ class MessageDelegate extends StatelessWidget {
           height: Height.auto(),
         ),
       },
+      ),
+    );
+  }
+
+  Future<void> _copyMessageText(BuildContext context, String html) async {
+    final hasHtmlTags = RegExp(
+      r'</?(?:a|br|font|img|p|span)\b[^>]*>',
+      caseSensitive: false,
+    ).hasMatch(html);
+    final text = hasHtmlTags
+        ? html_parser
+                .parse(
+                  html
+                      .replaceAll(
+                        RegExp(r'<br\s*/?>', caseSensitive: false),
+                        '\n',
+                      )
+                      .replaceAll(
+                        RegExp(r'</p\s*>', caseSensitive: false),
+                        '\n',
+                      ),
+                )
+                .body
+                ?.text ??
+            ''
+        : html;
+    if (text.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Message copied'),
+        duration: Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }

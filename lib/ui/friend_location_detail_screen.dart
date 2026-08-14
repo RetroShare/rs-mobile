@@ -20,6 +20,17 @@ class _FriendLocationDetailScreenState extends State<FriendLocationDetailScreen>
   String _externalIP = 'Loading...';
   String _externalPort = 'Loading...';
 
+  Future<void> _openChat() async {
+    final peerId = widget.location.rsPeerId;
+    if (peerId.isEmpty) return;
+
+    await Navigator.pushNamed(
+      context,
+      '/peer_chat',
+      arguments: {'location': widget.location},
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -227,6 +238,19 @@ class _FriendLocationDetailScreenState extends State<FriendLocationDetailScreen>
               ),
             ),
             const SizedBox(height: 28),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: widget.location.rsPeerId.isEmpty ? null : _openChat,
+                  icon: const Icon(Icons.message_outlined),
+                  label: const Text('Send message'),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // --- Detail tiles ---
             Padding(

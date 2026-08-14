@@ -29,10 +29,13 @@ class RoomScreenState extends State<RoomScreen>
   late Animation<Color?> _iconAnimation;
   BubbleStyle _bubbleStyle = BubbleStyle.bubble;
   Timer? _statusRefreshTimer;
+  RoomChatLobby? _roomProvider;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _roomProvider ??=
+        Provider.of<RoomChatLobby>(context, listen: false);
     _iconAnimation =
         ColorTween(begin: Theme.of(context).colorScheme.onSurface, end: Theme.of(context).colorScheme.primary)
             .animate(_tabController.animation!);
@@ -110,10 +113,7 @@ class RoomScreenState extends State<RoomScreen>
     _statusRefreshTimer?.cancel();
     _tabController.dispose();
     // Clear current chat so new messages are counted as unread
-    try {
-      final roomProvider = Provider.of<RoomChatLobby>(context, listen: false);
-      roomProvider.updateCurrentChat(null);
-    } catch (_) {}
+    _roomProvider?.clearCurrentChat(widget.chat.chatId);
     super.dispose();
   }
 

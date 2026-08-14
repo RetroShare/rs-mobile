@@ -6,6 +6,7 @@ import 'package:retroshare/ui/chat_settings_screen.dart';
 import 'package:retroshare/ui/create_identity/create_identity_screen.dart';
 import 'package:retroshare/ui/create_room_screen.dart';
 import 'package:retroshare/ui/discover_chats_screen.dart';
+import 'package:retroshare/ui/direct_peer_chat_screen.dart';
 import 'package:retroshare/ui/friend_location_detail_screen.dart';
 import 'package:retroshare/ui/friends_locations_screen.dart';
 import 'package:retroshare/ui/home/home_screen.dart';
@@ -114,6 +115,15 @@ class RouteGenerator {
         if (args is Map<String, dynamic> && args['location'] is Location) {
           return MaterialPageRoute(
             builder: (_) => FriendLocationDetailScreen(
+              location: args['location'] as Location,
+            ),
+          );
+        }
+        return _errorRoute();
+      case '/peer_chat':
+        if (args is Map<String, dynamic> && args['location'] is Location) {
+          return MaterialPageRoute(
+            builder: (_) => DirectPeerChatScreen(
               location: args['location'] as Location,
             ),
           );
