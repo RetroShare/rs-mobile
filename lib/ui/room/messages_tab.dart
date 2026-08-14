@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as emoji_picker;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -457,15 +459,78 @@ class MessagesTabState extends State<MessagesTab> {
   }
 
   Future<void> _pickFromGallery() async {
-    final imageXFile = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1024,
-      maxHeight: 1024,
-    );
-    if (imageXFile != null) {
-      await _processPickedImage(imageXFile);
+    try {
+      // FilePicker gives us the untouched source file, allowing GIF detection
+      // before an image picker can flatten its animation during compression.
+      final result = await FilePicker.pickFiles(type: FileType.image);
+      if (result == null || result.files.single.path == null) {
+        debugPrint('Image selection cancelled.');
+        return;
+      }
+
+      final picked = result.files.single;
+      final file = File(picked.path!);
+      final bytes = await file.readAsBytes();
+      final isGif = _hasGifSignature(bytes);
+
+      if (isGif) {
+        await _attachGif(file, picked.name, bytes);
+      } else {
+        await _processGalleryPhoto(file, bytes);
+      }
+    } catch (e) {
+      debugPrint('Error selecting gallery image: $e');
+      if (!mounted) return;
+      await errorShowDialog(
+        'Error Attaching Image',
+        'Could not attach the image: $e',
+        context,
+      );
     }
+  }
+
+  bool _hasGifSignature(List<int> bytes) {
+    if (bytes.length < 6) return false;
+    return ascii.decode(bytes.sublist(0, 6), allowInvalid: true) == 'GIF87a' ||
+        ascii.decode(bytes.sublist(0, 6), allowInvalid: true) == 'GIF89a';
+  }
+
+  Future<void> _processGalleryPhoto(File file, Uint8List sourceBytes) async {
+    final decoded = img.decodeImage(sourceBytes);
+    if (decoded == null) {
+      throw const FormatException('Unsupported image format.');
+    }
+
+    var processed = decoded;
+    if (decoded.width > 1024 || decoded.height > 1024) {
+      if (decoded.width >= decoded.height) {
+        processed = img.copyResize(decoded, width: 1024);
+      } else {
+        processed = img.copyResize(decoded, height: 1024);
+      }
+    }
+
+    final isPng = file.path.toLowerCase().endsWith('.png');
+    final encoded = isPng
+        ? img.encodePng(processed)
+        : img.encodeJpg(processed, quality: 85);
+    if (encoded.length >= 3 * 1024 * 1024) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image Size is too large!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _attachedImageFile = file;
+      _attachedImageBase64 = base64.encode(encoded);
+      _attachedImageMimeType = isPng ? 'image/png' : 'image/jpeg';
+    });
   }
 
   Future<void> _processPickedImage(XFile imageXFile) async {
@@ -544,8 +609,10 @@ class MessagesTabState extends State<MessagesTab> {
                 ),
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   _buildPickerOption(
                     icon: Icons.camera_alt_rounded,
@@ -572,6 +639,15 @@ class MessagesTabState extends State<MessagesTab> {
                     onTap: () async {
                       Navigator.pop(context);
                       await _pickFile();
+                    },
+                  ),
+                  _buildPickerOption(
+                    icon: Icons.gif_box_rounded,
+                    color: Colors.purple,
+                    label: 'GIF',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _pickGif();
                     },
                   ),
                   _buildPickerOption(
@@ -770,12 +846,113 @@ class MessagesTabState extends State<MessagesTab> {
       }
 
       final rawPath = result.files.single.path!;
-      final normalizedPath = rawPath.replaceAll(r'\', '/');
       final name = result.files.single.name;
       final size = result.files.single.size;
 
+      await _prepareFileAttachment(File(rawPath), name, size);
+    } catch (e) {
+      debugPrint('Error picking file: $e');
+      if (mounted) {
+        setState(() {
+          _attachedFile = null;
+          _attachedFileName = null;
+          _attachedFileSize = null;
+          _attachedFileHash = null;
+          _isHashingFile = false;
+        });
+      }
+      if (!mounted) return;
+      await errorShowDialog(
+        'Error Attaching File',
+        'Could not attach the file: $e',
+        context,
+      );
+    }
+  }
+
+  Future<void> _pickGif() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['gif'],
+      );
+      if (result == null || result.files.single.path == null) {
+        debugPrint('GIF selection cancelled.');
+        return;
+      }
+
+      final picked = result.files.single;
+      final file = File(picked.path!);
+      final bytes = await file.readAsBytes();
+      await _attachGif(file, picked.name, bytes);
+    } catch (e) {
+      debugPrint('Error picking GIF: $e');
+      if (mounted) {
+        setState(() {
+          _attachedImageFile = null;
+          _attachedImageBase64 = null;
+          _attachedImageMimeType = null;
+          _attachedFile = null;
+          _attachedFileName = null;
+          _attachedFileSize = null;
+          _attachedFileHash = null;
+          _isHashingFile = false;
+        });
+      }
+      if (!mounted) return;
+      await errorShowDialog(
+        'Error Attaching GIF',
+        'Could not attach the GIF: $e',
+        context,
+      );
+    }
+  }
+
+  Future<void> _attachGif(
+    File file,
+    String name,
+    Uint8List gifBytes,
+  ) async {
+    const inlineGifLimit = 1024 * 1024;
+
+    if (gifBytes.length <= inlineGifLimit) {
+      if (!mounted) return;
       setState(() {
-        _attachedFile = File(rawPath);
+        _attachedImageFile = file;
+        _attachedImageBase64 = base64.encode(gifBytes);
+        _attachedImageMimeType = 'image/gif';
+        _attachedFile = null;
+        _attachedFileName = null;
+        _attachedFileSize = null;
+        _attachedFileHash = null;
+        _isHashingFile = false;
+      });
+      return;
+    }
+
+    await _prepareFileAttachment(file, name, gifBytes.length);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('GIF is over 1 MB and will be sent as a file.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _prepareFileAttachment(
+    File file,
+    String name,
+    int size,
+  ) async {
+    final rawPath = file.path;
+    final normalizedPath = rawPath.replaceAll(r'\', '/');
+
+      setState(() {
+        _attachedImageFile = null;
+        _attachedImageBase64 = null;
+        _attachedImageMimeType = null;
+        _attachedFile = file;
         _attachedFileName = name;
         _attachedFileSize = size;
         _attachedFileHash = null;
@@ -858,24 +1035,6 @@ class MessagesTabState extends State<MessagesTab> {
           debugPrint('Error checking file hashing status: $e');
         }
       });
-    } catch (e) {
-      debugPrint('Error picking file: $e');
-      if (mounted) {
-        setState(() {
-          _attachedFile = null;
-          _attachedFileName = null;
-          _attachedFileSize = null;
-          _attachedFileHash = null;
-          _isHashingFile = false;
-        });
-      }
-      if (!mounted) return;
-      await errorShowDialog(
-        'Error Attaching File',
-        'Could not attach the file: $e',
-        context,
-      );
-    }
   }
 
   void _cancelFileAttachment() {

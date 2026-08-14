@@ -1018,8 +1018,101 @@ class _FileAttachmentWidgetState extends State<FileAttachmentWidget> {
         nameLower.endsWith('.m4v');
   }
 
+  bool _isGifFile(String filename) => filename.toLowerCase().endsWith('.gif');
+
+  Widget _buildInlineGif(BuildContext context) {
+    final path = _localPath!;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.white70 : Colors.black54;
+    final cardBgColor = widget.isIncoming
+        ? Colors.black.withValues(alpha: 0.05)
+        : Colors.white.withValues(alpha: 0.15);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: cardBgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: _openFile,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: 160,
+                maxWidth: 360,
+                maxHeight: 360,
+              ),
+              child: Image.file(
+                File(path),
+                key: ValueKey('${widget.hash}:$path'),
+                fit: BoxFit.contain,
+                gaplessPlayback: true,
+                errorBuilder: (context, error, stackTrace) {
+                  debugPrint('Error displaying GIF ${widget.name}: $error');
+                  return const SizedBox(
+                    width: 160,
+                    height: 120,
+                    child: Center(child: Icon(Icons.broken_image, size: 36)),
+                  );
+                },
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        '${_friendlyUnit(widget.size)} • GIF',
+                        style: TextStyle(color: subTextColor, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.photo_library_outlined, size: 20),
+                  color: textColor,
+                  tooltip: 'Save to Gallery',
+                  onPressed: _saveToGallery,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isCompleted && _localPath != null && _isGifFile(widget.name)) {
+      return _buildInlineGif(context);
+    }
+
     if (_isCompleted && _localPath != null && _isVideoFile(widget.name)) {
       return InChatVideoPlayerWidget(
         videoPath: _localPath!,

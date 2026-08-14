@@ -28,6 +28,7 @@ dependencies:
   http: ^1.3.0
   qr_flutter: ^4.1.0
   image_picker: ^1.1.2
+  image: ^4.8.0
   sliding_up_panel: ^2.0.0+1
   mobile_scanner: ^7.4.0
   # Toast
