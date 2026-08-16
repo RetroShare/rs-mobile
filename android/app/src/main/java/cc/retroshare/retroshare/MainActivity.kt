@@ -14,8 +14,23 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME).setMethodCallHandler { call, result ->
             when (call.method) {
+                "getTorConfiguration" -> result.success(TorRuntimeManager.configuration(applicationContext))
+                "setTorConfiguration" -> {
+                    val mode = call.argument<String>("mode") ?: TorRuntimeManager.MODE_DISABLED
+                    val host = call.argument<String>("host") ?: "127.0.0.1"
+                    val socksPort = call.argument<Int>("socksPort") ?: 9050
+                    val controlPort = call.argument<Int>("controlPort") ?: 9051
+                    try {
+                        TorRuntimeManager.configure(applicationContext, mode, host, socksPort, controlPort)
+                        result.success(TorRuntimeManager.configuration(applicationContext))
+                    } catch (e: Exception) {
+                        result.error("TOR_CONFIG_FAILED", e.message, null)
+                    }
+                }
+                "getTorStatus" -> result.success(TorRuntimeManager.status(applicationContext))
                 "start" -> {
                     try {
+                        TorRuntimeManager.startIfEmbedded(applicationContext)
                         RetroShareServiceAndroid.start(applicationContext)
                         result.success(true)
                     } catch (e: Exception) {
@@ -24,11 +39,13 @@ class MainActivity : FlutterActivity() {
                 }
                 "stop" -> {
                     RetroShareServiceAndroid.stop(applicationContext)
+                    TorRuntimeManager.stopEmbedded(applicationContext)
                     result.success(true)
                 }
                 "restart" -> {
                     try {
                         RetroShareServiceAndroid.stop(applicationContext)
+                        TorRuntimeManager.restartIfEmbedded(applicationContext)
                         RetroShareServiceAndroid.start(applicationContext)
                         result.success(true)
                     } catch (e: Exception) {

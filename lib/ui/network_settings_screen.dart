@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:retroshare/apiUtils/tor_service.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
@@ -13,11 +14,30 @@ class NetworkSettingsScreen extends StatefulWidget {
 
 class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
   late Future<Map<String, dynamic>> _networkDetailsFuture;
+  TorConfiguration? _torConfiguration;
+  bool _savingTor = false;
 
   @override
   void initState() {
     super.initState();
     _refreshDetails();
+    _refreshTor();
+  }
+
+  Future<void> _refreshTor() async {
+    final configuration = await TorServiceControl.getConfiguration(status: true);
+    if (mounted) setState(() => _torConfiguration = configuration);
+  }
+
+  Future<void> _setTorMode(TorMode? mode) async {
+    if (mode == null) return;
+    setState(() => _savingTor = true);
+    try {
+      await TorServiceControl.configure(mode: mode);
+      await _refreshTor();
+    } finally {
+      if (mounted) setState(() => _savingTor = false);
+    }
   }
 
   void _refreshDetails() {
@@ -243,6 +263,8 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _torCard(context),
+                  const SizedBox(height: 16),
                   // Dashboard Badge Header
                   Center(
                     child: Container(
@@ -323,6 +345,47 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _torCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final tor = _torConfiguration;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.security_rounded, color: Colors.deepPurple),
+            const SizedBox(width: 12),
+            Expanded(child: Text('Tor runtime', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold))),
+            if (_savingTor) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          ]),
+          const SizedBox(height: 8),
+          const Text('Embedded bundles Tor in the APK. External uses Orbot or another Tor service. Disabled keeps the normal network mode.'),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<TorMode>(
+            value: tor?.mode ?? TorMode.disabled,
+            items: const [
+              DropdownMenuItem(value: TorMode.disabled, child: Text('Disabled')),
+              DropdownMenuItem(value: TorMode.embedded, child: Text('Embedded Tor')),
+              DropdownMenuItem(value: TorMode.external, child: Text('External Tor / Orbot')),
+            ],
+            onChanged: _savingTor ? null : _setTorMode,
+          ),
+          if (tor != null && tor.mode != TorMode.disabled) ...[
+            const SizedBox(height: 10),
+            Text('${tor.host}:${tor.socksPort} SOCKS · ${tor.host}:${tor.controlPort} control'),
+            Text(tor.reachable ? 'SOCKS listener reachable' : 'Waiting for Tor', style: TextStyle(color: tor.reachable ? Colors.green : Colors.orange)),
+          ],
+        ],
       ),
     );
   }
