@@ -9,6 +9,7 @@ import 'package:retroshare/common/identicon.dart';
 import 'package:retroshare/common/show_dialog.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare/provider/identity.dart';
+import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 Widget drawerWidget(BuildContext ctx) {
@@ -253,16 +254,11 @@ class NotificationIcon extends StatefulWidget {
 }
 
 class NotificationIconState extends State<NotificationIcon> {
-  Future<dynamic> _inviteList() async {
-    final authToken =
-        Provider.of<AccountCredentials>(context, listen: false).authtoken;
-    return authToken == null
-        ? null
-        : RsMsgs.getPendingChatLobbyInvites(authToken);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final inviteCount = context.select<ChatLobby, int>(
+      (chatLobby) => chatLobby.pendingInviteCount,
+    );
     final isLight = Theme.of(context).brightness == Brightness.light;
     final activeBlue = ColorScheme.fromSeed(
       seedColor: const Color(0xFF29ABE2),
@@ -277,30 +273,25 @@ class NotificationIconState extends State<NotificationIcon> {
           color: appBarIconColor,
           size: 28,
         ),
-        Positioned(
-          top: 1,
-          right: 1,
-          child: CircleAvatar(
-            backgroundColor: Colors.purple,
-            radius: 7,
-            child: FutureBuilder(
-              future: _inviteList(),
-              builder: (context, snapshot) {
-                return snapshot.connectionState == ConnectionState.done &&
-                        snapshot.hasData
-                    ? FittedBox(
-                        child: Text(
-                          snapshot.data.length.toString(),
-                          style: const TextStyle(fontSize: 8),
-                        ),
-                      )
-                    : const FittedBox(
-                        child: Text('0', style: TextStyle(fontSize: 8)),
-                      );
-              },
+        if (inviteCount > 0)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: CircleAvatar(
+              backgroundColor: Colors.red,
+              radius: 9,
+              child: FittedBox(
+                child: Text(
+                  inviteCount > 99 ? '99+' : inviteCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
       ],
     );
   }

@@ -7,7 +7,9 @@ class ChatLobby with ChangeNotifier {
   List<Chat> _chatlist = [];
   List<VisibleChatLobbyRecord> _unsubscribedlist = [];
   final Set<String> _notifiedInvites = {};
+  int _pendingInviteCount = 0;
   List<Chat> get subscribedlist => _chatlist;
+  int get pendingInviteCount => _pendingInviteCount;
   AuthToken authToken = const AuthToken('', '');
 
   List<VisibleChatLobbyRecord> get unSubscribedlist => _unsubscribedlist;
@@ -16,9 +18,16 @@ class ChatLobby with ChangeNotifier {
     if (authToken.username.isEmpty) return;
     try {
       final invites = await RsMsgs.getPendingChatLobbyInvites(authToken);
-      if (invites == null || invites.isEmpty) return;
+      final inviteCount = invites?.length ?? 0;
+      var stateChanged = inviteCount != _pendingInviteCount;
+      _pendingInviteCount = inviteCount;
 
-      var foundNew = false;
+      if (invites == null || invites.isEmpty) {
+        _notifiedInvites.clear();
+        if (stateChanged) notifyListeners();
+        return;
+      }
+
       for (final invite in invites) {
         final lobbyId = invite['lobby_id']?['xstr64'] ?? '';
         if (lobbyId.isNotEmpty && !_notifiedInvites.contains(lobbyId)) {
@@ -33,10 +42,10 @@ class ChatLobby with ChangeNotifier {
 
           await showLobbyInviteNotification(lobbyId, lobbyName, senderName);
           _notifiedInvites.add(lobbyId);
-          foundNew = true;
+          stateChanged = true;
         }
       }
-      if (foundNew) notifyListeners();
+      if (stateChanged) notifyListeners();
     } catch (e) {
       debugPrint('Error checking for invites: $e');
     }

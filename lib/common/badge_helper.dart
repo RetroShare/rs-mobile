@@ -15,11 +15,13 @@ class BadgeHelper {
       
       final totalUnread = roomUnread +
           roomChatLobby.distantUnreadCount +
-          roomChatLobby.peerUnreadCount;
+          roomChatLobby.peerUnreadCount +
+          chatLobby.pendingInviteCount;
       debugPrint(
         '[ChatUnread] badge rooms=$roomUnread '
         'distant=${roomChatLobby.distantUnreadCount} '
-        'peer=${roomChatLobby.peerUnreadCount} total=$totalUnread',
+        'peer=${roomChatLobby.peerUnreadCount} '
+        'invites=${chatLobby.pendingInviteCount} total=$totalUnread',
       );
 
       if (await FlutterAppBadger.isAppBadgeSupported()) {

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:retroshare/common/styles.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare/provider/identity.dart';
+import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class NotificationScreen extends StatefulWidget {
@@ -145,6 +146,17 @@ class NotificationScreenState extends State<NotificationScreen> {
                                                           snapshot.data[index]
                                                               ['authtoken'],
                                                         );
+                                                        if (!context.mounted) {
+                                                          return;
+                                                        }
+                                                        await Provider.of<
+                                                            ChatLobby>(
+                                                          context,
+                                                          listen: false,
+                                                        ).checkForNewInvites();
+                                                        if (!context.mounted) {
+                                                          return;
+                                                        }
                                                         setState(() {});
                                                       },
                                                       child: const Text(
@@ -170,23 +182,30 @@ class NotificationScreenState extends State<NotificationScreen> {
                                                         final mId =
                                                             currentIdentity.mId;
 
-                                                        await RsMsgs
-                                                            .acceptLobbyInvite(
+                                                        final accepted =
+                                                            await RsMsgs
+                                                                .acceptLobbyInvite(
                                                           snapshot.data[index]
                                                                   ['lobby_id']
                                                               ['xstr64'],
                                                           mId,
                                                           snapshot.data[index]
                                                               ['authtoken'],
-                                                        ).then((value) {
-                                                          if (value) {
-                                                            Navigator.of(
-                                                              context,
-                                                            ).pushNamed(
-                                                              '/home',
-                                                            );
-                                                          }
-                                                        });
+                                                        );
+                                                        if (!accepted ||
+                                                            !context.mounted) {
+                                                          return;
+                                                        }
+                                                        await Provider.of<
+                                                            ChatLobby>(
+                                                          context,
+                                                          listen: false,
+                                                        ).checkForNewInvites();
+                                                        if (!context.mounted) {
+                                                          return;
+                                                        }
+                                                        Navigator.of(context)
+                                                            .pushNamed('/home');
                                                       },
                                                       child: const Text(
                                                         'Accept',
