@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:retroshare/apiUtils/tor_service.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 String deriveApiToken(String locationId, String password) {
@@ -95,6 +96,7 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<void> login(Account currentAccount, String password) async {
+    await _configureTorBeforeLogin();
     final int resp = await RsLoginHelper.requestLogIn(
       currentAccount,
       password,
@@ -117,6 +119,7 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<void> signup(String username, String password, String nodename) async {
+    await _configureTorBeforeLogin();
     final resp = await RsLoginHelper.requestAccountCreation(
       username,
       password,
@@ -146,6 +149,17 @@ class AccountCredentials with ChangeNotifier {
       print('DEBUG signup failed. retval: ${resp['retval']}');
       throw const HttpException('DATA INSUFFICIENT');
     }
+  }
+
+  Future<void> _configureTorBeforeLogin() async {
+    if (!Platform.isAndroid) return;
+    final configuration = await TorServiceControl.getConfiguration(status: true);
+    if (configuration.mode == TorMode.embedded && !configuration.reachable) {
+      // Tor bootstrapping continues asynchronously. The control listener is
+      // created before circuits are ready, so libretroshare can attach now.
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+    await TorServiceControl.configureBackend(null, configuration);
   }
 
   Future<void> importAccount(String base64Cert, String password) async {

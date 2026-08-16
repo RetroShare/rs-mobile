@@ -74,7 +74,7 @@ class TorServiceControl {
   /// best-effort so the UI also works with older AARs. Hidden-node login needs
   /// libretroshare with RsTor::setExternalTorConnection exposed as JSON API.
   static Future<bool> configureBackend(
-    AuthToken authToken,
+    AuthToken? authToken,
     TorConfiguration configuration,
   ) async {
     if (configuration.mode == TorMode.disabled) return true;
