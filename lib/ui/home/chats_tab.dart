@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/person_delegate.dart';
@@ -25,15 +26,23 @@ class ChatsTab extends StatelessWidget {
           final processedDistantIds = <String>{};
           final distantChats = <Chat>[];
           for (final chat in roomChat.distanceChat.values) {
-            if (!chat.isPublic && chat.chatId != null && !processedDistantIds.contains(chat.chatId)) {
+            final chatId = chat.chatId;
+            final isPlaceholder = chatId == null ||
+                chatId.isEmpty ||
+                RegExp(r'^0+$').hasMatch(chatId);
+            if (!chat.isPublic &&
+                chatId != null &&
+                !isPlaceholder &&
+                !processedDistantIds.contains(chatId)) {
               distantChats.add(chat);
-              processedDistantIds.add(chat.chatId!);
+              processedDistantIds.add(chatId);
             }
           }
 
           final allChats = <Chat>[
             ...chatLobby.subscribedlist,
             ...distantChats,
+            ...roomChat.peerChats.values,
           ];
 
           if (allChats.isNotEmpty) {
@@ -55,7 +64,15 @@ class ChatsTab extends StatelessWidget {
                         // or is explicitly in the subscribed list
                         final isRoom = chat.lobbyFlags != null || 
                                            chatLobby.subscribedlist.any((c) => c.chatId == chat.chatId);
-
+                        final isPeerChat = chat.chatId != null &&
+                            roomChat.peerChats.containsKey(chat.chatId);
+                        final peerLocation = isPeerChat
+                            ? friendLocations.friendlist
+                                .where((location) =>
+                                    location.rsPeerId.toLowerCase() ==
+                                    chat.chatId!.toLowerCase())
+                                .firstOrNull
+                            : null;
                         final identity = roomChat.allIdentity[chat.interlocutorId] ??
                             Identity(
                               mId: chat.interlocutorId,
@@ -76,13 +93,19 @@ class ChatsTab extends StatelessWidget {
                                   chat,
                                   lastMessage: lastMessage,
                                 )
+                              : isPeerChat && peerLocation != null
+                                  ? PersonDelegateData.peerChatData(
+                                      chat,
+                                      peerLocation,
+                                      lastMessage: lastMessage,
+                                    )
                               : PersonDelegateData.distantChatData(
                                   chat,
                                   identity,
                                   context,
                                   lastMessage: lastMessage,
                                 ),
-                          onAvatarPressed: isRoom
+                          onAvatarPressed: isRoom || isPeerChat
                               ? null
                               : () {
                                   Navigator.pushNamed(
@@ -92,6 +115,15 @@ class ChatsTab extends StatelessWidget {
                                   );
                                 },
                           onPressed: () async {
+                            if (isPeerChat && peerLocation != null) {
+                              roomChat.resetPeerUnreadCount(chat.chatId!);
+                              await Navigator.pushNamed(
+                                context,
+                                '/peer_chat',
+                                arguments: {'location': peerLocation},
+                              );
+                              return;
+                            }
                             final curr =
                                 Provider.of<Identities>(context, listen: false)
                                     .currentIdentity;
@@ -127,6 +159,41 @@ class ChatsTab extends StatelessWidget {
                                 ),
                                 tapPosition,
                                 context,
+                              );
+                            } else if (isPeerChat) {
+                              showCustomMenu(
+                                'Remove chat',
+                                const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.black,
+                                ),
+                                () {
+                                  if (chat.chatId != null) {
+                                    roomChat.removePeerChat(chat.chatId!);
+                                  }
+                                },
+                                tapPosition,
+                                context,
+                                additionalActions: peerLocation == null
+                                    ? null
+                                    : [
+                                        (
+                                          title: 'View Details',
+                                          icon: const Icon(
+                                            Icons.info_outline,
+                                            color: Colors.black,
+                                          ),
+                                          action: () {
+                                            Navigator.pushNamed(
+                                              context,
+                                              '/friend_location_detail',
+                                              arguments: {
+                                                'location': peerLocation,
+                                              },
+                                            );
+                                          },
+                                        ),
+                                      ],
                               );
                             } else {
                               showCustomMenu(

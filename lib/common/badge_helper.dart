@@ -13,17 +13,14 @@ class BadgeHelper {
       // Aggregate room unreads
       final roomUnread = chatLobby.subscribedlist.fold(0, (sum, chat) => sum + chat.unreadCount);
       
-      // Aggregate distant chat unreads, ensuring we only count each unique chat once
-      final processedDistantIds = <String>{};
-      var distantUnread = 0;
-      for (final chat in roomChatLobby.distanceChat.values) {
-        if (!chat.isPublic && chat.chatId != null && !processedDistantIds.contains(chat.chatId)) {
-          distantUnread += chat.unreadCount;
-          processedDistantIds.add(chat.chatId!);
-        }
-      }
-      
-      final totalUnread = roomUnread + distantUnread;
+      final totalUnread = roomUnread +
+          roomChatLobby.distantUnreadCount +
+          roomChatLobby.peerUnreadCount;
+      debugPrint(
+        '[ChatUnread] badge rooms=$roomUnread '
+        'distant=${roomChatLobby.distantUnreadCount} '
+        'peer=${roomChatLobby.peerUnreadCount} total=$totalUnread',
+      );
 
       if (await FlutterAppBadger.isAppBadgeSupported()) {
         if (totalUnread > 0) {

@@ -25,10 +25,12 @@ class MessagesTab extends StatefulWidget {
     super.key,
     required this.chat,
     this.isRoom = false,
+    this.isPeerChat = false,
     this.bubbleStyle = BubbleStyle.bubble,
   });
   final Chat chat;
   final bool? isRoom;
+  final bool isPeerChat;
   final BubbleStyle bubbleStyle;
 
   @override
@@ -82,14 +84,19 @@ class MessagesTabState extends State<MessagesTab> {
       final chatId = widget.chat.chatId;
       if (chatId != null) {
         final apiChatId = ChatId(
-          distantChatId: !isRoom ? chatId : null,
+          peerId: widget.isPeerChat ? chatId : null,
+          distantChatId: !isRoom && !widget.isPeerChat ? chatId : null,
           lobbyId: isRoom
               ? ChatLobbyId(
                   xstr64: chatId,
                   xint64: int.tryParse(chatId, radix: 16) ?? 0,
                 )
               : null,
-          type: isRoom ? ChatIdType.type3 : ChatIdType.type2,
+          type: isRoom
+              ? ChatIdType.type3
+              : widget.isPeerChat
+                  ? ChatIdType.type1
+                  : ChatIdType.type2,
         );
         roomProvider.loadChatHistory(chatId, apiChatId);
       }
@@ -379,9 +386,9 @@ class MessagesTabState extends State<MessagesTab> {
   Future<void> _sendImage() async {
     final imageXFile = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 40,
-      maxWidth: 250,
-      maxHeight: 250,
+      imageQuality: widget.isPeerChat ? null : 40,
+      maxWidth: widget.isPeerChat ? null : 250,
+      maxHeight: widget.isPeerChat ? null : 250,
     );
 
     if (imageXFile == null) {
@@ -403,7 +410,7 @@ class MessagesTabState extends State<MessagesTab> {
       final kb = bytes / 1024;
       final mb = kb / 1024;
 
-      if (mb < 3) {
+      if (widget.isPeerChat || mb < 3) {
         final base64Image = base64.encode(imageBytes);
         final extension = imageXFile.path.split('.').last.toLowerCase();
         final mimeType =
@@ -415,7 +422,11 @@ class MessagesTabState extends State<MessagesTab> {
         await Provider.of<RoomChatLobby>(context, listen: false).sendMessage(
           chatId,
           htmlText,
-          (widget.isRoom ?? false) ? ChatIdType.type3 : ChatIdType.type2,
+          (widget.isRoom ?? false)
+              ? ChatIdType.type3
+              : widget.isPeerChat
+                  ? ChatIdType.type1
+                  : ChatIdType.type2,
         );
       } else {
         if (!mounted) return;
@@ -449,9 +460,9 @@ class MessagesTabState extends State<MessagesTab> {
   Future<void> _pickFromCamera() async {
     final imageXFile = await _picker.pickImage(
       source: ImageSource.camera,
-      imageQuality: 85,
-      maxWidth: 1024,
-      maxHeight: 1024,
+      imageQuality: widget.isPeerChat ? null : 85,
+      maxWidth: widget.isPeerChat ? null : 1024,
+      maxHeight: widget.isPeerChat ? null : 1024,
     );
     if (imageXFile != null) {
       await _processPickedImage(imageXFile);
@@ -475,6 +486,19 @@ class MessagesTabState extends State<MessagesTab> {
 
       if (isGif) {
         await _attachGif(file, picked.name, bytes);
+      } else if (widget.isPeerChat) {
+        final extension = picked.name.split('.').last.toLowerCase();
+        final mimeType = extension == 'png'
+            ? 'image/png'
+            : extension == 'webp'
+                ? 'image/webp'
+                : 'image/jpeg';
+        if (!mounted) return;
+        setState(() {
+          _attachedImageFile = file;
+          _attachedImageBase64 = base64.encode(bytes);
+          _attachedImageMimeType = mimeType;
+        });
       } else {
         await _processGalleryPhoto(file, bytes);
       }
@@ -548,7 +572,7 @@ class MessagesTabState extends State<MessagesTab> {
       final kb = bytes / 1024;
       final mb = kb / 1024;
 
-      if (mb < 3) {
+      if (widget.isPeerChat || mb < 3) {
         final base64Image = base64.encode(imageBytes);
         final extension = imageXFile.path.split('.').last.toLowerCase();
         final mimeType =
@@ -915,7 +939,7 @@ class MessagesTabState extends State<MessagesTab> {
   ) async {
     const inlineGifLimit = 1024 * 1024;
 
-    if (gifBytes.length <= inlineGifLimit) {
+    if (widget.isPeerChat || gifBytes.length <= inlineGifLimit) {
       if (!mounted) return;
       setState(() {
         _attachedImageFile = file;
@@ -1516,7 +1540,11 @@ class MessagesTabState extends State<MessagesTab> {
         await Provider.of<RoomChatLobby>(context, listen: false).sendMessage(
           widget.chat.chatId!,
           finalMessage,
-          isRoomChat ? ChatIdType.type3 : ChatIdType.type2,
+          isRoomChat
+              ? ChatIdType.type3
+              : widget.isPeerChat
+                  ? ChatIdType.type1
+                  : ChatIdType.type2,
         );
         msgController.clear();
         setState(() {

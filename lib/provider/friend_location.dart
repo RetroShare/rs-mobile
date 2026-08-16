@@ -67,6 +67,9 @@ class FriendLocations with ChangeNotifier {
 
   Future<void> addFriendLocation(String base64Payload) async {
     var isAdded = false;
+    var isShortInvite = false;
+    String? shortInvitePeerId;
+    final friendsBefore = (await RsPeers.getFriendList(_authToken)).toSet();
     try {
       var inviteText = base64Payload.trim();
       if (inviteText.contains('%')) {
@@ -77,8 +80,19 @@ class FriendLocations with ChangeNotifier {
           debugPrint('Error decoding URL-encoded invite: $e');
         }
       }
-      if (inviteText.length < 100) {
-        debugPrint('Adding short invite: $inviteText');
+      try {
+        final shortDetails =
+            await RsPeers.parseShortInvite(_authToken, inviteText);
+        isShortInvite = true;
+        shortInvitePeerId = shortDetails['id'] as String?;
+      } catch (_) {
+        isShortInvite = false;
+      }
+
+      if (isShortInvite) {
+        debugPrint(
+          'Adding parsed short invite for peer $shortInvitePeerId',
+        );
         isAdded = await RsPeers.acceptShortInvite(_authToken, inviteText);
       } else {
         debugPrint('Adding long invite, length: ${inviteText.length}');
@@ -93,8 +107,26 @@ class FriendLocations with ChangeNotifier {
     }
 
     if (!isAdded) {
-      debugPrint('Friend addition returned false');
-      throw HttpException('Invalid certificate or already added');
+      // Some RetroShare core versions return false after accepting and saving
+      // a valid certificate. Verify the authoritative friend list before
+      // reporting an error to the user.
+      await Future.delayed(const Duration(milliseconds: 500));
+      final friendsAfter = (await RsPeers.getFriendList(_authToken)).toSet();
+      final newlyAdded = friendsAfter.difference(friendsBefore);
+      final shortPeerWasAdded = shortInvitePeerId != null &&
+          !friendsBefore.contains(shortInvitePeerId) &&
+          friendsAfter.contains(shortInvitePeerId);
+      if (newlyAdded.isNotEmpty || shortPeerWasAdded) {
+        debugPrint(
+          'Friend API returned false, but core added peers: $newlyAdded',
+        );
+        isAdded = true;
+      } else {
+        debugPrint(
+          'Friend addition returned false; no new peer appeared in friend list',
+        );
+        throw HttpException('Invalid invite or friend is already added');
+      }
     }
     
     try {

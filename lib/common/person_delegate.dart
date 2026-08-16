@@ -340,6 +340,40 @@ class PersonDelegateData {
       icon: Icons.devices,
     );
   }
+
+  static PersonDelegateData peerChatData(
+    Chat chat,
+    Location location, {
+    ChatMessage? lastMessage,
+  }) {
+    final messageText = lastMessage == null
+        ? location.statusMessage
+        : stripHtmlTags(lastMessage.msg ?? '');
+    final formattedTime = formatChatTimestamp(lastMessage?.sendTime);
+    return PersonDelegateData(
+      name: _peerLocationLabel(location),
+      mId: location.rsPeerId,
+      message: messageText,
+      time: formattedTime,
+      status: location.status,
+      isOnline: location.isOnline,
+      isContact: true,
+      isMessage: true,
+      isTime: formattedTime.isNotEmpty,
+      isUnread: chat.unreadCount > 0,
+      unreadCount: chat.unreadCount,
+      icon: Icons.devices,
+    );
+  }
+
+  static String _peerLocationLabel(Location location) {
+    final peerName = location.accountName.trim();
+    final nickname = location.locationName.trim();
+    if (peerName.isNotEmpty && nickname.isNotEmpty) {
+      return '$peerName ($nickname)';
+    }
+    return peerName.isNotEmpty ? peerName : nickname;
+  }
 }
 
 class PersonDelegate extends StatefulWidget {

@@ -12,6 +12,7 @@ class RoomChatLobby with ChangeNotifier {
   Map<String, List<Identity>> _lobbyParticipants = {};
   // Distant chats by chat ID
   Map<String, Chat> _distanceChat = {};
+  Map<String, Chat> _peerChats = {};
   // Currently selected chat
   Chat? _currentChat;
   // Messages by chat ID
@@ -26,6 +27,24 @@ class RoomChatLobby with ChangeNotifier {
 
   /// Returns a copy of the distant chat map.
   Map<String, Chat> get distanceChat => {..._distanceChat};
+
+  /// Direct chats addressed to a friend's SSL peer/location ID.
+  Map<String, Chat> get peerChats => {..._peerChats};
+
+  int get distantUnreadCount {
+    final processedIds = <String>{};
+    var total = 0;
+    for (final chat in _distanceChat.values) {
+      final chatId = chat.chatId;
+      if (!chat.isPublic && chatId != null && processedIds.add(chatId)) {
+        total += chat.unreadCount;
+      }
+    }
+    return total;
+  }
+
+  int get peerUnreadCount =>
+      _peerChats.values.fold(0, (total, chat) => total + chat.unreadCount);
 
   /// Returns a copy of the messages list map.
   Map<String, List<ChatMessage>> get messagesList => {..._messagesList};
@@ -203,6 +222,7 @@ class RoomChatLobby with ChangeNotifier {
   void updateCurrentChat(Chat? chat) {
     if (_currentChat?.chatId != chat?.chatId) {
       _currentChat = chat;
+      debugPrint('[ChatUnread] current chat set to ${chat?.chatId}');
       if (chat?.chatId != null) {
         resetUnreadCount(chat!.chatId!);
       }
@@ -312,11 +332,17 @@ class RoomChatLobby with ChangeNotifier {
     ChatIdType type = ChatIdType.type2,
   ]) async {
     try {
-      final res = await RsMsgs.sendMessage(chatId, msgTxt, _authToken, type);
+      final res = type == ChatIdType.type1
+          ? await _sendPeerMessage(chatId, msgTxt)
+          : await RsMsgs.sendMessage(chatId, msgTxt, _authToken, type);
       if (res) {
         final message = ChatMessage(
           chatId: ChatId(
-            distantChatId: chatId,
+            peerId: type == ChatIdType.type1 ? chatId : null,
+            distantChatId: type == ChatIdType.type2 ? chatId : null,
+            lobbyId: type == ChatIdType.type3
+                ? ChatLobbyId(xstr64: chatId)
+                : null,
             type: type,
           ),
           msg: msgTxt,
@@ -332,6 +358,71 @@ class RoomChatLobby with ChangeNotifier {
       debugPrint('Error in sendMessage: $e');
       rethrow;
     }
+  }
+
+  void clearCurrentChat(String? chatId) {
+    if (chatId == null || _currentChat?.chatId != chatId) return;
+    _currentChat = null;
+    debugPrint('[ChatUnread] cleared current chat id=$chatId');
+    notifyListeners();
+  }
+
+  void addPeerChat(Chat peerChat) {
+    final peerId = peerChat.chatId;
+    if (peerId == null || peerId.isEmpty) return;
+    final existing = _peerChats[peerId];
+    if (existing != null) {
+      peerChat.unreadCount = existing.unreadCount;
+    }
+    _peerChats = Map.from(_peerChats)..[peerId] = peerChat;
+    _messagesList = Map.from(_messagesList)..putIfAbsent(peerId, () => []);
+    notifyListeners();
+  }
+
+  void discardMisclassifiedDistantChat(String? chatId) {
+    if (chatId == null || chatId.isEmpty) return;
+    _distanceChat.removeWhere(
+      (key, chat) => key == chatId || chat.chatId == chatId,
+    );
+  }
+
+  void incrementPeerUnreadCount(String peerId) {
+    final chat = _peerChats[peerId];
+    if (chat == null) return;
+    chat.unreadCount++;
+    notifyListeners();
+  }
+
+  void resetPeerUnreadCount(String peerId) {
+    final chat = _peerChats[peerId];
+    if (chat == null || chat.unreadCount == 0) return;
+    chat.unreadCount = 0;
+    notifyListeners();
+  }
+
+  void removePeerChat(String peerId) {
+    final removed = _peerChats.remove(peerId);
+    _messagesList.remove(peerId);
+    if (_currentChat?.chatId == peerId) {
+      _currentChat = null;
+    }
+    if (removed != null) {
+      debugPrint('[ChatUnread] removed peer chat peerId=$peerId');
+      notifyListeners();
+    }
+  }
+
+  Future<bool> _sendPeerMessage(String peerId, String msgTxt) async {
+    final response = await rsApiCall(
+      '/rsChats/sendChat',
+      authToken: _authToken,
+      params: {
+        'id': ChatId(type: ChatIdType.type1, peerId: peerId).toJson(),
+        'msg': msgTxt,
+      },
+    );
+    final retval = response['retval'];
+    return (retval is bool && retval) || (retval is int && retval == 1);
   }
 
   void chatActionMiddleware(Chat distancechat) {
@@ -367,6 +458,15 @@ class RoomChatLobby with ChangeNotifier {
         return identity?.name ?? lobbyPeerGxsId;
       }
       return lobbyPeerGxsId;
+    } else if (message.chatId?.peerId != null ||
+        message.chatId?.broadcastStatusPeerId != null) {
+      final rawPeerId = message.chatId?.peerId;
+      final peerId = rawPeerId != null &&
+              rawPeerId.isNotEmpty &&
+              !RegExp(r'^0+$').hasMatch(rawPeerId)
+          ? rawPeerId
+          : message.chatId?.broadcastStatusPeerId;
+      return _peerChats[peerId]?.chatName ?? 'Direct chat';
     } else {
       final distantChatId = message.chatId?.distantChatId;
       if (distantChatId == null) return 'Unknown User';
