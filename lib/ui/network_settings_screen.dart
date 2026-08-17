@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -16,21 +18,41 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
   late Future<Map<String, dynamic>> _networkDetailsFuture;
   TorConfiguration? _torConfiguration;
   bool _savingTor = false;
+  bool _checkingTor = false;
+  Timer? _torStatusTimer;
 
   @override
   void initState() {
     super.initState();
     _refreshDetails();
     _refreshTor();
+    _torStatusTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _refreshTor(),
+    );
   }
 
   Future<void> _refreshTor() async {
-    final configuration = await TorServiceControl.getConfiguration(status: true);
-    if (mounted) setState(() => _torConfiguration = configuration);
+    if (_checkingTor) return;
+    _checkingTor = true;
+    try {
+      final configuration =
+          await TorServiceControl.getConfiguration(status: true);
+      if (mounted) setState(() => _torConfiguration = configuration);
+    } finally {
+      _checkingTor = false;
+    }
   }
 
-  Future<void> _setTorMode(TorMode? mode) async {
+  @override
+  void dispose() {
+    _torStatusTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _setTorMode(TorMode? mode, {required bool hiddenLocation}) async {
     if (mode == null) return;
+    if (hiddenLocation && mode == TorMode.disabled) return;
     setState(() => _savingTor = true);
     try {
       await TorServiceControl.configure(mode: mode);
@@ -110,7 +132,10 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh Status',
             color: theme.colorScheme.onSurface,
-            onPressed: _refreshDetails,
+            onPressed: () {
+              _refreshDetails();
+              _refreshTor();
+            },
           ),
         ],
       ),
@@ -160,6 +185,15 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
           final det = data['peerDetails'] as Map;
           final netStatus = data['netStatus'] as Map;
           final ownSslId = data['ownSslId'] as String;
+          final isHiddenLocation =
+              det['isHiddenNode'] == true ||
+              det['mIsHiddenNode'] == true ||
+              det['hiddenNode'] == true ||
+              det['mExtAddr']?.toString().toLowerCase() == 'hidden' ||
+              det['extAddr']?.toString().toLowerCase() == 'hidden';
+          final torEnabled =
+              _torConfiguration?.mode != null &&
+              _torConfiguration!.mode != TorMode.disabled;
 
           // Resolve internal IP & Port
           final localAddr = det['mLocalAddr'] ??
@@ -263,50 +297,56 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _torCard(context),
+                  _torCard(context, hiddenLocation: isHiddenLocation),
                   const SizedBox(height: 16),
-                  // Dashboard Badge Header
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: dhtColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(
-                            color: dhtColor.withOpacity(0.3), width: 1.5),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: dhtColor,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: dhtColor.withOpacity(0.5),
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
+                  if (!torEnabled) ...[
+                    // DHT only applies to normal, non-hidden locations.
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: dhtColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: dhtColor.withOpacity(0.3),
+                            width: 1.5,
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'DHT Status: $dhtText',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: dhtColor,
-                              fontWeight: FontWeight.bold,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: dhtColor,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: dhtColor.withOpacity(0.5),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 10),
+                            Text(
+                              'DHT Status: $dhtText',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: dhtColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 24),
+                  ],
 
                   // Cards layout
                   _networkCard(
@@ -331,14 +371,15 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  _statusTile(
-                    context: context,
-                    title: 'DHT',
-                    subtitle: dhtNetworkValues,
-                    value: dhtText,
-                    icon: dhtIcon,
-                    color: dhtColor,
-                  ),
+                  if (!torEnabled)
+                    _statusTile(
+                      context: context,
+                      title: 'DHT',
+                      subtitle: dhtNetworkValues,
+                      value: dhtText,
+                      icon: dhtIcon,
+                      color: dhtColor,
+                    ),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -349,9 +390,27 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
     );
   }
 
-  Widget _torCard(BuildContext context) {
+  Widget _torCard(
+    BuildContext context, {
+    required bool hiddenLocation,
+  }) {
     final theme = Theme.of(context);
     final tor = _torConfiguration;
+    final torEnabled = tor != null && tor.mode != TorMode.disabled;
+    final statusColor = tor?.reachable == true
+        ? Colors.green
+        : tor?.startRequested == true
+            ? Colors.orange
+            : torEnabled
+                ? Colors.redAccent
+                : theme.colorScheme.outline;
+    final statusText = tor?.reachable == true
+        ? 'Tor Active'
+        : tor?.startRequested == true
+            ? 'Starting Tor…'
+            : torEnabled
+                ? 'Tor Not Running'
+                : 'Tor Disabled';
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -362,29 +421,127 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            const Icon(Icons.security_rounded, color: Colors.deepPurple),
-            const SizedBox(width: 12),
-            Expanded(child: Text('Tor runtime', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold))),
-            if (_savingTor) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-          ]),
-          const SizedBox(height: 8),
-          const Text('Embedded bundles Tor in the APK. External uses Orbot or another Tor service. Disabled keeps the normal network mode.'),
+          Row(
+            children: [
+              Icon(Icons.shield_rounded, color: statusColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Tor runtime',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (_savingTor)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.info_outline_rounded),
+                  tooltip: 'About Tor modes',
+                  onPressed: () => _showTorInfo(context),
+                ),
+            ],
+          ),
           const SizedBox(height: 12),
           DropdownButtonFormField<TorMode>(
-            value: tor?.mode ?? TorMode.disabled,
-            items: const [
-              DropdownMenuItem(value: TorMode.disabled, child: Text('Disabled')),
-              DropdownMenuItem(value: TorMode.embedded, child: Text('Embedded Tor')),
-              DropdownMenuItem(value: TorMode.external, child: Text('External Tor / Orbot')),
+            value: hiddenLocation && tor?.mode == TorMode.disabled
+                ? null
+                : tor?.mode ??
+                    (hiddenLocation ? null : TorMode.disabled),
+            hint: const Text('Select Tor runtime'),
+            items: [
+              if (!hiddenLocation)
+                const DropdownMenuItem(
+                  value: TorMode.disabled,
+                  child: Text('Disabled'),
+                ),
+              const DropdownMenuItem(
+                value: TorMode.embedded,
+                child: Text('Embedded Tor'),
+              ),
+              const DropdownMenuItem(
+                value: TorMode.external,
+                child: Text('External Tor / Orbot'),
+              ),
             ],
-            onChanged: _savingTor ? null : _setTorMode,
+            onChanged: _savingTor
+                ? null
+                : (mode) => _setTorMode(
+                      mode,
+                      hiddenLocation: hiddenLocation,
+                    ),
           ),
           if (tor != null && tor.mode != TorMode.disabled) ...[
+            const SizedBox(height: 14),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: statusColor.withOpacity(0.45),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.shield_rounded, color: statusColor, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      statusText,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 10),
-            Text('${tor.host}:${tor.socksPort} SOCKS · ${tor.host}:${tor.controlPort} control'),
-            Text(tor.reachable ? 'SOCKS listener reachable' : 'Waiting for Tor', style: TextStyle(color: tor.reachable ? Colors.green : Colors.orange)),
+            Center(
+              child: Text(
+                '${tor.host}:${tor.socksPort} SOCKS  ·  '
+                '${tor.host}:${tor.controlPort} control',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showTorInfo(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.shield_rounded, color: Colors.deepPurple),
+        title: const Text('Tor runtime'),
+        content: const Text(
+          'Embedded Tor runs the bundled Tor binary inside the RetroShare app. '
+          'External Tor connects to Orbot or another Tor service.\n\n'
+          'Hidden RetroShare locations require Tor, so Tor cannot be disabled '
+          'while a hidden location is active.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
