@@ -258,6 +258,7 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
                   0)
               .toString();
           final torEnabled =
+              isHiddenLocation &&
               _torConfiguration?.mode != null &&
               _torConfiguration!.mode != TorMode.disabled;
 
@@ -363,13 +364,15 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _torCard(
-                    context,
-                    hiddenLocation: isHiddenLocation,
-                    hiddenAddress: hiddenAddress,
-                    hiddenPort: hiddenPort,
-                  ),
-                  const SizedBox(height: 16),
+                  if (isHiddenLocation) ...[
+                    _torCard(
+                      context,
+                      hiddenLocation: true,
+                      hiddenAddress: hiddenAddress,
+                      hiddenPort: hiddenPort,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   if (!torEnabled) ...[
                     // DHT only applies to normal, non-hidden locations.
                     Center(

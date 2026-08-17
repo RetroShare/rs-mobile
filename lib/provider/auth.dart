@@ -171,7 +171,8 @@ class AccountCredentials with ChangeNotifier {
 
   Future<TorConfiguration?> _configureTorBeforeLogin() async {
     if (!Platform.isAndroid) return null;
-    final configuration = await TorServiceControl.getConfiguration(status: true);
+    final configuration =
+        await TorServiceControl.getConfiguration(status: true);
     if (configuration.mode == TorMode.embedded && !configuration.reachable) {
       // Tor bootstrapping continues asynchronously. The control listener is
       // created before circuits are ready, so libretroshare can attach now.
