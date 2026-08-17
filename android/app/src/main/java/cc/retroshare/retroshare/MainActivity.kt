@@ -5,9 +5,11 @@ import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL_NAME = "cc.retroshare.retroshare/retroshare"
+    private val torStatusExecutor = Executors.newSingleThreadExecutor()
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -27,7 +29,16 @@ class MainActivity : FlutterActivity() {
                         result.error("TOR_CONFIG_FAILED", e.message, null)
                     }
                 }
-                "getTorStatus" -> result.success(TorRuntimeManager.status(applicationContext))
+                "getTorStatus" -> torStatusExecutor.execute {
+                    try {
+                        val status = TorRuntimeManager.status(applicationContext)
+                        runOnUiThread { result.success(status) }
+                    } catch (error: Exception) {
+                        runOnUiThread {
+                            result.error("TOR_STATUS_FAILED", error.message, null)
+                        }
+                    }
+                }
                 "start" -> {
                     try {
                         TorRuntimeManager.startIfEmbedded(applicationContext)
@@ -61,6 +72,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        torStatusExecutor.shutdownNow()
         super.onDestroy()
         applicationContext.stopService(
             Intent(applicationContext, RetroShareServiceAndroid::class.java),

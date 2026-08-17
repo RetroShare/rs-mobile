@@ -94,6 +94,7 @@ class SignUpScreenState extends State<SignUpScreen> {
         usernameController.text,
         passwordController.text,
         nodeNameController.text,
+        makeHidden: useEmbeddedTor,
       )
           .then((value) {
         final ids = Provider.of<Identities>(context, listen: false);

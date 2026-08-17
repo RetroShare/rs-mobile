@@ -13,6 +13,7 @@ class TorConfiguration {
     required this.socksPort,
     required this.controlPort,
     this.reachable = false,
+    this.startRequested = false,
   });
 
   final TorMode mode;
@@ -20,6 +21,7 @@ class TorConfiguration {
   final int socksPort;
   final int controlPort;
   final bool reachable;
+  final bool startRequested;
 
   factory TorConfiguration.fromMap(Map<Object?, Object?> value) {
     final modeName = value['mode']?.toString() ?? 'disabled';
@@ -32,6 +34,7 @@ class TorConfiguration {
       socksPort: (value['socksPort'] as num?)?.toInt() ?? 9050,
       controlPort: (value['controlPort'] as num?)?.toInt() ?? 9051,
       reachable: value['reachable'] == true,
+      startRequested: value['startRequested'] == true,
     );
   }
 }

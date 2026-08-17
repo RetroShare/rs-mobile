@@ -2,6 +2,7 @@ package cc.retroshare.retroshare
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import org.torproject.jni.TorService
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -9,6 +10,9 @@ import java.net.Socket
 /** Owns the optional in-process Tor runtime. RetroShare itself remains a
  * separate service and talks to Tor over loopback, just like on desktop. */
 object TorRuntimeManager {
+    private const val TAG = "RetroShareTor"
+    private var lastReachability: Pair<Boolean, Boolean>? = null
+    @Volatile private var embeddedStartRequested = false
     const val MODE_DISABLED = "disabled"
     const val MODE_EMBEDDED = "embedded"
     const val MODE_EXTERNAL = "external"
@@ -49,6 +53,10 @@ object TorRuntimeManager {
 
     fun startIfEmbedded(context: Context) {
         if (configuration(context)["mode"] != MODE_EMBEDDED) return
+        synchronized(this) {
+            if (embeddedStartRequested) return
+            embeddedStartRequested = true
+        }
         val torrc = TorService.getTorrc(context)
         torrc.parentFile?.mkdirs()
         torrc.writeText(
@@ -57,11 +65,20 @@ object TorRuntimeManager {
                 "CookieAuthentication 0\n" +
                 "ClientOnly 1\n",
         )
-        context.startService(Intent(context, TorService::class.java).setAction(TorService.ACTION_START))
+        Log.i(TAG, "Starting embedded Tor with torrc=${torrc.absolutePath}, SOCKS=$EMBEDDED_SOCKS_PORT, control=$EMBEDDED_CONTROL_PORT")
+        try {
+            context.startService(Intent(context, TorService::class.java).setAction(TorService.ACTION_START))
+        } catch (error: Exception) {
+            embeddedStartRequested = false
+            Log.e(TAG, "Unable to start embedded Tor service", error)
+            throw error
+        }
     }
 
     fun stopEmbedded(context: Context) {
         context.stopService(Intent(context, TorService::class.java))
+        embeddedStartRequested = false
+        lastReachability = null
     }
 
     fun restartIfEmbedded(context: Context) {
@@ -74,11 +91,27 @@ object TorRuntimeManager {
         val config = configuration(context)
         val host = config["host"] as String
         val socksPort = config["socksPort"] as Int
-        return config + mapOf("reachable" to isReachable(host, socksPort))
+        val controlPort = config["controlPort"] as Int
+        val socksReachable = isReachable(host, socksPort)
+        val controlReachable = isReachable(host, controlPort)
+        val reachability = socksReachable to controlReachable
+        if (reachability != lastReachability) {
+            Log.i(
+                TAG,
+                "Tor listeners: SOCKS $host:$socksPort reachable=$socksReachable, control $host:$controlPort reachable=$controlReachable",
+            )
+            lastReachability = reachability
+        }
+        return config + mapOf(
+            "reachable" to (socksReachable || controlReachable),
+            "socksReachable" to socksReachable,
+            "controlReachable" to controlReachable,
+            "startRequested" to embeddedStartRequested,
+        )
     }
 
     private fun isReachable(host: String, port: Int): Boolean = try {
-        Socket().use { it.connect(InetSocketAddress(host, port), 350) }
+        Socket().use { it.connect(InetSocketAddress(host, port), 300) }
         true
     } catch (_: Exception) {
         false
