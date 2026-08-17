@@ -19,6 +19,9 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
   TorConfiguration? _torConfiguration;
   bool _savingTor = false;
   bool _checkingTor = false;
+  bool _refreshingDetails = false;
+  bool _hiddenLocationDetected = false;
+  bool _hiddenAddressReady = false;
   Timer? _torStatusTimer;
 
   @override
@@ -28,7 +31,12 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
     _refreshTor();
     _torStatusTimer = Timer.periodic(
       const Duration(seconds: 2),
-      (_) => _refreshTor(),
+      (_) {
+        _refreshTor();
+        if (_hiddenLocationDetected && !_hiddenAddressReady) {
+          _refreshDetails();
+        }
+      },
     );
   }
 
@@ -62,10 +70,35 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
     }
   }
 
-  void _refreshDetails() {
+  Future<void> _refreshDetails() async {
+    if (_refreshingDetails) return;
+    _refreshingDetails = true;
+    final future = _fetchNetworkDetails();
     setState(() {
-      _networkDetailsFuture = _fetchNetworkDetails();
+      _networkDetailsFuture = future;
     });
+    try {
+      final data = await future;
+      final details = data['peerDetails'] as Map;
+      final torService = data['torHiddenService'] as Map? ?? const {};
+      _hiddenLocationDetected = details['isHiddenNode'] == true ||
+          details['mIsHiddenNode'] == true ||
+          details['hiddenNode'] == true ||
+          details['mExtAddr']?.toString().toLowerCase() == 'hidden' ||
+          details['extAddr']?.toString().toLowerCase() == 'hidden';
+      final address = torService['service_onion_address'] ??
+          torService['serviceOnionAddress'] ??
+          details['hiddenNodeAddress'] ??
+          details['mHiddenNodeAddress'] ??
+          details['hiddenAddress'];
+      _hiddenAddressReady =
+          address != null && address.toString().trim().isNotEmpty;
+    } catch (_) {
+      // FutureBuilder displays the API error. Keep polling so a temporarily
+      // unavailable core can recover without leaving stale network details.
+    } finally {
+      _refreshingDetails = false;
+    }
   }
 
   Future<Map<String, dynamic>> _fetchNetworkDetails() async {
@@ -89,6 +122,20 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
 
     final peerDetails = peerDetailsResponse['det'] ?? {};
 
+    var torHiddenService = <String, dynamic>{};
+    try {
+      final response = await rsApiCall(
+        '/rsTor/getHiddenServiceInfo',
+        authToken: authToken,
+      );
+      if (response['retval'] == true) {
+        torHiddenService = Map<String, dynamic>.from(response);
+      }
+    } catch (e) {
+      // Older AARs do not expose the live AutoTor hidden-service getter.
+      debugPrint('AutoTor hidden-service info is unavailable: $e');
+    }
+
     var configNetStatus = <String, dynamic>{};
     try {
       final response = await rsApiCall(
@@ -103,6 +150,7 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
     return {
       'ownSslId': ownSslId,
       'peerDetails': peerDetails,
+      'torHiddenService': torHiddenService,
       'netStatus': configNetStatus,
     };
   }
@@ -142,7 +190,8 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
       body: FutureBuilder<Map<String, dynamic>>(
         future: _networkDetailsFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return const Center(
               child: CircularProgressIndicator(),
             );
@@ -183,6 +232,8 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
 
           final data = snapshot.data!;
           final det = data['peerDetails'] as Map;
+          final torHiddenService =
+              data['torHiddenService'] as Map? ?? const {};
           final netStatus = data['netStatus'] as Map;
           final ownSslId = data['ownSslId'] as String;
           final isHiddenLocation =
@@ -191,6 +242,21 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
               det['hiddenNode'] == true ||
               det['mExtAddr']?.toString().toLowerCase() == 'hidden' ||
               det['extAddr']?.toString().toLowerCase() == 'hidden';
+          final hiddenAddress =
+              (torHiddenService['service_onion_address'] ??
+                      torHiddenService['serviceOnionAddress'] ??
+                      det['hiddenNodeAddress'] ??
+                  det['mHiddenNodeAddress'] ??
+                  det['hiddenAddress'] ??
+                  '')
+              .toString();
+          final hiddenPort = (torHiddenService['service_port'] ??
+                  torHiddenService['servicePort'] ??
+                  det['hiddenNodePort'] ??
+                  det['mHiddenNodePort'] ??
+                  det['hiddenPort'] ??
+                  0)
+              .toString();
           final torEnabled =
               _torConfiguration?.mode != null &&
               _torConfiguration!.mode != TorMode.disabled;
@@ -297,7 +363,12 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _torCard(context, hiddenLocation: isHiddenLocation),
+                  _torCard(
+                    context,
+                    hiddenLocation: isHiddenLocation,
+                    hiddenAddress: hiddenAddress,
+                    hiddenPort: hiddenPort,
+                  ),
                   const SizedBox(height: 16),
                   if (!torEnabled) ...[
                     // DHT only applies to normal, non-hidden locations.
@@ -393,6 +464,8 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
   Widget _torCard(
     BuildContext context, {
     required bool hiddenLocation,
+    required String hiddenAddress,
+    required String hiddenPort,
   }) {
     final theme = Theme.of(context);
     final tor = _torConfiguration;
@@ -519,6 +592,66 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
                 textAlign: TextAlign.center,
               ),
             ),
+            if (hiddenLocation) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface.withOpacity(0.55),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Onion service',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    if (hiddenAddress.isEmpty)
+                      Text(
+                        'Creating onion address…',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.orange,
+                        ),
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SelectableText(
+                              hiddenPort == '0' || hiddenPort.isEmpty
+                                  ? hiddenAddress
+                                  : '$hiddenAddress:$hiddenPort',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.copy_rounded),
+                            tooltip: 'Copy onion address',
+                            onPressed: () {
+                              Clipboard.setData(
+                                ClipboardData(text: hiddenAddress),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Onion address copied'),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ],
       ),
