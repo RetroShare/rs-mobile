@@ -62,7 +62,9 @@ object TorRuntimeManager {
         torrc.writeText(
             "SocksPort 127.0.0.1:$EMBEDDED_SOCKS_PORT\n" +
                 "ControlPort 127.0.0.1:$EMBEDDED_CONTROL_PORT\n" +
-                "CookieAuthentication 0\n" +
+                // libretroshare discovers COOKIEFILE through PROTOCOLINFO and
+                // reads it directly because both services share the app UID.
+                "CookieAuthentication 1\n" +
                 "ClientOnly 1\n",
         )
         Log.i(TAG, "Starting embedded Tor with torrc=${torrc.absolutePath}, SOCKS=$EMBEDDED_SOCKS_PORT, control=$EMBEDDED_CONTROL_PORT")
