@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:retroshare/apiUtils/tor_service.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 String deriveApiToken(String locationId, String password) {
@@ -95,6 +96,7 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<void> login(Account currentAccount, String password) async {
+    await _configureTorBeforeLogin();
     final int resp = await RsLoginHelper.requestLogIn(
       currentAccount,
       password,
@@ -116,13 +118,32 @@ class AccountCredentials with ChangeNotifier {
     }
   }
 
-  Future<void> signup(String username, String password, String nodename) async {
-    final resp = await RsLoginHelper.requestAccountCreation(
-      username,
-      password,
-      nodename.isEmpty ? 'mobile' : nodename,
-      username,
-      deriveApiToken(username, password),
+  Future<void> signup(
+    String username,
+    String password,
+    String nodename, {
+    bool makeHidden = false,
+  }) async {
+    final configuration = await _configureTorBeforeLogin();
+    if (makeHidden && configuration?.mode == TorMode.disabled) {
+      throw const HttpException('Tor is disabled');
+    }
+    final resp = await rsApiCall(
+      '/rsLoginHelper/createLocationV2',
+      params: {
+        'locationId': '',
+        'pgpId': '',
+        'locationName': nodename.isEmpty ? 'mobile' : nodename,
+        'pgpName': username,
+        'password': password,
+        'makeHidden': makeHidden,
+        // Android owns the Tor process, while libretroshare's automatic Tor
+        // manager still creates and configures the onion service through the
+        // external control port.
+        'makeAutoTor': makeHidden,
+        'apiUser': username,
+        'apiPass': deriveApiToken(username, password),
+      },
     );
     print('DEBUG signup response: $resp');
     final account = (
@@ -146,6 +167,23 @@ class AccountCredentials with ChangeNotifier {
       print('DEBUG signup failed. retval: ${resp['retval']}');
       throw const HttpException('DATA INSUFFICIENT');
     }
+  }
+
+  Future<TorConfiguration?> _configureTorBeforeLogin() async {
+    if (!Platform.isAndroid) return null;
+    final configuration =
+        await TorServiceControl.getConfiguration(status: true);
+    if (configuration.mode == TorMode.embedded && !configuration.reachable) {
+      // Tor bootstrapping continues asynchronously. The control listener is
+      // created before circuits are ready, so libretroshare can attach now.
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+    // This is deliberately best-effort. TorManager rejects configuration
+    // changes after it has started, which is also the normal state when the
+    // user logs out and back in without terminating the Android process.
+    // A false result therefore does not mean that Tor is unavailable.
+    await TorServiceControl.configureBackend(null, configuration);
+    return configuration;
   }
 
   Future<void> importAccount(String base64Cert, String password) async {

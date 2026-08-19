@@ -8,6 +8,10 @@ dependencies {
 //    implementation "org.retroshare.service:libretroshare-MinApiLevel21-release:ebbc30e3"
     implementation "org.retroshare.service:libretroshare-MinApiLevel24-debug:ebbc30e3"
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+    // 0.4.8.16 is the newest release compatible with this project's JDK 21 /
+    // AGP 8 toolchain. 0.4.9.11 is compiled as Java 24 bytecode.
+    implementation "info.guardianproject:tor-android:0.4.8.16"
+    implementation "info.guardianproject:jtorctl:0.4.5.7"
 }
 
 def localProperties = new Properties()

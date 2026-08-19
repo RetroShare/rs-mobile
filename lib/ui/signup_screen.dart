@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:oktoast/oktoast.dart';
 import 'package:provider/provider.dart';
 import 'package:retroshare/common/show_dialog.dart';
+import 'package:retroshare/apiUtils/tor_service.dart';
 import 'package:retroshare/model/http_exception.dart';
 import 'package:retroshare/provider/auth.dart';
 import 'package:retroshare/provider/identity.dart';
@@ -26,6 +27,7 @@ class SignUpScreenState extends State<SignUpScreen> {
   TextEditingController nodeNameController = TextEditingController();
 
   bool advancedOption = false;
+  bool useEmbeddedTor = false;
   bool isUsernameCorrect = true;
   PasswordError passwordError = PasswordError.correct;
 
@@ -69,6 +71,10 @@ class SignUpScreenState extends State<SignUpScreen> {
 
     if (!success) return;
 
+    if (useEmbeddedTor && Platform.isAndroid) {
+      await TorServiceControl.configure(mode: TorMode.embedded);
+    }
+
     unawaited(
       Navigator.pushNamed(
         context,
@@ -88,6 +94,7 @@ class SignUpScreenState extends State<SignUpScreen> {
         usernameController.text,
         passwordController.text,
         nodeNameController.text,
+        makeHidden: useEmbeddedTor,
       )
           .then((value) {
         final ids = Provider.of<Identities>(context, listen: false);
@@ -285,12 +292,14 @@ class SignUpScreenState extends State<SignUpScreen> {
               child: Row(
                 children: <Widget>[
                   Checkbox(
-                    value: false,
-                    onChanged: (bool? value) {},
+                    value: useEmbeddedTor,
+                    onChanged: (bool? value) {
+                      setState(() => useEmbeddedTor = value ?? false);
+                    },
                   ),
                   const SizedBox(width: 3),
                   Text(
-                    'Tor/I2p Hidden node',
+                    'Embedded Tor hidden node',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],

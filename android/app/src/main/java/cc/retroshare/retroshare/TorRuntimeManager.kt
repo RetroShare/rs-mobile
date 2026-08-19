@@ -1,0 +1,123 @@
+package cc.retroshare.retroshare
+
+import android.content.Context
+import android.content.Intent
+import android.util.Log
+import org.torproject.jni.TorService
+import java.net.InetSocketAddress
+import java.net.Socket
+
+/** Owns the optional in-process Tor runtime. RetroShare itself remains a
+ * separate service and talks to Tor over loopback, just like on desktop. */
+object TorRuntimeManager {
+    private const val TAG = "RetroShareTor"
+    private var lastReachability: Pair<Boolean, Boolean>? = null
+    @Volatile private var embeddedStartRequested = false
+    const val MODE_DISABLED = "disabled"
+    const val MODE_EMBEDDED = "embedded"
+    const val MODE_EXTERNAL = "external"
+
+    private const val PREFS = "tor_runtime"
+    private const val KEY_MODE = "mode"
+    private const val KEY_HOST = "host"
+    private const val KEY_SOCKS_PORT = "socks_port"
+    private const val KEY_CONTROL_PORT = "control_port"
+    private const val EMBEDDED_SOCKS_PORT = 39050
+    private const val EMBEDDED_CONTROL_PORT = 39051
+    private const val EMBEDDED_TOR_VERSION = "0.4.8.16"
+
+    fun configure(context: Context, mode: String, host: String, socksPort: Int, controlPort: Int) {
+        require(mode in setOf(MODE_DISABLED, MODE_EMBEDDED, MODE_EXTERNAL)) { "Unknown Tor mode" }
+        require(socksPort in 1..65535 && controlPort in 1..65535) { "Invalid Tor port" }
+        require(host.isNotBlank()) { "Tor host cannot be empty" }
+
+        if (mode != MODE_EMBEDDED) stopEmbedded(context)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(KEY_MODE, mode)
+            .putString(KEY_HOST, if (mode == MODE_EMBEDDED) "127.0.0.1" else host)
+            .putInt(KEY_SOCKS_PORT, if (mode == MODE_EMBEDDED) EMBEDDED_SOCKS_PORT else socksPort)
+            .putInt(KEY_CONTROL_PORT, if (mode == MODE_EMBEDDED) EMBEDDED_CONTROL_PORT else controlPort)
+            .apply()
+        if (mode == MODE_EMBEDDED) startIfEmbedded(context)
+    }
+
+    fun configuration(context: Context): Map<String, Any> {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val mode = prefs.getString(KEY_MODE, MODE_DISABLED) ?: MODE_DISABLED
+        return mapOf(
+            "mode" to mode,
+            "host" to prefs.getString(KEY_HOST, "127.0.0.1").orEmpty(),
+            "socksPort" to prefs.getInt(KEY_SOCKS_PORT, if (mode == MODE_EMBEDDED) EMBEDDED_SOCKS_PORT else 9050),
+            "controlPort" to prefs.getInt(KEY_CONTROL_PORT, if (mode == MODE_EMBEDDED) EMBEDDED_CONTROL_PORT else 9051),
+            "version" to if (mode == MODE_EMBEDDED) EMBEDDED_TOR_VERSION else "",
+        )
+    }
+
+    fun startIfEmbedded(context: Context) {
+        if (configuration(context)["mode"] != MODE_EMBEDDED) return
+        synchronized(this) {
+            if (embeddedStartRequested) return
+            embeddedStartRequested = true
+        }
+        val torrc = TorService.getTorrc(context)
+        torrc.parentFile?.mkdirs()
+        torrc.writeText(
+            "SocksPort 127.0.0.1:$EMBEDDED_SOCKS_PORT\n" +
+                "ControlPort 127.0.0.1:$EMBEDDED_CONTROL_PORT\n" +
+                // libretroshare discovers COOKIEFILE through PROTOCOLINFO and
+                // reads it directly because both services share the app UID.
+                "CookieAuthentication 1\n" +
+                "ClientOnly 1\n",
+        )
+        Log.i(TAG, "Starting embedded Tor with torrc=${torrc.absolutePath}, SOCKS=$EMBEDDED_SOCKS_PORT, control=$EMBEDDED_CONTROL_PORT")
+        try {
+            context.startService(Intent(context, TorService::class.java).setAction(TorService.ACTION_START))
+        } catch (error: Exception) {
+            embeddedStartRequested = false
+            Log.e(TAG, "Unable to start embedded Tor service", error)
+            throw error
+        }
+    }
+
+    fun stopEmbedded(context: Context) {
+        context.stopService(Intent(context, TorService::class.java))
+        embeddedStartRequested = false
+        lastReachability = null
+    }
+
+    fun restartIfEmbedded(context: Context) {
+        if (configuration(context)["mode"] != MODE_EMBEDDED) return
+        stopEmbedded(context)
+        startIfEmbedded(context)
+    }
+
+    fun status(context: Context): Map<String, Any> {
+        val config = configuration(context)
+        val host = config["host"] as String
+        val socksPort = config["socksPort"] as Int
+        val controlPort = config["controlPort"] as Int
+        val socksReachable = isReachable(host, socksPort)
+        val controlReachable = isReachable(host, controlPort)
+        val reachability = socksReachable to controlReachable
+        if (reachability != lastReachability) {
+            Log.i(
+                TAG,
+                "Tor listeners: SOCKS $host:$socksPort reachable=$socksReachable, control $host:$controlPort reachable=$controlReachable",
+            )
+            lastReachability = reachability
+        }
+        return config + mapOf(
+            "reachable" to (socksReachable || controlReachable),
+            "socksReachable" to socksReachable,
+            "controlReachable" to controlReachable,
+            "startRequested" to embeddedStartRequested,
+        )
+    }
+
+    private fun isReachable(host: String, port: Int): Boolean = try {
+        Socket().use { it.connect(InetSocketAddress(host, port), 300) }
+        true
+    } catch (_: Exception) {
+        false
+    }
+}
