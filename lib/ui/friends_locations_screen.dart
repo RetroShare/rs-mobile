@@ -5,7 +5,7 @@ import 'package:retroshare/common/shimmer.dart';
 import 'package:retroshare/provider/friend_location.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
-enum LocationSortOption { name, status }
+enum LocationSortOption { name, status, hideOffline }
 
 class FriendsLocationsScreen extends StatefulWidget {
   const FriendsLocationsScreen({super.key});
@@ -16,6 +16,7 @@ class FriendsLocationsScreen extends StatefulWidget {
 
 class FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
   LocationSortOption _sortOption = LocationSortOption.status;
+  bool _hideOffline = false;
 
   @override
   void initState() {
@@ -29,7 +30,9 @@ class FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
   }
 
   List<Location> _sortedLocations(List<Location> locations) {
-    final sorted = List<Location>.from(locations);
+    final sorted = locations
+        .where((location) => !_hideOffline || location.isOnline)
+        .toList();
     if (_sortOption == LocationSortOption.name) {
       sorted.sort((a, b) => a.accountName
           .toLowerCase()
@@ -99,7 +102,11 @@ class FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
             ),
             onSelected: (LocationSortOption result) {
               setState(() {
-                _sortOption = result;
+                if (result == LocationSortOption.hideOffline) {
+                  _hideOffline = !_hideOffline;
+                } else {
+                  _sortOption = result;
+                }
               });
             },
             itemBuilder: (BuildContext context) =>
@@ -149,6 +156,12 @@ class FriendsLocationsScreenState extends State<FriendsLocationsScreen> {
                     ),
                   ],
                 ),
+              ),
+              const PopupMenuDivider(),
+              CheckedPopupMenuItem<LocationSortOption>(
+                value: LocationSortOption.hideOffline,
+                checked: _hideOffline,
+                child: const Text('Hide offline'),
               ),
             ],
           ),

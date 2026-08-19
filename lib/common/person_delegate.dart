@@ -326,6 +326,8 @@ class PersonDelegateData {
   }
 
   static PersonDelegateData locationData(Location location) {
+    final isValidationPending =
+        location.statusMessage == 'Validation pending';
     final statusText = _statusText(location.status, location.isOnline);
     final displayMessage = location.statusMessage.isNotEmpty
         ? '${location.statusMessage} ($statusText)'
@@ -337,7 +339,7 @@ class PersonDelegateData {
       status: location.status,
       isContact: true,
       isMessage: true,
-      icon: Icons.devices,
+      icon: isValidationPending ? Icons.hourglass_top : Icons.devices,
     );
   }
 
@@ -465,7 +467,7 @@ class PersonDelegateState extends State<PersonDelegate>
       case 2: // RS_STATUS_BUSY
         return Colors.red;
       case 4: // RS_STATUS_INACTIVE
-        return Colors.grey.withOpacity(0.8);
+        return Colors.orange;
       default:
         return Colors.grey.withOpacity(0.5);
     }

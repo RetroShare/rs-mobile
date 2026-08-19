@@ -142,7 +142,7 @@ class RoomScreenState extends State<RoomScreen>
       case 2: // RS_STATUS_BUSY
         return Colors.red;
       case 4: // RS_STATUS_INACTIVE
-        return Colors.grey.withOpacity(0.8);
+        return Colors.orange;
       default:
         return Colors.grey;
     }

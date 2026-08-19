@@ -1,9 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:retroshare/model/http_exception.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FriendLocations with ChangeNotifier {
+  static const _pendingFriendNamesKey = 'pending_short_invite_friend_names';
   List<Location> _friendlist = [];
+  final Map<String, String> _pendingFriendNames = {};
+  bool _pendingFriendNamesLoaded = false;
   List<Location> get friendlist => _friendlist;
   late AuthToken _authToken;
 
@@ -14,8 +20,37 @@ class FriendLocations with ChangeNotifier {
 
   AuthToken get authToken => _authToken;
 
+  Future<void> _loadPendingFriendNames() async {
+    if (_pendingFriendNamesLoaded) return;
+    _pendingFriendNamesLoaded = true;
+    final encoded =
+        (await SharedPreferences.getInstance()).getString(_pendingFriendNamesKey);
+    if (encoded == null) return;
+    try {
+      final decoded = jsonDecode(encoded);
+      if (decoded is Map) {
+        _pendingFriendNames.addAll(
+          decoded.map(
+            (key, value) => MapEntry(key.toString(), value.toString()),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error loading pending short-invite names: $e');
+    }
+  }
+
+  Future<void> _savePendingFriendNames() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _pendingFriendNamesKey,
+      jsonEncode(_pendingFriendNames),
+    );
+  }
+
   Future<void> fetchfriendLocation() async {
     try {
+      await _loadPendingFriendNames();
       // Give the native engine a moment to finish disk writes if a friend was just added
       await Future.delayed(const Duration(milliseconds: 500));
       
@@ -33,6 +68,17 @@ class FriendLocations with ChangeNotifier {
           } catch (e) {
             debugPrint(
                 'Error fetching status message for friend ${sslIds[i]}: $e',);
+          }
+          final accountName = details.accountName.trim();
+          final pendingName = _pendingFriendNames[sslIds[i]];
+          if (accountName.isEmpty && pendingName?.isNotEmpty == true) {
+            details = details.copyWith(
+              accountName: pendingName ?? '',
+              statusMessage: 'Validation pending',
+            );
+          } else if (accountName.isNotEmpty && pendingName != null) {
+            _pendingFriendNames.remove(sslIds[i]);
+            await _savePendingFriendNames();
           }
           locations.add(details);
         } catch (e) {
@@ -69,6 +115,7 @@ class FriendLocations with ChangeNotifier {
     var isAdded = false;
     var isShortInvite = false;
     String? shortInvitePeerId;
+    String? shortInviteName;
     final friendsBefore = (await RsPeers.getFriendList(_authToken)).toSet();
     try {
       var inviteText = base64Payload.trim();
@@ -85,6 +132,7 @@ class FriendLocations with ChangeNotifier {
             await RsPeers.parseShortInvite(_authToken, inviteText);
         isShortInvite = true;
         shortInvitePeerId = shortDetails['id'] as String?;
+        shortInviteName = shortDetails['name'] as String?;
       } catch (_) {
         isShortInvite = false;
       }
@@ -127,6 +175,14 @@ class FriendLocations with ChangeNotifier {
         );
         throw HttpException('Invalid invite or friend is already added');
       }
+    }
+
+    if (isShortInvite &&
+        shortInvitePeerId != null &&
+        shortInviteName?.trim().isNotEmpty == true) {
+      await _loadPendingFriendNames();
+      _pendingFriendNames[shortInvitePeerId] = shortInviteName!.trim();
+      await _savePendingFriendNames();
     }
     
     try {

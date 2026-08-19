@@ -114,7 +114,7 @@ class _FriendLocationDetailScreenState extends State<FriendLocationDetailScreen>
       case 2:
         return Colors.red;
       case 4:
-        return Colors.grey.withOpacity(0.8);
+        return Colors.orange;
       default:
         return isOnline ? Colors.lightGreenAccent : Colors.grey;
     }
@@ -139,9 +139,17 @@ class _FriendLocationDetailScreenState extends State<FriendLocationDetailScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final statusStr = _statusText(widget.location.status, widget.location.isOnline);
-    final statusClr = _statusColor(widget.location.status, widget.location.isOnline);
-    final statusIcn = _statusIcon(widget.location.status, widget.location.isOnline);
+    final isValidationPending =
+        widget.location.statusMessage == 'Validation pending';
+    final statusStr = isValidationPending
+        ? 'Validation pending'
+        : _statusText(widget.location.status, widget.location.isOnline);
+    final statusClr = isValidationPending
+        ? Colors.amber
+        : _statusColor(widget.location.status, widget.location.isOnline);
+    final statusIcn = isValidationPending
+        ? Icons.hourglass_top
+        : _statusIcon(widget.location.status, widget.location.isOnline);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -183,7 +191,7 @@ class _FriendLocationDetailScreenState extends State<FriendLocationDetailScreen>
                   border: Border.all(color: statusClr, width: 3),
                 ),
                 child: Icon(
-                  Icons.devices,
+                  isValidationPending ? Icons.hourglass_top : Icons.devices,
                   size: 40,
                   color: statusClr,
                 ),
@@ -239,17 +247,19 @@ class _FriendLocationDetailScreenState extends State<FriendLocationDetailScreen>
             ),
             const SizedBox(height: 28),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: widget.location.rsPeerId.isEmpty ? null : _openChat,
-                  icon: const Icon(Icons.message_outlined),
-                  label: const Text('Send message'),
+            if (!isValidationPending)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed:
+                        widget.location.rsPeerId.isEmpty ? null : _openChat,
+                    icon: const Icon(Icons.message_outlined),
+                    label: const Text('Send message'),
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: 20),
 
             // --- Detail tiles ---
