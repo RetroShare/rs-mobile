@@ -14,6 +14,8 @@ import 'package:retroshare/ui/room/room_friends_tab.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+enum _ChatMenuAction { search, clearChat, bubble, compact }
+
 class RoomScreen extends StatefulWidget {
   const RoomScreen({super.key, this.isRoom = false, required this.chat});
   final bool isRoom;
@@ -30,6 +32,8 @@ class RoomScreenState extends State<RoomScreen>
   BubbleStyle _bubbleStyle = BubbleStyle.bubble;
   Timer? _statusRefreshTimer;
   RoomChatLobby? _roomProvider;
+  final GlobalKey<MessagesTabState> _messagesTabKey =
+      GlobalKey<MessagesTabState>();
 
   @override
   void didChangeDependencies() {
@@ -141,6 +145,85 @@ class RoomScreenState extends State<RoomScreen>
         return Colors.grey.withOpacity(0.8);
       default:
         return Colors.grey;
+    }
+  }
+
+  ChatId? _apiChatId() {
+    final chatId = widget.chat.chatId;
+    if (chatId == null) return null;
+    return ChatId(
+      distantChatId: widget.isRoom ? null : chatId,
+      lobbyId: widget.isRoom
+          ? ChatLobbyId(xstr64: chatId)
+          : null,
+      type: widget.isRoom ? ChatIdType.type3 : ChatIdType.type2,
+    );
+  }
+
+  Future<void> _clearChat() async {
+    final chatId = widget.chat.chatId;
+    final apiChatId = _apiChatId();
+    if (chatId == null || apiChatId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear chat?'),
+        content: const Text(
+          'This permanently removes the message history for this chat.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await Provider.of<RoomChatLobby>(context, listen: false)
+          .clearChatHistory(chatId, apiChatId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chat cleared')),
+      );
+    } catch (e) {
+      debugPrint('Error clearing chat history: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not clear chat')),
+      );
+    }
+  }
+
+  Future<void> _handleMenuAction(_ChatMenuAction action) async {
+    switch (action) {
+      case _ChatMenuAction.search:
+        _tabController.animateTo(0);
+        _messagesTabKey.currentState?.showMessageSearch();
+        return;
+      case _ChatMenuAction.clearChat:
+        await _clearChat();
+        return;
+      case _ChatMenuAction.bubble:
+      case _ChatMenuAction.compact:
+        final style = action == _ChatMenuAction.bubble
+            ? BubbleStyle.bubble
+            : BubbleStyle.compact;
+        setState(() => _bubbleStyle = style);
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('chat_bubble_style', style.index);
+        } catch (e) {
+          debugPrint('Error saving bubble style: $e');
+        }
+        return;
     }
   }
 
@@ -295,30 +378,38 @@ class RoomScreenState extends State<RoomScreen>
                         );
                       },
                     ),
-                  if (!widget.isRoom)
-                    PopupMenuButton<BubbleStyle>(
+                  PopupMenuButton<_ChatMenuAction>(
                       icon: const Icon(Icons.more_vert),
-                      onSelected: (BubbleStyle result) async {
-                        setState(() {
-                          _bubbleStyle = result;
-                        });
-                        try {
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setInt('chat_bubble_style', result.index);
-                        } catch (e) {
-                          debugPrint('Error saving bubble style: $e');
-                        }
-                      },
+                      onSelected: _handleMenuAction,
                       itemBuilder: (BuildContext context) =>
-                          <PopupMenuEntry<BubbleStyle>>[
-                        const PopupMenuItem<BubbleStyle>(
-                          value: BubbleStyle.bubble,
-                          child: Text('Bubble'),
+                          <PopupMenuEntry<_ChatMenuAction>>[
+                        const PopupMenuItem<_ChatMenuAction>(
+                          value: _ChatMenuAction.search,
+                          child: ListTile(
+                            leading: Icon(Icons.search),
+                            title: Text('Search'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
                         ),
-                        const PopupMenuItem<BubbleStyle>(
-                          value: BubbleStyle.compact,
-                          child: Text('Bubble Compact'),
+                        const PopupMenuItem<_ChatMenuAction>(
+                          value: _ChatMenuAction.clearChat,
+                          child: ListTile(
+                            leading: Icon(Icons.delete_outline),
+                            title: Text('Clear chat'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
                         ),
+                        if (!widget.isRoom) const PopupMenuDivider(),
+                        if (!widget.isRoom)
+                          const PopupMenuItem<_ChatMenuAction>(
+                            value: _ChatMenuAction.bubble,
+                            child: Text('Bubble'),
+                          ),
+                        if (!widget.isRoom)
+                          const PopupMenuItem<_ChatMenuAction>(
+                            value: _ChatMenuAction.compact,
+                            child: Text('Bubble Compact'),
+                          ),
                       ],
                     ),
                 ],
@@ -329,6 +420,7 @@ class RoomScreenState extends State<RoomScreen>
                 controller: _tabController,
                 children: [
                   MessagesTab(
+                    key: _messagesTabKey,
                     chat: widget.chat,
                     isRoom: widget.isRoom,
                     bubbleStyle: _bubbleStyle,

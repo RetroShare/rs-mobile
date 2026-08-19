@@ -39,10 +39,14 @@ class MessagesTab extends StatefulWidget {
 
 class MessagesTabState extends State<MessagesTab> {
   final TextEditingController msgController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   final double _bottomBarHeight = appBarHeight;
   late final FocusNode _focusNode;
 
   bool _showEmojiPicker = false;
+  bool _showSearch = false;
+  String _searchQuery = '';
   final ImagePicker _picker = ImagePicker();
   File? _attachedImageFile;
   String? _attachedImageBase64;
@@ -87,10 +91,7 @@ class MessagesTabState extends State<MessagesTab> {
           peerId: widget.isPeerChat ? chatId : null,
           distantChatId: !isRoom && !widget.isPeerChat ? chatId : null,
           lobbyId: isRoom
-              ? ChatLobbyId(
-                  xstr64: chatId,
-                  xint64: int.tryParse(chatId, radix: 16) ?? 0,
-                )
+              ? ChatLobbyId(xstr64: chatId)
               : null,
           type: isRoom
               ? ChatIdType.type3
@@ -110,8 +111,25 @@ class MessagesTabState extends State<MessagesTab> {
     _recordingTimer?.cancel();
     _audioRecorder?.dispose();
     msgController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void showMessageSearch() {
+    setState(() => _showSearch = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _searchFocusNode.requestFocus();
+    });
+  }
+
+  void _closeMessageSearch() {
+    _searchController.clear();
+    setState(() {
+      _showSearch = false;
+      _searchQuery = '';
+    });
   }
 
   Future<void> _startRecording() async {
@@ -1100,13 +1118,42 @@ class MessagesTabState extends State<MessagesTab> {
       },
       child: Column(
         children: <Widget>[
+          if (_showSearch)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                textInputAction: TextInputAction.search,
+                onChanged: (value) => setState(() {
+                  _searchQuery = value.trim().toLowerCase();
+                }),
+                decoration: InputDecoration(
+                  hintText: 'Search messages',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: IconButton(
+                    tooltip: 'Close search',
+                    onPressed: _closeMessageSearch,
+                    icon: const Icon(Icons.close),
+                  ),
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ),
           Expanded(
             child: Consumer<RoomChatLobby>(
               builder: (context, messagesList, _) {
-                final msgList = (widget.chat.chatId == null ||
+                final allMessages = (widget.chat.chatId == null ||
                         messagesList.messagesList[widget.chat.chatId] == null)
                     ? <ChatMessage>[]
                     : messagesList.messagesList[widget.chat.chatId]!.reversed
+                        .toList();
+                final msgList = _searchQuery.isEmpty
+                    ? allMessages
+                    : allMessages
+                        .where((message) =>
+                            (message.msg ?? '').toLowerCase().contains(_searchQuery))
                         .toList();
 
                 final identitiesProvider =
@@ -1169,7 +1216,9 @@ class MessagesTabState extends State<MessagesTab> {
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 25),
                                   child: Text(
-                                    'It seems like there are no messages',
+                                    _searchQuery.isEmpty
+                                        ? 'It seems like there are no messages'
+                                        : 'No messages match your search',
                                     style:
                                         Theme.of(context).textTheme.bodyLarge,
                                     textAlign: TextAlign.center,

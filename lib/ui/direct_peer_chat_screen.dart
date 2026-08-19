@@ -20,6 +20,51 @@ class DirectPeerChatScreen extends StatefulWidget {
 class _DirectPeerChatScreenState extends State<DirectPeerChatScreen> {
   late final Chat _chat;
   RoomChatLobby? _roomProvider;
+  final GlobalKey<MessagesTabState> _messagesTabKey =
+      GlobalKey<MessagesTabState>();
+
+  Future<void> _clearChat() async {
+    final chatId = _chat.chatId;
+    if (chatId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear chat?'),
+        content: const Text(
+          'This permanently removes the message history for this chat.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await Provider.of<RoomChatLobby>(context, listen: false).clearChatHistory(
+        chatId,
+        ChatId(peerId: chatId, type: ChatIdType.type1),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chat cleared')),
+      );
+    } catch (e) {
+      debugPrint('Error clearing peer chat history: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not clear chat')),
+      );
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -107,11 +152,40 @@ class _DirectPeerChatScreenState extends State<DirectPeerChatScreen> {
                       ],
                     ),
                   ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (action) {
+                      if (action == 'search') {
+                        _messagesTabKey.currentState?.showMessageSearch();
+                      } else if (action == 'clear') {
+                        _clearChat();
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem<String>(
+                        value: 'search',
+                        child: ListTile(
+                          leading: Icon(Icons.search),
+                          title: Text('Search'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'clear',
+                        child: ListTile(
+                          leading: Icon(Icons.delete_outline),
+                          title: Text('Clear chat'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
             Expanded(
               child: MessagesTab(
+                key: _messagesTabKey,
                 chat: _chat,
                 isPeerChat: true,
                 bubbleStyle: BubbleStyle.bubble,

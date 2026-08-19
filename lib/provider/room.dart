@@ -49,6 +49,24 @@ class RoomChatLobby with ChangeNotifier {
   /// Returns a copy of the messages list map.
   Map<String, List<ChatMessage>> get messagesList => {..._messagesList};
 
+  /// Removes the locally displayed messages for [chatId].
+  ///
+  /// This is intentionally separate from the API call so the UI is only
+  /// updated after RetroShare confirms that its stored history was cleared.
+  void clearLocalChatMessages(String chatId) {
+    _messagesList = Map.from(_messagesList)..[chatId] = <ChatMessage>[];
+    notifyListeners();
+  }
+
+  Future<void> clearChatHistory(String chatId, ChatId apiChatId) async {
+    await rsApiCall(
+      '/rsHistory/clear',
+      authToken: _authToken,
+      params: {'chatPeerId': apiChatId.toJson()},
+    );
+    clearLocalChatMessages(chatId);
+  }
+
   // All known identities by ID
   Map<String, Identity> _allIdentity = {};
   // Friends (contact) identities
@@ -364,7 +382,6 @@ class RoomChatLobby with ChangeNotifier {
     if (chatId == null || _currentChat?.chatId != chatId) return;
     _currentChat = null;
     debugPrint('[ChatUnread] cleared current chat id=$chatId');
-    notifyListeners();
   }
 
   void addPeerChat(Chat peerChat) {
