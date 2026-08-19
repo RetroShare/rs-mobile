@@ -12,6 +12,7 @@ class TorConfiguration {
     required this.host,
     required this.socksPort,
     required this.controlPort,
+    this.version = '',
     this.reachable = false,
     this.startRequested = false,
   });
@@ -20,6 +21,7 @@ class TorConfiguration {
   final String host;
   final int socksPort;
   final int controlPort;
+  final String version;
   final bool reachable;
   final bool startRequested;
 
@@ -33,6 +35,7 @@ class TorConfiguration {
       host: value['host']?.toString() ?? '127.0.0.1',
       socksPort: (value['socksPort'] as num?)?.toInt() ?? 9050,
       controlPort: (value['controlPort'] as num?)?.toInt() ?? 9051,
+      version: value['version']?.toString() ?? '',
       reachable: value['reachable'] == true,
       startRequested: value['startRequested'] == true,
     );

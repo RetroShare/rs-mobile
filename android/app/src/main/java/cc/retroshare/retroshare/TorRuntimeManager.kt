@@ -24,6 +24,7 @@ object TorRuntimeManager {
     private const val KEY_CONTROL_PORT = "control_port"
     private const val EMBEDDED_SOCKS_PORT = 39050
     private const val EMBEDDED_CONTROL_PORT = 39051
+    private const val EMBEDDED_TOR_VERSION = "0.4.8.16"
 
     fun configure(context: Context, mode: String, host: String, socksPort: Int, controlPort: Int) {
         require(mode in setOf(MODE_DISABLED, MODE_EMBEDDED, MODE_EXTERNAL)) { "Unknown Tor mode" }
@@ -48,6 +49,7 @@ object TorRuntimeManager {
             "host" to prefs.getString(KEY_HOST, "127.0.0.1").orEmpty(),
             "socksPort" to prefs.getInt(KEY_SOCKS_PORT, if (mode == MODE_EMBEDDED) EMBEDDED_SOCKS_PORT else 9050),
             "controlPort" to prefs.getInt(KEY_CONTROL_PORT, if (mode == MODE_EMBEDDED) EMBEDDED_CONTROL_PORT else 9051),
+            "version" to if (mode == MODE_EMBEDDED) EMBEDDED_TOR_VERSION else "",
         )
     }
 

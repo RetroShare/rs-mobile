@@ -595,6 +595,17 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
                 textAlign: TextAlign.center,
               ),
             ),
+            if (tor.version.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Center(
+                child: Text(
+                  'Tor ${tor.version}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
             if (hiddenLocation) ...[
               const SizedBox(height: 16),
               Container(
