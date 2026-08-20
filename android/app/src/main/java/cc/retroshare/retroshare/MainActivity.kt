@@ -1,6 +1,5 @@
 package cc.retroshare.retroshare
 
-import android.content.Intent
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -53,6 +52,14 @@ class MainActivity : FlutterActivity() {
                     TorRuntimeManager.stopEmbedded(applicationContext)
                     result.success(true)
                 }
+                "stopBackend" -> {
+                    // Account switching must not restart the shared Tor
+                    // runtime. Android may reject restarting Tor once the app
+                    // is backgrounded, and all hidden locations can use the
+                    // same embedded Tor instance.
+                    RetroShareServiceAndroid.stop(applicationContext)
+                    result.success(true)
+                }
                 "restart" -> {
                     try {
                         RetroShareServiceAndroid.stop(applicationContext)
@@ -74,8 +81,5 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         torStatusExecutor.shutdownNow()
         super.onDestroy()
-        applicationContext.stopService(
-            Intent(applicationContext, RetroShareServiceAndroid::class.java),
-        )
     }
 }

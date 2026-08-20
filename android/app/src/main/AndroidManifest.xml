@@ -99,6 +99,7 @@
         <service
             android:name=".RetroShareServiceAndroid"
             android:exported="false"
+            android:process=":retroshare"
             android:foregroundServiceType="dataSync" />
 
         <receiver

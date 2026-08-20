@@ -93,6 +93,8 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
           details['hiddenAddress'];
       _hiddenAddressReady =
           address != null && address.toString().trim().isNotEmpty;
+      _hiddenLocationDetected =
+          _hiddenLocationDetected || _hiddenAddressReady;
     } catch (_) {
       // FutureBuilder displays the API error. Keep polling so a temporarily
       // unavailable core can recover without leaving stale network details.
@@ -236,12 +238,6 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
               data['torHiddenService'] as Map? ?? const {};
           final netStatus = data['netStatus'] as Map;
           final ownSslId = data['ownSslId'] as String;
-          final isHiddenLocation =
-              det['isHiddenNode'] == true ||
-              det['mIsHiddenNode'] == true ||
-              det['hiddenNode'] == true ||
-              det['mExtAddr']?.toString().toLowerCase() == 'hidden' ||
-              det['extAddr']?.toString().toLowerCase() == 'hidden';
           final hiddenAddress =
               (torHiddenService['service_onion_address'] ??
                       torHiddenService['serviceOnionAddress'] ??
@@ -250,6 +246,13 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
                   det['hiddenAddress'] ??
                   '')
               .toString();
+          final isHiddenLocation =
+              det['isHiddenNode'] == true ||
+              det['mIsHiddenNode'] == true ||
+              det['hiddenNode'] == true ||
+              det['mExtAddr']?.toString().toLowerCase() == 'hidden' ||
+              det['extAddr']?.toString().toLowerCase() == 'hidden' ||
+              hiddenAddress.trim().isNotEmpty;
           final hiddenPort = (torHiddenService['service_port'] ??
                   torHiddenService['servicePort'] ??
                   det['hiddenNodePort'] ??
@@ -364,15 +367,13 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (isHiddenLocation) ...[
-                    _torCard(
-                      context,
-                      hiddenLocation: true,
-                      hiddenAddress: hiddenAddress,
-                      hiddenPort: hiddenPort,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                  _torCard(
+                    context,
+                    hiddenLocation: isHiddenLocation,
+                    hiddenAddress: hiddenAddress,
+                    hiddenPort: hiddenPort,
+                  ),
+                  const SizedBox(height: 16),
                   if (!torEnabled) ...[
                     // DHT only applies to normal, non-hidden locations.
                     Center(

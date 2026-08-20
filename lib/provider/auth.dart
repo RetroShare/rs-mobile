@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:retroshare/apiUtils/retroshare_service.dart' as mobile_service;
 import 'package:retroshare/apiUtils/tor_service.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
@@ -72,22 +73,33 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<bool> getinitializeAuth(Account account, String password) async {
-    // Retry logic as the core might take a moment to initialize the API for the unlocked account
+    final token =
+        AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
+    _authToken = token;
+
+    // The core may already have the location unlocked without retaining the
+    // API user requested by this Flutter process. This happens most often
+    // after the Android activity is recreated while the backend service keeps
+    // running. Repair the token through the location's built-in credentials.
     for (var retry = 0; retry < 3; retry++) {
       if (retry > 0) {
         await Future.delayed(const Duration(seconds: 1));
       }
 
-      // Try pgpName (PGP Username) - most robust for multiple locations without core changes
-      _authToken =
-          AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
-      final success = await RsJsonApi.isAuthTokenValid(_authToken!);
-      if (success) return true;
+      if (await RsJsonApi.isAuthTokenValid(token)) return true;
+
+      try {
+        await RsJsonApi.checkExistingAuthTokens(
+          account.locationId,
+          password,
+          token,
+        );
+        if (await RsJsonApi.isAuthTokenValid(token)) return true;
+      } catch (error) {
+        debugPrint('Unable to restore the RetroShare API token: $error');
+      }
     }
 
-    // Default back to pgpName if all failed
-    _authToken =
-        AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
     return false;
   }
 
@@ -97,6 +109,9 @@ class AccountCredentials with ChangeNotifier {
 
   Future<void> login(Account currentAccount, String password) async {
     await _configureTorBeforeLogin();
+    if (await _restartBackendIfLoggedIn()) {
+      await _configureTorBeforeLogin();
+    }
     final int resp = await RsLoginHelper.requestLogIn(
       currentAccount,
       password,
@@ -124,10 +139,18 @@ class AccountCredentials with ChangeNotifier {
     String nodename, {
     bool makeHidden = false,
   }) async {
-    final configuration = await _configureTorBeforeLogin();
+    var configuration = await _configureTorBeforeLogin();
     if (makeHidden && configuration?.mode == TorMode.disabled) {
       throw const HttpException('Tor is disabled');
     }
+
+    if (await _restartBackendIfLoggedIn()) {
+      configuration = await _configureTorBeforeLogin();
+      if (makeHidden && configuration?.mode == TorMode.disabled) {
+        throw const HttpException('Tor is disabled');
+      }
+    }
+
     final resp = await rsApiCall(
       '/rsLoginHelper/createLocationV2',
       params: {
@@ -184,6 +207,22 @@ class AccountCredentials with ChangeNotifier {
     // A false result therefore does not mean that Tor is unavailable.
     await TorServiceControl.configureBackend(null, configuration);
     return configuration;
+  }
+
+  /// RetroShare supports one unlocked location per backend instance. Restart
+  /// only that backend before switching/creating locations; embedded Tor is a
+  /// shared runtime and must remain alive across account changes.
+  Future<bool> _restartBackendIfLoggedIn() async {
+    if (!await RsLoginHelper.checkLoggedIn()) return false;
+
+    await mobile_service.RsServiceControl.stopRetroshare(stopTor: false);
+    if (!await mobile_service.RsServiceControl.startRetroshare()) {
+      throw const HttpException('RetroShare service failed to restart');
+    }
+    _authToken = null;
+    _loggedinAccount = null;
+    _pgpPassword = null;
+    return true;
   }
 
   Future<void> importAccount(String base64Cert, String password) async {
