@@ -282,7 +282,9 @@ class SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: currentId.signed
                                 ? Colors.teal.withAlpha(26)
@@ -355,6 +357,17 @@ class SettingsScreenState extends State<SettingsScreen> {
                             subtitle: 'IP Address, Port, DHT status',
                             onTap: () {
                               Navigator.pushNamed(context, '/network_settings');
+                            },
+                          ),
+                          _divider(theme),
+                          _settingsTile(
+                            context: context,
+                            icon: Icons.query_stats_rounded,
+                            iconBgColor: Colors.purple,
+                            title: 'Statistics',
+                            subtitle: 'Transfer rates and totals',
+                            onTap: () {
+                              Navigator.pushNamed(context, '/statistics');
                             },
                           ),
                           _divider(theme),
