@@ -188,7 +188,7 @@ class _DirectPeerChatScreenState extends State<DirectPeerChatScreen> {
                 key: _messagesTabKey,
                 chat: _chat,
                 isPeerChat: true,
-                bubbleStyle: BubbleStyle.bubble,
+                bubbleStyle: BubbleStyle.compact,
               ),
             ),
           ],
