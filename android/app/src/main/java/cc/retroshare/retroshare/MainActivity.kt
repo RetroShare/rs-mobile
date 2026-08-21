@@ -40,7 +40,6 @@ class MainActivity : FlutterActivity() {
                 }
                 "start" -> {
                     try {
-                        TorRuntimeManager.startIfEmbedded(applicationContext)
                         RetroShareServiceAndroid.start(applicationContext)
                         result.success(true)
                     } catch (e: Exception) {
@@ -59,6 +58,22 @@ class MainActivity : FlutterActivity() {
                     // same embedded Tor instance.
                     RetroShareServiceAndroid.stop(applicationContext)
                     result.success(true)
+                }
+                "startTor" -> {
+                    try {
+                        TorRuntimeManager.startIfEmbedded(applicationContext)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("TOR_START_FAILED", e.message, null)
+                    }
+                }
+                "stopTor" -> {
+                    TorRuntimeManager.stopEmbedded(applicationContext)
+                    result.success(true)
+                }
+                "isHiddenLocation" -> {
+                    val locationId = call.argument<String>("locationId").orEmpty()
+                    result.success(TorRuntimeManager.isHiddenLocation(applicationContext, locationId))
                 }
                 "restart" -> {
                     try {

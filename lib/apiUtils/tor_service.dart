@@ -43,6 +43,25 @@ class TorConfiguration {
 }
 
 class TorServiceControl {
+  static Future<bool> isHiddenLocation(String locationId) async {
+    if (!Platform.isAndroid) return false;
+    return await rsPlatform.invokeMethod<bool>(
+          'isHiddenLocation',
+          {'locationId': locationId},
+        ) ??
+        false;
+  }
+
+  static Future<void> startConfiguredRuntime() async {
+    if (!Platform.isAndroid) return;
+    await rsPlatform.invokeMethod<void>('startTor');
+  }
+
+  static Future<void> stopRuntime() async {
+    if (!Platform.isAndroid) return;
+    await rsPlatform.invokeMethod<void>('stopTor');
+  }
+
   static Future<TorConfiguration> getConfiguration({bool status = false}) async {
     if (!Platform.isAndroid) {
       return const TorConfiguration(

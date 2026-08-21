@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
+import kotlin.system.exitProcess
 import org.retroshare.service.RetroShareServiceAndroid as RsService
 
 class RetroShareServiceAndroid : RsService() {
@@ -119,7 +120,7 @@ class RetroShareServiceAndroid : RsService() {
         // in its own :retroshare process so terminating that now-empty process
         // is required to unlock a different location safely.
         if (android.app.Application.getProcessName().endsWith(":retroshare")) {
-            android.os.Process.killProcess(android.os.Process.myPid())
+            exitProcess(0)
         }
     }
 

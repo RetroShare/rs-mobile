@@ -108,9 +108,9 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<void> login(Account currentAccount, String password) async {
-    await _configureTorBeforeLogin();
+    await _prepareTorForAccount(currentAccount);
     if (await _restartBackendIfLoggedIn()) {
-      await _configureTorBeforeLogin();
+      await _prepareTorForAccount(currentAccount);
     }
     final int resp = await RsLoginHelper.requestLogIn(
       currentAccount,
@@ -128,8 +128,10 @@ class AccountCredentials with ChangeNotifier {
         throw const HttpException('AUTHTOKEN FAILED');
       }
       notifyListeners();
-    } else {
+    } else if (resp == 2) {
       throw const HttpException('WRONG PASSWORD');
+    } else {
+      throw HttpException('LOGIN FAILED (code $resp)');
     }
   }
 
@@ -139,13 +141,17 @@ class AccountCredentials with ChangeNotifier {
     String nodename, {
     bool makeHidden = false,
   }) async {
-    var configuration = await _configureTorBeforeLogin();
+    var configuration = makeHidden
+        ? await _prepareTorForHiddenLocation()
+        : await _prepareTorForStandardLocation();
     if (makeHidden && configuration?.mode == TorMode.disabled) {
       throw const HttpException('Tor is disabled');
     }
 
     if (await _restartBackendIfLoggedIn()) {
-      configuration = await _configureTorBeforeLogin();
+      configuration = makeHidden
+          ? await _prepareTorForHiddenLocation()
+          : await _prepareTorForStandardLocation();
       if (makeHidden && configuration?.mode == TorMode.disabled) {
         throw const HttpException('Tor is disabled');
       }
@@ -192,21 +198,35 @@ class AccountCredentials with ChangeNotifier {
     }
   }
 
-  Future<TorConfiguration?> _configureTorBeforeLogin() async {
+  Future<TorConfiguration?> _prepareTorForAccount(Account account) async {
+    final hidden = await TorServiceControl.isHiddenLocation(account.locationId);
+    return hidden
+        ? _prepareTorForHiddenLocation()
+        : _prepareTorForStandardLocation();
+  }
+
+  Future<TorConfiguration?> _prepareTorForHiddenLocation() async {
     if (!Platform.isAndroid) return null;
-    final configuration =
-        await TorServiceControl.getConfiguration(status: true);
-    if (configuration.mode == TorMode.embedded && !configuration.reachable) {
-      // Tor bootstrapping continues asynchronously. The control listener is
-      // created before circuits are ready, so libretroshare can attach now.
-      await Future.delayed(const Duration(milliseconds: 500));
+    var configuration = await TorServiceControl.getConfiguration(status: true);
+    if (configuration.mode == TorMode.disabled) {
+      configuration = await TorServiceControl.configure(mode: TorMode.embedded);
+    } else if (configuration.mode == TorMode.embedded &&
+        !configuration.reachable) {
+      await TorServiceControl.startConfiguredRuntime();
     }
-    // This is deliberately best-effort. TorManager rejects configuration
-    // changes after it has started, which is also the normal state when the
-    // user logs out and back in without terminating the Android process.
-    // A false result therefore does not mean that Tor is unavailable.
     await TorServiceControl.configureBackend(null, configuration);
     return configuration;
+  }
+
+  Future<TorConfiguration?> _prepareTorForStandardLocation() async {
+    if (!Platform.isAndroid) return null;
+    await TorServiceControl.stopRuntime();
+    return const TorConfiguration(
+      mode: TorMode.disabled,
+      host: '127.0.0.1',
+      socksPort: 9050,
+      controlPort: 9051,
+    );
   }
 
   /// RetroShare supports one unlocked location per backend instance. Restart
@@ -227,6 +247,7 @@ class AccountCredentials with ChangeNotifier {
 
   Future<void> importAccount(String base64Cert, String password) async {
     try {
+      await _restartBackendIfLoggedIn();
       final resp = await RsLoginHelper.importLocation(base64Cert, password);
       if (resp['retval'] == true ||
           (resp['retval'] is Map && resp['retval']['errorNumber'] == 0)) {
@@ -246,6 +267,8 @@ class AccountCredentials with ChangeNotifier {
     String nodeName = 'mobile',
   }) async {
     try {
+      await _prepareTorForStandardLocation();
+      await _restartBackendIfLoggedIn();
       final importResp = await rsApiCall(
         '/rsAccounts/importIdentityFromString',
         params: {'data': pgpKeyContent},

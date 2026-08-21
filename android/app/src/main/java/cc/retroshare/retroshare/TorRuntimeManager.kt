@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import org.torproject.jni.TorService
+import java.io.File
 import java.net.InetSocketAddress
 import java.net.Socket
 
@@ -89,6 +90,12 @@ object TorRuntimeManager {
         if (configuration(context)["mode"] != MODE_EMBEDDED) return
         stopEmbedded(context)
         startIfEmbedded(context)
+    }
+
+    fun isHiddenLocation(context: Context, locationId: String): Boolean {
+        if (locationId.isBlank()) return false
+        val baseDirectory = File(context.applicationInfo.dataDir, ".retroshare")
+        return File(baseDirectory, "HID06_$locationId").isDirectory
     }
 
     fun status(context: Context): Map<String, Any> {
