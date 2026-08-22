@@ -82,11 +82,11 @@ class RetroShareServiceAndroid : RsService() {
                 acquire()
             }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
                 1,
                 notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
             )
         } else {
             startForeground(1, notification)
@@ -107,6 +107,14 @@ class RetroShareServiceAndroid : RsService() {
         // Android 12+ may not recreate a foreground service while the app is in
         // the background. Let the visible activity explicitly start it instead.
         return START_NOT_STICKY
+    }
+
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        // Defensive fallback for Android foreground-service limits. A service
+        // must stop promptly after this callback or Android crashes its process.
+        @Suppress("DEPRECATION")
+        stopForeground(true)
+        stopSelf(startId)
     }
 
     override fun onDestroy() {

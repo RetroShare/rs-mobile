@@ -9,6 +9,27 @@ import java.util.concurrent.Executors
 class MainActivity : FlutterActivity() {
     private val CHANNEL_NAME = "cc.retroshare.retroshare/retroshare"
     private val torStatusExecutor = Executors.newSingleThreadExecutor()
+    private var activityResumed = false
+
+    override fun onResume() {
+        super.onResume()
+        activityResumed = true
+        // Recover a backend that Android stopped while the UI process remained
+        // cached. Foreground-service starts are allowed while this activity is
+        // visible.
+        if (!RetroShareServiceAndroid.isRunning(applicationContext)) {
+            try {
+                RetroShareServiceAndroid.start(applicationContext)
+            } catch (_: Exception) {
+                // Flutter's startup flow reports and retries visible failures.
+            }
+        }
+    }
+
+    override fun onPause() {
+        activityResumed = false
+        super.onPause()
+    }
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -39,6 +60,10 @@ class MainActivity : FlutterActivity() {
                     }
                 }
                 "start" -> {
+                    if (!activityResumed) {
+                        result.success(false)
+                        return@setMethodCallHandler
+                    }
                     try {
                         RetroShareServiceAndroid.start(applicationContext)
                         result.success(true)
