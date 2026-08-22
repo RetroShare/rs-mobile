@@ -3,6 +3,9 @@ allprojects {
         google()
         mavenCentral()
         jcenter()
+        // Guardian Project publishes the same Tor Android runtime used by
+        // Orbot.  The AAR contributes one libtor.so per Android ABI.
+        maven { url "https://raw.githubusercontent.com/guardianproject/gpmaven/master" }
         maven {
                 url "https://gitlab.com/api/v4/projects/32730908/packages/maven"
             }
