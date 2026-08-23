@@ -12,6 +12,8 @@ String deriveApiToken(String locationId, String password) {
   return sha256.convert(bytes).toString();
 }
 
+const int _gxsMailsServiceId = 0x0230;
+
 class AccountCredentials with ChangeNotifier {
   List<Account> _accountsList = [];
   Account? _lastAccountUsed;
@@ -86,7 +88,10 @@ class AccountCredentials with ChangeNotifier {
         await Future.delayed(const Duration(seconds: 1));
       }
 
-      if (await RsJsonApi.isAuthTokenValid(token)) return true;
+      if (await RsJsonApi.isAuthTokenValid(token)) {
+        await _disableGxsMails(token);
+        return true;
+      }
 
       try {
         await RsJsonApi.checkExistingAuthTokens(
@@ -94,13 +99,33 @@ class AccountCredentials with ChangeNotifier {
           password,
           token,
         );
-        if (await RsJsonApi.isAuthTokenValid(token)) return true;
+        if (await RsJsonApi.isAuthTokenValid(token)) {
+          await _disableGxsMails(token);
+          return true;
+        }
       } catch (error) {
         debugPrint('Unable to restore the RetroShare API token: $error');
       }
     }
 
     return false;
+  }
+
+  Future<void> _disableGxsMails(AuthToken token) async {
+    try {
+      final success = await RsServiceControl.setServiceEnabled(
+        _gxsMailsServiceId,
+        false,
+        token,
+      );
+      if (!success) {
+        debugPrint('RetroShare Core did not disable the GXS Mails service.');
+      }
+    } catch (error) {
+      // Mail is not used by the mobile client. Do not block login if an older
+      // core does not expose service-permission controls.
+      debugPrint('Unable to disable the GXS Mails service: $error');
+    }
   }
 
   Future<bool> checkIsValidAuthToken() async {
@@ -282,7 +307,8 @@ class AccountCredentials with ChangeNotifier {
       final pgpId = (importResp['pgpId'] ?? importResp['gpgId'])?.toString();
       if (pgpId == null || pgpId.isEmpty) {
         throw const HttpException(
-            'The imported profile did not return a PGP ID');
+          'The imported profile did not return a PGP ID',
+        );
       }
 
       final locationName = nodeName.trim().isEmpty ? 'mobile' : nodeName.trim();
@@ -303,12 +329,15 @@ class AccountCredentials with ChangeNotifier {
       if (!_isSuccessfulResult(createResp['retval'])) {
         throw HttpException(
           _apiErrorMessage(
-              createResp, 'Could not create a location from this profile'),
+            createResp,
+            'Could not create a location from this profile',
+          ),
         );
       }
 
       _pgpPassword = password;
       _authToken = AuthToken(apiUser, apiPass);
+      await _disableGxsMails(_authToken!);
       await fetchAuthAccountList();
 
       final locationId = createResp['locationId']?.toString();
