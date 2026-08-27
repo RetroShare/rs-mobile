@@ -48,7 +48,7 @@ class _StickerPickerState extends State<StickerPicker> {
   }
 
   Future<void> _importPack() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['zip'],
     );
@@ -146,10 +146,27 @@ class _StickerPickerState extends State<StickerPicker> {
               for (final pack in _packs)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: ChoiceChip(
-                    selected: _selectedPackId == pack.id,
-                    onSelected: (_) => setState(() => _selectedPackId = pack.id),
-                    label: Text(pack.name, overflow: TextOverflow.ellipsis),
+                  child: Tooltip(
+                    message: pack.name,
+                    child: ChoiceChip(
+                      selected: _selectedPackId == pack.id,
+                      showCheckmark: false,
+                      onSelected: (_) =>
+                          setState(() => _selectedPackId = pack.id),
+                      labelPadding: const EdgeInsets.all(2),
+                      label: Semantics(
+                        label: pack.name,
+                        image: true,
+                        child: Image.file(
+                          File(pack.stickers.first.path),
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.broken_image, size: 28),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               if (_packs.any((pack) => pack.id == _selectedPackId))

@@ -71,7 +71,13 @@ class StickerPackStore {
           throw const StickerImportException('pack.json must be 64 KB or smaller.');
         }
         try {
-          manifest = jsonDecode(utf8.decode(entry.readBytes())) as Map<String, dynamic>;
+          final bytes = entry.readBytes();
+          if (bytes == null) {
+            throw const StickerImportException('pack.json could not be read.');
+          }
+          manifest = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+        } on StickerImportException {
+          rethrow;
         } catch (_) {
           throw const StickerImportException('pack.json is not valid JSON.');
         }
@@ -112,6 +118,9 @@ class StickerPackStore {
       for (var index = 0; index < candidates.length; index++) {
         final entry = candidates[index];
         final bytes = entry.readBytes();
+        if (bytes == null) {
+          throw StickerImportException('${_safeBaseName(entry.name)} could not be read.');
+        }
         if (bytes.length > _maxStickerBytes) {
           throw StickerImportException('${_safeBaseName(entry.name)} is larger than 1 MB.');
         }
