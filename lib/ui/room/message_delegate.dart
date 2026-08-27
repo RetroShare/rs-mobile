@@ -432,6 +432,20 @@ class MessageDelegate extends StatelessWidget {
               try {
                 final base64Data = src.split('base64,').last;
                 final decodedBytes = base64Decode(base64Data.trim());
+                final isSticker =
+                    extensionContext.attributes['data-rs-sticker'] == '1' ||
+                        extensionContext.attributes['alt'] == 'Sticker';
+                final image = Image.memory(
+                  decodedBytes,
+                  width: isSticker ? 180 : null,
+                  height: isSticker ? 180 : null,
+                  fit: BoxFit.contain,
+                  gaplessPlayback: true,
+                  errorBuilder: (context, error, stackTrace) {
+                    debugPrint('Error building image: $error');
+                    return const Icon(Icons.broken_image);
+                  },
+                );
                 return GestureDetector(
                   onTap: () {
                     Navigator.push(
@@ -443,14 +457,9 @@ class MessageDelegate extends StatelessWidget {
                       ),
                     );
                   },
-                  child: Image.memory(
-                    decodedBytes,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      debugPrint('Error building image: $error');
-                      return const Icon(Icons.broken_image);
-                    },
-                  ),
+                  child: isSticker
+                      ? SizedBox(width: 180, height: 180, child: image)
+                      : image,
                 );
               } catch (e) {
                 debugPrint('Error decoding base64 image: $e');

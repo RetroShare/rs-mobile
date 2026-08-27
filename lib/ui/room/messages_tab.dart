@@ -14,7 +14,9 @@ import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 import 'package:retroshare/common/bottom_bar.dart';
 import 'package:retroshare/common/show_dialog.dart';
+import 'package:retroshare/common/sticker_picker.dart';
 import 'package:retroshare/common/styles.dart';
+import 'package:retroshare/model/sticker_pack.dart';
 import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/ui/room/message_delegate.dart';
@@ -45,6 +47,7 @@ class MessagesTabState extends State<MessagesTab> {
   late final FocusNode _focusNode;
 
   bool _showEmojiPicker = false;
+  bool _showStickerPicker = false;
   bool _showSearch = false;
   String _searchQuery = '';
   final ImagePicker _picker = ImagePicker();
@@ -73,10 +76,11 @@ class MessagesTabState extends State<MessagesTab> {
     _focusNode = FocusNode();
     _showEmojiPicker = false;
     _focusNode.addListener(() {
-      if (_focusNode.hasFocus && _showEmojiPicker) {
+      if (_focusNode.hasFocus && (_showEmojiPicker || _showStickerPicker)) {
         if (mounted) {
           setState(() {
             _showEmojiPicker = false;
+            _showStickerPicker = false;
           });
         }
       }
@@ -399,6 +403,33 @@ class MessagesTabState extends State<MessagesTab> {
       ..selection = TextSelection.fromPosition(
         TextPosition(offset: msgController.text.length),
       );
+  }
+
+  Future<void> _sendSticker(StickerItem sticker) async {
+    final chatId = widget.chat.chatId;
+    if (chatId == null) return;
+    try {
+      final bytes = await File(sticker.path).readAsBytes();
+      final encoded = base64.encode(bytes);
+      final htmlSticker =
+          '<img alt="Sticker" data-rs-sticker="1" src="data:${sticker.mimeType};base64,$encoded"/>';
+      if (!mounted) return;
+      await Provider.of<RoomChatLobby>(context, listen: false).sendMessage(
+        chatId,
+        htmlSticker,
+        (widget.isRoom ?? false)
+            ? ChatIdType.type3
+            : widget.isPeerChat
+                ? ChatIdType.type1
+                : ChatIdType.type2,
+      );
+    } catch (error) {
+      debugPrint('Error sending sticker: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send sticker: $error')),
+      );
+    }
   }
 
   Future<void> _sendImage() async {
@@ -1108,9 +1139,10 @@ class MessagesTabState extends State<MessagesTab> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () {
-        if (_showEmojiPicker) {
+        if (_showEmojiPicker || _showStickerPicker) {
           setState(() {
             _showEmojiPicker = false;
+            _showStickerPicker = false;
           });
           return Future.value(false);
         }
@@ -1416,9 +1448,27 @@ class MessagesTabState extends State<MessagesTab> {
                             if (mounted) {
                               setState(() {
                                 _showEmojiPicker = !_showEmojiPicker;
+                                _showStickerPicker = false;
                               });
                             }
                             if (!_showEmojiPicker) {}
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _showStickerPicker
+                                ? Icons.keyboard
+                                : Icons.emoji_emotions_outlined,
+                          ),
+                          tooltip: _showStickerPicker
+                              ? 'Show keyboard'
+                              : 'Show stickers',
+                          onPressed: () {
+                            if (!_showStickerPicker) _focusNode.unfocus();
+                            setState(() {
+                              _showStickerPicker = !_showStickerPicker;
+                              _showEmojiPicker = false;
+                            });
                           },
                         ),
                         Expanded(
@@ -1434,10 +1484,11 @@ class MessagesTabState extends State<MessagesTab> {
                               keyboardAppearance:
                                   Theme.of(context).brightness,
                               onTap: () {
-                                if (_showEmojiPicker) {
+                                if (_showEmojiPicker || _showStickerPicker) {
                                   if (mounted) {
                                     setState(() {
                                       _showEmojiPicker = false;
+                                      _showStickerPicker = false;
                                     });
                                   }
                                 }
@@ -1531,6 +1582,13 @@ class MessagesTabState extends State<MessagesTab> {
                   ),
                 ),
               ),
+            ),
+          ),
+          Offstage(
+            offstage: !_showStickerPicker,
+            child: SizedBox(
+              height: 300,
+              child: StickerPicker(onStickerSelected: _sendSticker),
             ),
           ),
         ],
