@@ -600,6 +600,7 @@ class RoomChatLobby with ChangeNotifier {
           await joinChatLobby(chat, currentId);
         } catch (e) {
           debugPrint('Failed to auto-join lobby $lobbyId: $e');
+          rethrow;
         }
         addDistanceChat(chat);
       }
@@ -610,6 +611,7 @@ class RoomChatLobby with ChangeNotifier {
           await joinChatLobby(chat, currentId);
         } catch (e) {
           debugPrint('Failed to auto-join lobby ${chat.chatId}: $e');
+          rethrow;
         }
       }
     } else if (to != null) {
@@ -626,7 +628,10 @@ class RoomChatLobby with ChangeNotifier {
       throw Exception('Lobby ID is null, cannot join');
     }
     try {
-      await RsMsgs.joinChatLobby(lobbyId, idToUse, _authToken);
+      final joined = await RsMsgs.joinChatLobby(lobbyId, idToUse, _authToken);
+      if (!joined) {
+        throw Exception('RetroShare rejected the lobby join request');
+      }
     } catch (e) {
       debugPrint('Error joining lobby $lobbyId: $e');
       rethrow;

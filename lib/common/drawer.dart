@@ -12,7 +12,23 @@ import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
-Widget drawerWidget(BuildContext ctx) {
+typedef DrawerNavigationCallback = void Function(
+  String routeName,
+  Object? arguments,
+);
+
+Widget drawerWidget(
+  BuildContext ctx, {
+  DrawerNavigationCallback? onNavigate,
+}) {
+  void navigate(String routeName, {Object? arguments}) {
+    if (onNavigate != null) {
+      onNavigate(routeName, arguments);
+    } else {
+      Navigator.pushNamed(ctx, routeName, arguments: arguments);
+    }
+  }
+
   Widget buildNavList(IconData icon, String title, Function changeState) {
     return Container(
       height: 60,
@@ -65,7 +81,7 @@ Widget drawerWidget(BuildContext ctx) {
                       children: [
                         InkWell(
                           onTap: () {
-                            Navigator.of(context).pushNamed(
+                            navigate(
                               '/profile',
                               arguments: {'id': curr.currentIdentity},
                             );
@@ -121,7 +137,7 @@ Widget drawerWidget(BuildContext ctx) {
                           children: [
                             IconButton(
                               onPressed: () {
-                                Navigator.of(context).pushNamed(
+                                navigate(
                                   '/updateIdentity',
                                   arguments: {'id': curr.currentIdentity},
                                 );
@@ -162,20 +178,20 @@ Widget drawerWidget(BuildContext ctx) {
                 children: [
                   buildNavList(Icons.person_add_alt, 'Add friend', () {
                     Future.delayed(Duration.zero, () {
-                      Navigator.pushNamed(ctx, '/add_friend');
+                      navigate('/add_friend');
                     });
                   }),
                   buildNavList(Icons.add, 'Create new identity', () {
-                    Navigator.pushNamed(ctx, '/create_identity');
+                    navigate('/create_identity');
                   }),
                   buildNavList(Icons.visibility, 'Change identity', () {
-                    Navigator.pushNamed(ctx, '/change_identity');
+                    navigate('/change_identity');
                   }),
                   buildNavList(Icons.devices, 'Friends location', () {
-                    Navigator.pushNamed(ctx, '/friends_locations');
+                    navigate('/friends_locations');
                   }),
                   buildNavList(Icons.language, 'Discover public chats', () {
-                    Navigator.pushNamed(ctx, '/discover_chats');
+                    navigate('/discover_chats');
                   }),
                   buildNavList(
                     AdaptiveTheme.of(ctx).mode.isDark
@@ -193,10 +209,10 @@ Widget drawerWidget(BuildContext ctx) {
                     },
                   ),
                   buildNavList(Icons.settings, 'Settings', () {
-                    Navigator.pushNamed(ctx, '/settings');
+                    navigate('/settings');
                   }),
                   buildNavList(Icons.info_rounded, 'About', () {
-                    Navigator.pushNamed(ctx, '/about');
+                    navigate('/about');
                   }),
                 ],
               ),

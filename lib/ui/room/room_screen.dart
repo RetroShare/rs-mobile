@@ -17,9 +17,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 enum _ChatMenuAction { search, clearChat, bubble, compact }
 
 class RoomScreen extends StatefulWidget {
-  const RoomScreen({super.key, this.isRoom = false, required this.chat});
+  const RoomScreen({
+    super.key,
+    this.isRoom = false,
+    required this.chat,
+    this.onBack,
+  });
   final bool isRoom;
   final Chat chat;
+  final VoidCallback? onBack;
 
   @override
   RoomScreenState createState() => RoomScreenState();
@@ -38,11 +44,11 @@ class RoomScreenState extends State<RoomScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _roomProvider ??=
-        Provider.of<RoomChatLobby>(context, listen: false);
-    _iconAnimation =
-        ColorTween(begin: Theme.of(context).colorScheme.onSurface, end: Theme.of(context).colorScheme.primary)
-            .animate(_tabController.animation!);
+    _roomProvider ??= Provider.of<RoomChatLobby>(context, listen: false);
+    _iconAnimation = ColorTween(
+            begin: Theme.of(context).colorScheme.onSurface,
+            end: Theme.of(context).colorScheme.primary)
+        .animate(_tabController.animation!);
   }
 
   Future<void> _loadBubbleStyle() async {
@@ -77,7 +83,6 @@ class RoomScreenState extends State<RoomScreen>
         final chatLobby = Provider.of<ChatLobby>(context, listen: false);
 
         if (widget.isRoom) {
-          await roomProvider.updateParticipants(widget.chat.chatId!);
           if (widget.chat.chatId != null) {
             chatLobby.resetUnreadCount(widget.chat.chatId!);
           }
@@ -93,7 +98,8 @@ class RoomScreenState extends State<RoomScreen>
             if (mounted) {
               roomProvider.refreshDistantChatStatus(
                 widget.chat.chatId!,
-                ChatId(distantChatId: widget.chat.chatId, type: ChatIdType.type2),
+                ChatId(
+                    distantChatId: widget.chat.chatId, type: ChatIdType.type2),
               );
             }
           });
@@ -153,9 +159,7 @@ class RoomScreenState extends State<RoomScreen>
     if (chatId == null) return null;
     return ChatId(
       distantChatId: widget.isRoom ? null : chatId,
-      lobbyId: widget.isRoom
-          ? ChatLobbyId(xstr64: chatId)
-          : null,
+      lobbyId: widget.isRoom ? ChatLobbyId(xstr64: chatId) : null,
       type: widget.isRoom ? ChatIdType.type3 : ChatIdType.type2,
     );
   }
@@ -238,7 +242,8 @@ class RoomScreenState extends State<RoomScreen>
     final friendLocations = Provider.of<FriendLocations>(context);
     final friendLocs = friendLocations.friendlist;
     final matchingLocs = interlocutorIdentity != null
-        ? PersonDelegateData.getMatchingLocations(interlocutorIdentity, friendLocs)
+        ? PersonDelegateData.getMatchingLocations(
+            interlocutorIdentity, friendLocs)
         : const Iterable<Location>.empty();
 
     final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
@@ -283,6 +288,8 @@ class RoomScreenState extends State<RoomScreen>
                       onPressed: () {
                         if (widget.isRoom && _tabController.index == 1) {
                           _tabController.animateTo(0);
+                        } else if (widget.onBack != null) {
+                          widget.onBack!();
                         } else {
                           Navigator.pop(context);
                         }
@@ -329,7 +336,8 @@ class RoomScreenState extends State<RoomScreen>
                                 width: 14,
                                 decoration: BoxDecoration(
                                   border: Border.all(
-                                    color: Theme.of(context).colorScheme.surface,
+                                    color:
+                                        Theme.of(context).colorScheme.surface,
                                     width: 2,
                                   ),
                                   color: effectiveStatus != 0
@@ -379,39 +387,39 @@ class RoomScreenState extends State<RoomScreen>
                       },
                     ),
                   PopupMenuButton<_ChatMenuAction>(
-                      icon: const Icon(Icons.more_vert),
-                      onSelected: _handleMenuAction,
-                      itemBuilder: (BuildContext context) =>
-                          <PopupMenuEntry<_ChatMenuAction>>[
-                        const PopupMenuItem<_ChatMenuAction>(
-                          value: _ChatMenuAction.search,
-                          child: ListTile(
-                            leading: Icon(Icons.search),
-                            title: Text('Search'),
-                            contentPadding: EdgeInsets.zero,
-                          ),
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: _handleMenuAction,
+                    itemBuilder: (BuildContext context) =>
+                        <PopupMenuEntry<_ChatMenuAction>>[
+                      const PopupMenuItem<_ChatMenuAction>(
+                        value: _ChatMenuAction.search,
+                        child: ListTile(
+                          leading: Icon(Icons.search),
+                          title: Text('Search'),
+                          contentPadding: EdgeInsets.zero,
                         ),
-                        const PopupMenuItem<_ChatMenuAction>(
-                          value: _ChatMenuAction.clearChat,
-                          child: ListTile(
-                            leading: Icon(Icons.delete_outline),
-                            title: Text('Clear chat'),
-                            contentPadding: EdgeInsets.zero,
-                          ),
+                      ),
+                      const PopupMenuItem<_ChatMenuAction>(
+                        value: _ChatMenuAction.clearChat,
+                        child: ListTile(
+                          leading: Icon(Icons.delete_outline),
+                          title: Text('Clear chat'),
+                          contentPadding: EdgeInsets.zero,
                         ),
-                        if (!widget.isRoom) const PopupMenuDivider(),
-                        if (!widget.isRoom)
-                          const PopupMenuItem<_ChatMenuAction>(
-                            value: _ChatMenuAction.bubble,
-                            child: Text('Bubble'),
-                          ),
-                        if (!widget.isRoom)
-                          const PopupMenuItem<_ChatMenuAction>(
-                            value: _ChatMenuAction.compact,
-                            child: Text('Bubble Compact'),
-                          ),
-                      ],
-                    ),
+                      ),
+                      if (!widget.isRoom) const PopupMenuDivider(),
+                      if (!widget.isRoom)
+                        const PopupMenuItem<_ChatMenuAction>(
+                          value: _ChatMenuAction.bubble,
+                          child: Text('Bubble'),
+                        ),
+                      if (!widget.isRoom)
+                        const PopupMenuItem<_ChatMenuAction>(
+                          value: _ChatMenuAction.compact,
+                          child: Text('Bubble Compact'),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
