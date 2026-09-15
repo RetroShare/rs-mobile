@@ -53,20 +53,29 @@ class DiscoverChatsScreenState extends State<DiscoverChatsScreen> {
   }
 
   Future<void> _goToChat(lobby) async {
-    final curr =
-        Provider.of<Identities>(context, listen: false).currentIdentity;
-    if (curr == null) return;
-    final chatData = await Provider.of<RoomChatLobby>(context, listen: false)
-        .getChat(curr, lobby);
-    if (!mounted) return;
-    await Navigator.pushNamed(
-      context,
-      '/room',
-      arguments: {
-        'isRoom': true,
-        'chatData': chatData,
-      },
-    );
+    try {
+      final curr =
+          Provider.of<Identities>(context, listen: false).currentIdentity;
+      if (curr == null) return;
+      final chatData = await Provider.of<RoomChatLobby>(context, listen: false)
+          .getChat(curr, lobby);
+      if (chatData == null || !mounted) return;
+      Provider.of<ChatLobby>(context, listen: false)
+          .recordJoinedChat(chatData);
+      await Navigator.pushNamed(
+        context,
+        '/room',
+        arguments: {
+          'isRoom': true,
+          'chatData': chatData,
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not join chat room: $e')),
+      );
+    }
   }
 
   @override

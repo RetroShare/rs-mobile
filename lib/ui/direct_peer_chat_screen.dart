@@ -9,9 +9,14 @@ import 'package:retroshare_api_wrapper/retroshare.dart';
 
 /// A direct chat with one RetroShare friend location (SSL peer).
 class DirectPeerChatScreen extends StatefulWidget {
-  const DirectPeerChatScreen({super.key, required this.location});
+  const DirectPeerChatScreen({
+    super.key,
+    required this.location,
+    this.onBack,
+  });
 
   final Location location;
+  final VoidCallback? onBack;
 
   @override
   State<DirectPeerChatScreen> createState() => _DirectPeerChatScreenState();
@@ -69,8 +74,7 @@ class _DirectPeerChatScreenState extends State<DirectPeerChatScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _roomProvider ??=
-        Provider.of<RoomChatLobby>(context, listen: false);
+    _roomProvider ??= Provider.of<RoomChatLobby>(context, listen: false);
   }
 
   @override
@@ -121,16 +125,21 @@ class _DirectPeerChatScreenState extends State<DirectPeerChatScreen> {
                     width: personDelegateHeight,
                     child: IconButton(
                       icon: const Icon(Icons.arrow_back, size: 25),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        if (widget.onBack != null) {
+                          widget.onBack!();
+                        } else {
+                          Navigator.pop(context);
+                        }
+                      },
                     ),
                   ),
                   SizedBox(
                     width: appBarHeight,
                     height: appBarHeight,
                     child: CircleAvatar(
-                      backgroundColor: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
                       child: Identicon(
                         id: widget.location.rsPeerId,
                         size: appBarHeight * 0.7,

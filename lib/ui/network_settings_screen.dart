@@ -13,7 +13,6 @@ class NetworkSettingsScreen extends StatefulWidget {
 
 class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
   late Future<Map<String, dynamic>> _networkDetailsFuture;
-
   @override
   void initState() {
     super.initState();
@@ -90,14 +89,17 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh Status',
             color: theme.colorScheme.onSurface,
-            onPressed: _refreshDetails,
+            onPressed: () {
+              _refreshDetails();
+            },
           ),
         ],
       ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _networkDetailsFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return const Center(
               child: CircularProgressIndicator(),
             );
@@ -139,8 +141,6 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
           final data = snapshot.data!;
           final det = data['peerDetails'] as Map;
           final netStatus = data['netStatus'] as Map;
-          final ownSslId = data['ownSslId'] as String;
-
           // Resolve internal IP & Port
           final localAddr = det['mLocalAddr'] ??
               det['localAddr'] ??
@@ -243,16 +243,19 @@ class NetworkSettingsScreenState extends State<NetworkSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Dashboard Badge Header
                   Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: dhtColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                            color: dhtColor.withOpacity(0.3), width: 1.5),
+                          color: dhtColor.withOpacity(0.3),
+                          width: 1.5,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,

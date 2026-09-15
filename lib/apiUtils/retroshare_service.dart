@@ -44,7 +44,8 @@ class RsServiceControl {
       if (Platform.isWindows) {
         // Clean up any zombie daemon processes from previous runs
         try {
-          await Process.run('taskkill', ['/f', '/im', 'retroshare-service.exe']);
+          await Process.run(
+              'taskkill', ['/f', '/im', 'retroshare-service.exe']);
         } catch (_) {}
 
         final exePath = Platform.resolvedExecutable;
@@ -69,12 +70,15 @@ class RsServiceControl {
             print('RS-Service stderr: $output');
           });
 
-          unawaited(_process!.exitCode.then((code) {
-            print('retroshare-service.exe exited with code $code');
-            _process = null;
-          }),);
+          unawaited(
+            _process!.exitCode.then((code) {
+              print('retroshare-service.exe exited with code $code');
+              _process = null;
+            }),
+          );
         } else {
-          print('retroshare-service.exe not found in app directory: $servicePath');
+          print(
+              'retroshare-service.exe not found in app directory: $servicePath');
         }
       } else {
         await rsPlatform.invokeMethod('start');
@@ -93,7 +97,9 @@ class RsServiceControl {
     return false;
   }
 
-  static Future<void> stopRetroshare({bool wait = true}) async {
+  static Future<void> stopRetroshare({
+    bool wait = true,
+  }) async {
     try {
       if (Platform.isWindows) {
         if (_process != null) {
@@ -105,9 +111,20 @@ class RsServiceControl {
       }
 
       if (wait) {
-        await Future.delayed(const Duration(milliseconds: 3000));
-        final isUp = await rs.isRetroshareRunning();
-        if (isUp) throw Exception('The service did not stop after a while');
+        // Native libretroshare shutdown can take several seconds while it
+        // saves account configuration. Do not start another location until
+        // both the JSON API and Android service process are actually gone.
+        for (var attempt = 0; attempt < 60; attempt++) {
+          final apiReachable = await _isRsApiReachable();
+          var serviceRunning = apiReachable;
+          if (!Platform.isWindows) {
+            serviceRunning =
+                await rsPlatform.invokeMethod<bool>('isRunning') ?? false;
+          }
+          if (!apiReachable && !serviceRunning) return;
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+        throw Exception('The service did not stop after 30 seconds');
       }
     } catch (err) {
       throw Exception('The service could not be stopped');

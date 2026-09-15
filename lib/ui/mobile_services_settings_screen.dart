@@ -16,6 +16,7 @@ class _MobileServicesSettingsScreenState
   static const int _forumsServiceId = 0x0215;
   static const int _boardsServiceId = 0x0216;
   static const int _channelsServiceId = 0x0217;
+  static const int _mailsServiceId = 0x0230;
 
   bool _isLoading = true;
   final Map<int, bool> _servicesEnabled = {};
@@ -32,6 +33,11 @@ class _MobileServicesSettingsScreenState
       final authToken =
           Provider.of<AccountCredentials>(context, listen: false).authtoken;
       if (authToken == null) return;
+      await RsServiceControl.setServiceEnabled(
+        _mailsServiceId,
+        false,
+        authToken,
+      );
       for (final serviceId in const [
         _forumsServiceId,
         _channelsServiceId,
@@ -39,8 +45,7 @@ class _MobileServicesSettingsScreenState
       ]) {
         final permissions =
             await RsServiceControl.getServicePermissions(serviceId, authToken);
-        _servicesEnabled[serviceId] =
-            permissions['mDefaultAllowed'] == true;
+        _servicesEnabled[serviceId] = permissions['mDefaultAllowed'] == true;
       }
     } catch (error) {
       debugPrint('Failed to load service permissions: $error');
@@ -109,6 +114,14 @@ class _MobileServicesSettingsScreenState
                 _serviceSwitch('Channels', _channelsServiceId),
                 const Divider(height: 1, indent: 64),
                 _serviceSwitch('Boards', _boardsServiceId),
+                const Divider(height: 1, indent: 64),
+                const SwitchListTile(
+                  secondary: Icon(Icons.mail_outline_rounded),
+                  title: Text('Mail'),
+                  subtitle: Text('Not used by RetroShare Mobile'),
+                  value: false,
+                  onChanged: null,
+                ),
               ],
             ),
           ),

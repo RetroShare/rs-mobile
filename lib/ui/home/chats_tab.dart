@@ -10,7 +10,14 @@ import 'package:retroshare/provider/subscribed.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 class ChatsTab extends StatelessWidget {
-  const ChatsTab({super.key});
+  const ChatsTab({
+    super.key,
+    this.onOpenRoom,
+    this.onOpenPeerChat,
+  });
+
+  final Future<void> Function(Chat chat, bool isRoom)? onOpenRoom;
+  final Future<void> Function(Location location)? onOpenPeerChat;
 
   Future<void> _unsubscribeChatLobby(lobbyId, context) async {
     await Provider.of<ChatLobby>(context, listen: false).unsubscribed(lobbyId);
@@ -33,6 +40,7 @@ class ChatsTab extends StatelessWidget {
             if (!chat.isPublic &&
                 chatId != null &&
                 !isPlaceholder &&
+                !chatLobby.subscribedlist.any((item) => item.chatId == chatId) &&
                 !processedDistantIds.contains(chatId)) {
               distantChats.add(chat);
               processedDistantIds.add(chatId);
@@ -60,10 +68,11 @@ class ChatsTab extends StatelessWidget {
                     delegate: SliverChildBuilderDelegate(
                       (BuildContext context, int index) {
                         final chat = allChats[index];
-                        // A chat is a room if it has lobby flags (rooms/lobbies) 
+                        // A chat is a room if it has lobby flags (rooms/lobbies)
                         // or is explicitly in the subscribed list
-                        final isRoom = chat.lobbyFlags != null || 
-                                           chatLobby.subscribedlist.any((c) => c.chatId == chat.chatId);
+                        final isRoom = chat.lobbyFlags != null ||
+                            chatLobby.subscribedlist
+                                .any((c) => c.chatId == chat.chatId);
                         final isPeerChat = chat.chatId != null &&
                             roomChat.peerChats.containsKey(chat.chatId);
                         final peerLocation = isPeerChat
@@ -73,19 +82,21 @@ class ChatsTab extends StatelessWidget {
                                     chat.chatId!.toLowerCase())
                                 .firstOrNull
                             : null;
-                        final identity = roomChat.allIdentity[chat.interlocutorId] ??
-                            Identity(
-                              mId: chat.interlocutorId,
-                              signed: false,
-                              isContact: false,
-                              name: chat.chatName,
-                            );
+                        final identity =
+                            roomChat.allIdentity[chat.interlocutorId] ??
+                                Identity(
+                                  mId: chat.interlocutorId,
+                                  signed: false,
+                                  isContact: false,
+                                  name: chat.chatName,
+                                );
                         final chatMessages = (chat.chatId != null)
                             ? roomChat.messagesList[chat.chatId]
                             : null;
-                        final lastMessage = (chatMessages != null && chatMessages.isNotEmpty)
-                            ? chatMessages.last
-                            : null;
+                        final lastMessage =
+                            (chatMessages != null && chatMessages.isNotEmpty)
+                                ? chatMessages.last
+                                : null;
 
                         return PersonDelegate(
                           data: isRoom
@@ -99,12 +110,12 @@ class ChatsTab extends StatelessWidget {
                                       peerLocation,
                                       lastMessage: lastMessage,
                                     )
-                              : PersonDelegateData.distantChatData(
-                                  chat,
-                                  identity,
-                                  context,
-                                  lastMessage: lastMessage,
-                                ),
+                                  : PersonDelegateData.distantChatData(
+                                      chat,
+                                      identity,
+                                      context,
+                                      lastMessage: lastMessage,
+                                    ),
                           onAvatarPressed: isRoom || isPeerChat
                               ? null
                               : () {
@@ -117,6 +128,10 @@ class ChatsTab extends StatelessWidget {
                           onPressed: () async {
                             if (isPeerChat && peerLocation != null) {
                               roomChat.resetPeerUnreadCount(chat.chatId!);
+                              if (onOpenPeerChat != null) {
+                                await onOpenPeerChat!(peerLocation);
+                                return;
+                              }
                               await Navigator.pushNamed(
                                 context,
                                 '/peer_chat',
@@ -135,7 +150,12 @@ class ChatsTab extends StatelessWidget {
                               curr,
                               chat,
                             );
+                            if (chatData == null) return;
                             if (!context.mounted) return;
+                            if (onOpenRoom != null) {
+                              await onOpenRoom!(chatData, isRoom);
+                              return;
+                            }
                             await Navigator.pushNamed(
                               context,
                               '/room',
@@ -201,23 +221,29 @@ class ChatsTab extends StatelessWidget {
                                     ? 'Remove from contacts'
                                     : 'Add to contacts',
                                 Icon(
-                                    identity.isContact
-                                        ? Icons.person_remove
-                                        : Icons.person_add,
-                                    color: Colors.black,),
+                                  identity.isContact
+                                      ? Icons.person_remove
+                                      : Icons.person_add,
+                                  color: Colors.black,
+                                ),
                                 () {
-                                  Provider.of<RoomChatLobby>(context,
-                                          listen: false,)
-                                      .toggleContacts(
-                                          identity.mId, !identity.isContact,);
+                                  Provider.of<RoomChatLobby>(
+                                    context,
+                                    listen: false,
+                                  ).toggleContacts(
+                                    identity.mId,
+                                    !identity.isContact,
+                                  );
                                 },
                                 tapPosition,
                                 context,
                                 additionalActions: [
                                   (
                                     title: 'View Details',
-                                    icon: const Icon(Icons.info_outline,
-                                        color: Colors.black,),
+                                    icon: const Icon(
+                                      Icons.info_outline,
+                                      color: Colors.black,
+                                    ),
                                     action: () {
                                       Navigator.pushNamed(
                                         context,
@@ -228,13 +254,16 @@ class ChatsTab extends StatelessWidget {
                                   ),
                                   (
                                     title: 'Remove chat',
-                                    icon: const Icon(Icons.delete_outline,
-                                        color: Colors.black,),
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.black,
+                                    ),
                                     action: () {
                                       if (chat.chatId != null) {
-                                        Provider.of<RoomChatLobby>(context,
-                                                listen: false,)
-                                            .removeDistantChat(chat.chatId!);
+                                        Provider.of<RoomChatLobby>(
+                                          context,
+                                          listen: false,
+                                        ).removeDistantChat(chat.chatId!);
                                       }
                                     },
                                   ),

@@ -16,6 +16,7 @@ class RoomFriendsTab extends StatefulWidget {
 class RoomFriendsTabState extends State<RoomFriendsTab> {
   // Use late final if only assigned in initState
   late final Image myImage;
+  Future<void>? _participantsFuture;
 
   @override
   void initState() {
@@ -29,6 +30,17 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
         precacheImage(myImage.image, context);
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final chatId = widget.chat.chatId;
+    if (chatId != null) {
+      _participantsFuture ??=
+          Provider.of<RoomChatLobby>(context, listen: false)
+              .updateParticipants(chatId);
+    }
   }
 
   // Keep this method if needed by showCustomMenu or other interactions
@@ -65,8 +77,7 @@ class RoomFriendsTabState extends State<RoomFriendsTab> {
 
     // 4. Use FutureBuilder to ensure participants are loaded
     return FutureBuilder(
-      future: Provider.of<RoomChatLobby>(context, listen: false)
-          .updateParticipants(chatId),
+      future: _participantsFuture,
       builder: (context, snapshot) {
         // 4. Handle error state
         if (snapshot.hasError) {

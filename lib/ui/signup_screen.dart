@@ -273,30 +273,6 @@ class SignUpScreenState extends State<SignUpScreen> {
           _buildNodeNameField(),
           const SizedBox(height: 10),
           _buildImportButton(context),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              height: 45,
-              child: Row(
-                children: <Widget>[
-                  Checkbox(
-                    value: false,
-                    onChanged: (bool? value) {},
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    'Tor/I2p Hidden node',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );

@@ -3,12 +3,15 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:retroshare/apiUtils/retroshare_service.dart' as mobile_service;
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 String deriveApiToken(String locationId, String password) {
   final bytes = utf8.encode('$locationId:$password');
   return sha256.convert(bytes).toString();
 }
+
+const int _gxsMailsServiceId = 0x0230;
 
 class AccountCredentials with ChangeNotifier {
   List<Account> _accountsList = [];
@@ -71,23 +74,57 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<bool> getinitializeAuth(Account account, String password) async {
-    // Retry logic as the core might take a moment to initialize the API for the unlocked account
+    final token =
+        AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
+    _authToken = token;
+
+    // The core may already have the location unlocked without retaining the
+    // API user requested by this Flutter process. This happens most often
+    // after the Android activity is recreated while the backend service keeps
+    // running. Repair the token through the location's built-in credentials.
     for (var retry = 0; retry < 3; retry++) {
       if (retry > 0) {
         await Future.delayed(const Duration(seconds: 1));
       }
 
-      // Try pgpName (PGP Username) - most robust for multiple locations without core changes
-      _authToken =
-          AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
-      final success = await RsJsonApi.isAuthTokenValid(_authToken!);
-      if (success) return true;
+      if (await RsJsonApi.isAuthTokenValid(token)) {
+        await _disableGxsMails(token);
+        return true;
+      }
+
+      try {
+        await RsJsonApi.checkExistingAuthTokens(
+          account.locationId,
+          password,
+          token,
+        );
+        if (await RsJsonApi.isAuthTokenValid(token)) {
+          await _disableGxsMails(token);
+          return true;
+        }
+      } catch (error) {
+        debugPrint('Unable to restore the RetroShare API token: $error');
+      }
     }
 
-    // Default back to pgpName if all failed
-    _authToken =
-        AuthToken(account.pgpName, deriveApiToken(account.pgpName, password));
     return false;
+  }
+
+  Future<void> _disableGxsMails(AuthToken token) async {
+    try {
+      final success = await RsServiceControl.setServiceEnabled(
+        _gxsMailsServiceId,
+        false,
+        token,
+      );
+      if (!success) {
+        debugPrint('RetroShare Core did not disable the GXS Mails service.');
+      }
+    } catch (error) {
+      // Mail is not used by the mobile client. Do not block login if an older
+      // core does not expose service-permission controls.
+      debugPrint('Unable to disable the GXS Mails service: $error');
+    }
   }
 
   Future<bool> checkIsValidAuthToken() async {
@@ -95,6 +132,7 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<void> login(Account currentAccount, String password) async {
+    await _restartBackendIfLoggedIn();
     final int resp = await RsLoginHelper.requestLogIn(
       currentAccount,
       password,
@@ -111,18 +149,31 @@ class AccountCredentials with ChangeNotifier {
         throw const HttpException('AUTHTOKEN FAILED');
       }
       notifyListeners();
-    } else {
+    } else if (resp == 2) {
       throw const HttpException('WRONG PASSWORD');
+    } else {
+      throw HttpException('LOGIN FAILED (code $resp)');
     }
   }
 
-  Future<void> signup(String username, String password, String nodename) async {
-    final resp = await RsLoginHelper.requestAccountCreation(
-      username,
-      password,
-      nodename.isEmpty ? 'mobile' : nodename,
-      username,
-      deriveApiToken(username, password),
+  Future<void> signup(
+    String username,
+    String password,
+    String nodename,
+  ) async {
+    await _restartBackendIfLoggedIn();
+
+    final resp = await rsApiCall(
+      '/rsLoginHelper/createLocationV2',
+      params: {
+        'locationId': '',
+        'pgpId': '',
+        'locationName': nodename.isEmpty ? 'mobile' : nodename,
+        'pgpName': username,
+        'password': password,
+        'apiUser': username,
+        'apiPass': deriveApiToken(username, password),
+      },
     );
     print('DEBUG signup response: $resp');
     final account = (
@@ -148,8 +199,22 @@ class AccountCredentials with ChangeNotifier {
     }
   }
 
+  Future<bool> _restartBackendIfLoggedIn() async {
+    if (!await RsLoginHelper.checkLoggedIn()) return false;
+
+    await mobile_service.RsServiceControl.stopRetroshare();
+    if (!await mobile_service.RsServiceControl.startRetroshare()) {
+      throw const HttpException('RetroShare service failed to restart');
+    }
+    _authToken = null;
+    _loggedinAccount = null;
+    _pgpPassword = null;
+    return true;
+  }
+
   Future<void> importAccount(String base64Cert, String password) async {
     try {
+      await _restartBackendIfLoggedIn();
       final resp = await RsLoginHelper.importLocation(base64Cert, password);
       if (resp['retval'] == true ||
           (resp['retval'] is Map && resp['retval']['errorNumber'] == 0)) {
@@ -169,6 +234,7 @@ class AccountCredentials with ChangeNotifier {
     String nodeName = 'mobile',
   }) async {
     try {
+      await _restartBackendIfLoggedIn();
       final importResp = await rsApiCall(
         '/rsAccounts/importIdentityFromString',
         params: {'data': pgpKeyContent},
@@ -182,7 +248,8 @@ class AccountCredentials with ChangeNotifier {
       final pgpId = (importResp['pgpId'] ?? importResp['gpgId'])?.toString();
       if (pgpId == null || pgpId.isEmpty) {
         throw const HttpException(
-            'The imported profile did not return a PGP ID');
+          'The imported profile did not return a PGP ID',
+        );
       }
 
       final locationName = nodeName.trim().isEmpty ? 'mobile' : nodeName.trim();
@@ -203,12 +270,15 @@ class AccountCredentials with ChangeNotifier {
       if (!_isSuccessfulResult(createResp['retval'])) {
         throw HttpException(
           _apiErrorMessage(
-              createResp, 'Could not create a location from this profile'),
+            createResp,
+            'Could not create a location from this profile',
+          ),
         );
       }
 
       _pgpPassword = password;
       _authToken = AuthToken(apiUser, apiPass);
+      await _disableGxsMails(_authToken!);
       await fetchAuthAccountList();
 
       final locationId = createResp['locationId']?.toString();

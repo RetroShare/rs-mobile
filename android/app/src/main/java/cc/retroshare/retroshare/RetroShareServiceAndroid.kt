@@ -7,11 +7,13 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.os.SystemClock
 import androidx.core.app.NotificationCompat
+import kotlin.system.exitProcess
 import org.retroshare.service.RetroShareServiceAndroid as RsService
 
 class RetroShareServiceAndroid : RsService() {
+
+    private var wakeLock: PowerManager.WakeLock? = null
 
     companion object {
         const val ACTION_SHUTDOWN = "SHUTDOWN"
@@ -41,8 +43,7 @@ class RetroShareServiceAndroid : RsService() {
 
         fun stop(ctx: Context) {
             val intent = Intent(ctx, RetroShareServiceAndroid::class.java)
-            intent.action = ACTION_SHUTDOWN
-            ctx.startService(intent)
+            ctx.stopService(intent)
         }
 
         fun isRunning(ctx: Context): Boolean {
@@ -74,18 +75,18 @@ class RetroShareServiceAndroid : RsService() {
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .build()
 
-        (getSystemService(Context.POWER_SERVICE) as PowerManager)
+        wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG)
             .apply {
                 setReferenceCounted(false)
                 acquire()
             }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
                 1,
                 notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
             )
         } else {
             startForeground(1, notification)
@@ -103,29 +104,34 @@ class RetroShareServiceAndroid : RsService() {
             rsInitialized = true
             super.onStartCommand(intent, flags, startId)
         }
-        return START_STICKY
+        // Android 12+ may not recreate a foreground service while the app is in
+        // the background. Let the visible activity explicitly start it instead.
+        return START_NOT_STICKY
+    }
+
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        // Defensive fallback for Android foreground-service limits. A service
+        // must stop promptly after this callback or Android crashes its process.
+        @Suppress("DEPRECATION")
+        stopForeground(true)
+        stopSelf(startId)
     }
 
     override fun onDestroy() {
         rsInitialized = false
-        (getSystemService(Context.POWER_SERVICE) as PowerManager)
-            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG)
-            .apply { if (isHeld) release() }
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
         super.onDestroy()
+
+        // libretroshare keeps process-wide native singletons (including
+        // AuthSSL) after the Android Service is destroyed. This service runs
+        // in its own :retroshare process so terminating that now-empty process
+        // is required to unlock a different location safely.
+        if (android.app.Application.getProcessName().endsWith(":retroshare")) {
+            exitProcess(0)
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = super.onBind(intent)
 
-    override fun onTaskRemoved(rootIntent: Intent) {
-        val restartIntent = Intent(applicationContext, RetroShareServiceAndroid::class.java)
-            .also { it.setPackage(packageName) }
-        val pendingIntent = PendingIntent.getService(
-            this,
-            1,
-            restartIntent,
-            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        (applicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager)
-            .set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1000, pendingIntent)
-    }
 }

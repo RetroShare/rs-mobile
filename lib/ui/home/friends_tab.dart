@@ -11,7 +11,9 @@ import 'package:retroshare_api_wrapper/retroshare.dart';
 enum ContactSortOption { name, state }
 
 class FriendsTab extends StatefulWidget {
-  const FriendsTab({super.key});
+  const FriendsTab({super.key, this.onOpenRoom});
+
+  final Future<void> Function(Chat chat, bool isRoom)? onOpenRoom;
 
   @override
   FriendsTabState createState() => FriendsTabState();
@@ -37,7 +39,9 @@ class FriendsTabState extends State<FriendsTab> {
           // Apply sorting to friendsList
           final friendsList = List<Identity>.from(rawFriendsList);
           if (_sortOption == ContactSortOption.name) {
-            friendsList.sort((a, b) => (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase()));
+            friendsList.sort((a, b) => (a.name ?? '')
+                .toLowerCase()
+                .compareTo((b.name ?? '').toLowerCase()));
           } else if (_sortOption == ContactSortOption.state) {
             friendsList.sort((a, b) {
               // Online: 1, Away: 2, Busy: 3, Offline: 0
@@ -47,8 +51,9 @@ class FriendsTabState extends State<FriendsTab> {
                   id,
                   friendLocations.friendlist,
                 );
-                
-                final isAnyLocationOnline = matchingLocs.any((loc) => loc.isOnline);
+
+                final isAnyLocationOnline =
+                    matchingLocs.any((loc) => loc.isOnline);
 
                 var effectiveStatus = id.status;
                 if (effectiveStatus == 0 && isAnyLocationOnline) {
@@ -60,16 +65,19 @@ class FriendsTabState extends State<FriendsTab> {
                     }
                   }
                 }
-                
+
                 if (effectiveStatus == 3) return 0; // Online
                 if (effectiveStatus == 1) return 1; // Away
                 if (effectiveStatus == 2) return 2; // Busy
                 return 3; // Offline / Inactive
               }
+
               final weightA = getWeight(a);
               final weightB = getWeight(b);
               if (weightA != weightB) return weightA.compareTo(weightB);
-              return (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase());
+              return (a.name ?? '')
+                  .toLowerCase()
+                  .compareTo((b.name ?? '').toLowerCase());
             });
           }
 
@@ -86,7 +94,8 @@ class FriendsTabState extends State<FriendsTab> {
                         _sortOption = result;
                       });
                     },
-                    itemBuilder: (BuildContext context) => <PopupMenuEntry<ContactSortOption>>[
+                    itemBuilder: (BuildContext context) =>
+                        <PopupMenuEntry<ContactSortOption>>[
                       const PopupMenuItem<ContactSortOption>(
                         value: ContactSortOption.name,
                         child: Text('Sort by name'),
@@ -109,7 +118,8 @@ class FriendsTabState extends State<FriendsTab> {
                     itemExtent: personDelegateHeight,
                     delegate: SliverChildBuilderDelegate(
                       (BuildContext context, int index) {
-                        final isMe = identities.currentIdentity?.mId == friendsList[index].mId;
+                        final isMe = identities.currentIdentity?.mId ==
+                            friendsList[index].mId;
                         return PersonDelegate(
                           data: PersonDelegateData.identityData(
                             friendsList[index],
@@ -122,59 +132,72 @@ class FriendsTabState extends State<FriendsTab> {
                               arguments: {'id': friendsList[index]},
                             );
                           },
-                          onLongPress: isMe ? null : (Offset tapPosition) {
-                              showCustomMenu(
-                                'Remove from contacts',
-                                const Icon(
-                                  Icons.delete,
-                                  color: Colors.black,
-                                ),
-                                () => _removeFromContacts(
-                                  friendsList[index].mId,
-                                ),
-                                tapPosition,
-                                context,
-                                additionalActions: [
-                                  (
-                                    title: 'View Details',
-                                    icon: const Icon(Icons.info_outline,
-                                        color: Colors.black,),
-                                    action: () {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/profile',
-                                        arguments: {'id': friendsList[index]},
-                                      );
-                                    },
-                                  ),
-                                ],
-                              );
-                            },
-                            onPressed: isMe ? null : () async {
-                              final curr = Provider.of<Identities>(
-                                context,
-                                listen: false,
-                              ).currentIdentity;
-                              if (curr == null) return;
-                              final chatData = await Provider.of<RoomChatLobby>(
-                                context,
-                                listen: false,
-                              ).getChat(
-                                curr,
-                                friendsList[index],
-                              );
-                              if (chatData == null) return;
-                              if (!context.mounted) return;
-                              await Navigator.pushNamed(
-                                context,
-                                '/room',
-                                arguments: {
-                                  'isRoom': false,
-                                  'chatData': chatData,
+                          onLongPress: isMe
+                              ? null
+                              : (Offset tapPosition) {
+                                  showCustomMenu(
+                                    'Remove from contacts',
+                                    const Icon(
+                                      Icons.delete,
+                                      color: Colors.black,
+                                    ),
+                                    () => _removeFromContacts(
+                                      friendsList[index].mId,
+                                    ),
+                                    tapPosition,
+                                    context,
+                                    additionalActions: [
+                                      (
+                                        title: 'View Details',
+                                        icon: const Icon(
+                                          Icons.info_outline,
+                                          color: Colors.black,
+                                        ),
+                                        action: () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/profile',
+                                            arguments: {
+                                              'id': friendsList[index]
+                                            },
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  );
                                 },
-                              );
-                            },
-                          );
+                          onPressed: isMe
+                              ? null
+                              : () async {
+                                  final curr = Provider.of<Identities>(
+                                    context,
+                                    listen: false,
+                                  ).currentIdentity;
+                                  if (curr == null) return;
+                                  final chatData =
+                                      await Provider.of<RoomChatLobby>(
+                                    context,
+                                    listen: false,
+                                  ).getChat(
+                                    curr,
+                                    friendsList[index],
+                                  );
+                                  if (chatData == null) return;
+                                  if (!context.mounted) return;
+                                  if (widget.onOpenRoom != null) {
+                                    await widget.onOpenRoom!(chatData, false);
+                                    return;
+                                  }
+                                  await Navigator.pushNamed(
+                                    context,
+                                    '/room',
+                                    arguments: {
+                                      'isRoom': false,
+                                      'chatData': chatData,
+                                    },
+                                  );
+                                },
+                        );
                       },
                       childCount: friendsList.length,
                     ),

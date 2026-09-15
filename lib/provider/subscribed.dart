@@ -93,6 +93,41 @@ class ChatLobby with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Makes a newly joined room visible immediately, then reconciles with the
+  /// backend once RetroShare has moved it into the subscribed lobby list.
+  void recordJoinedChat(Chat chat) {
+    final lobbyId = chat.chatId;
+    if (lobbyId == null || lobbyId.isEmpty) return;
+
+    if (!_chatlist.any((item) => item.chatId == lobbyId)) {
+      _chatlist = [..._chatlist, chat];
+    }
+    _unsubscribedlist = _unsubscribedlist
+        .where((item) => item.lobbyId?.xstr64 != lobbyId)
+        .toList();
+    notifyListeners();
+    unawaited(_reconcileJoinedLobby(lobbyId));
+  }
+
+  Future<void> _reconcileJoinedLobby(String lobbyId) async {
+    for (var attempt = 0; attempt < 6; attempt++) {
+      try {
+        final subscribed = await RsMsgs.getSubscribedChatLobbies(authToken);
+        final isAvailable = subscribed.any(
+          (item) => item is Map && item['xstr64']?.toString() == lobbyId,
+        );
+        if (isAvailable) {
+          await fetchAndUpdate();
+          await fetchAndUpdateUnsubscribed();
+          return;
+        }
+      } catch (e) {
+        debugPrint('Error reconciling joined lobby $lobbyId: $e');
+      }
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+  }
+
   Future<void> unsubscribed(String lobbyId) async {
     await RsMsgs.unsubscribeChatLobby(lobbyId, authToken);
     final list = await RsMsgs.getSubscribedChatLobbies(authToken);

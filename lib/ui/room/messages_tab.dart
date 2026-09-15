@@ -14,7 +14,9 @@ import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 import 'package:retroshare/common/bottom_bar.dart';
 import 'package:retroshare/common/show_dialog.dart';
+import 'package:retroshare/common/sticker_picker.dart';
 import 'package:retroshare/common/styles.dart';
+import 'package:retroshare/model/sticker_pack.dart';
 import 'package:retroshare/provider/identity.dart';
 import 'package:retroshare/provider/room.dart';
 import 'package:retroshare/ui/room/message_delegate.dart';
@@ -45,6 +47,7 @@ class MessagesTabState extends State<MessagesTab> {
   late final FocusNode _focusNode;
 
   bool _showEmojiPicker = false;
+  bool _showStickerPicker = false;
   bool _showSearch = false;
   String _searchQuery = '';
   final ImagePicker _picker = ImagePicker();
@@ -73,10 +76,11 @@ class MessagesTabState extends State<MessagesTab> {
     _focusNode = FocusNode();
     _showEmojiPicker = false;
     _focusNode.addListener(() {
-      if (_focusNode.hasFocus && _showEmojiPicker) {
+      if (_focusNode.hasFocus && (_showEmojiPicker || _showStickerPicker)) {
         if (mounted) {
           setState(() {
             _showEmojiPicker = false;
+            _showStickerPicker = false;
           });
         }
       }
@@ -90,9 +94,7 @@ class MessagesTabState extends State<MessagesTab> {
         final apiChatId = ChatId(
           peerId: widget.isPeerChat ? chatId : null,
           distantChatId: !isRoom && !widget.isPeerChat ? chatId : null,
-          lobbyId: isRoom
-              ? ChatLobbyId(xstr64: chatId)
-              : null,
+          lobbyId: isRoom ? ChatLobbyId(xstr64: chatId) : null,
           type: isRoom
               ? ChatIdType.type3
               : widget.isPeerChat
@@ -138,7 +140,9 @@ class MessagesTabState extends State<MessagesTab> {
       if (!micPermission.isGranted) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Microphone permission is required to record voice messages.')),
+          const SnackBar(
+              content: Text(
+                  'Microphone permission is required to record voice messages.')),
         );
         return;
       }
@@ -171,13 +175,13 @@ class MessagesTabState extends State<MessagesTab> {
       _amplitudeSubscription = _audioRecorder!
           .onAmplitudeChanged(const Duration(milliseconds: 100))
           .listen((amp) {
-            final decibels = amp.current;
-            final clamped = decibels.clamp(-60.0, 0.0);
-            final normalized = (clamped + 60.0) / 60.0;
-            if (normalized.isFinite) {
-              _rawWaveform.add(normalized);
-            }
-          });
+        final decibels = amp.current;
+        final clamped = decibels.clamp(-60.0, 0.0);
+        final normalized = (clamped + 60.0) / 60.0;
+        if (normalized.isFinite) {
+          _rawWaveform.add(normalized);
+        }
+      });
 
       _recordingTimer?.cancel();
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -306,7 +310,8 @@ class MessagesTabState extends State<MessagesTab> {
           authToken: authToken,
         );
         if (pausedResp['retval'] == true) {
-          debugPrint('DEBUG: RetroShare hashing process is paused. Resuming it...');
+          debugPrint(
+              'DEBUG: RetroShare hashing process is paused. Resuming it...');
           await rsApiCall(
             '/rsFiles/togglePauseHashingProcess',
             authToken: authToken,
@@ -327,8 +332,9 @@ class MessagesTabState extends State<MessagesTab> {
         },
       );
       final retval = response['retval'];
-      final success = (retval is bool && retval) || (retval is int && retval == 1);
-      
+      final success =
+          (retval is bool && retval) || (retval is int && retval == 1);
+
       if (!success) {
         throw Exception('Core failed to start hashing.');
       }
@@ -341,7 +347,7 @@ class MessagesTabState extends State<MessagesTab> {
             authToken: authToken,
             params: {'localpath': normalizedPath},
           );
-          
+
           final info = statusResp['info'] as Map?;
           final hash = info?['hash'] as String?;
           if (hash != null &&
@@ -401,6 +407,33 @@ class MessagesTabState extends State<MessagesTab> {
       );
   }
 
+  Future<void> _sendSticker(StickerItem sticker) async {
+    final chatId = widget.chat.chatId;
+    if (chatId == null) return;
+    try {
+      final bytes = await File(sticker.path).readAsBytes();
+      final encoded = base64.encode(bytes);
+      final htmlSticker =
+          '<img alt="Sticker" data-rs-sticker="1" src="data:${sticker.mimeType};base64,$encoded"/>';
+      if (!mounted) return;
+      await Provider.of<RoomChatLobby>(context, listen: false).sendMessage(
+        chatId,
+        htmlSticker,
+        (widget.isRoom ?? false)
+            ? ChatIdType.type3
+            : widget.isPeerChat
+                ? ChatIdType.type1
+                : ChatIdType.type2,
+      );
+    } catch (error) {
+      debugPrint('Error sending sticker: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send sticker: $error')),
+      );
+    }
+  }
+
   Future<void> _sendImage() async {
     final imageXFile = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -431,8 +464,7 @@ class MessagesTabState extends State<MessagesTab> {
       if (widget.isPeerChat || mb < 3) {
         final base64Image = base64.encode(imageBytes);
         final extension = imageXFile.path.split('.').last.toLowerCase();
-        final mimeType =
-            (extension == 'png') ? 'image/png' : 'image/jpeg';
+        final mimeType = (extension == 'png') ? 'image/png' : 'image/jpeg';
         final htmlText =
             "<img alt='Image' src='data:$mimeType;base64,$base64Image'/>";
 
@@ -465,7 +497,6 @@ class MessagesTabState extends State<MessagesTab> {
       );
     }
   }
-
 
   Future<void> _attachImage() async {
     await showModalBottomSheet(
@@ -593,8 +624,7 @@ class MessagesTabState extends State<MessagesTab> {
       if (widget.isPeerChat || mb < 3) {
         final base64Image = base64.encode(imageBytes);
         final extension = imageXFile.path.split('.').last.toLowerCase();
-        final mimeType =
-            (extension == 'png') ? 'image/png' : 'image/jpeg';
+        final mimeType = (extension == 'png') ? 'image/png' : 'image/jpeg';
 
         setState(() {
           _attachedImageFile = imageFile;
@@ -755,7 +785,8 @@ class MessagesTabState extends State<MessagesTab> {
           authToken: authToken,
         );
         if (pausedResp['retval'] == true) {
-          debugPrint('DEBUG: RetroShare hashing process is paused. Resuming it...');
+          debugPrint(
+              'DEBUG: RetroShare hashing process is paused. Resuming it...');
           await rsApiCall(
             '/rsFiles/togglePauseHashingProcess',
             authToken: authToken,
@@ -775,8 +806,9 @@ class MessagesTabState extends State<MessagesTab> {
         },
       );
       final retval = response['retval'];
-      final success = (retval is bool && retval) || (retval is int && retval == 1);
-      
+      final success =
+          (retval is bool && retval) || (retval is int && retval == 1);
+
       if (!success) {
         throw Exception('Core failed to start hashing.');
       }
@@ -789,7 +821,7 @@ class MessagesTabState extends State<MessagesTab> {
             authToken: authToken,
             params: {'localpath': normalizedPath},
           );
-          
+
           final info = statusResp['info'] as Map?;
           final hash = info?['hash'] as String?;
           if (hash != null &&
@@ -990,93 +1022,95 @@ class MessagesTabState extends State<MessagesTab> {
     final rawPath = file.path;
     final normalizedPath = rawPath.replaceAll(r'\', '/');
 
-      setState(() {
-        _attachedImageFile = null;
-        _attachedImageBase64 = null;
-        _attachedImageMimeType = null;
-        _attachedFile = file;
-        _attachedFileName = name;
-        _attachedFileSize = size;
-        _attachedFileHash = null;
-        _isHashingFile = true;
-      });
+    setState(() {
+      _attachedImageFile = null;
+      _attachedImageBase64 = null;
+      _attachedImageMimeType = null;
+      _attachedFile = file;
+      _attachedFileName = name;
+      _attachedFileSize = size;
+      _attachedFileHash = null;
+      _isHashingFile = true;
+    });
 
-      final lobbyProvider = Provider.of<RoomChatLobby>(context, listen: false);
-      final authToken = lobbyProvider.authToken;
+    final lobbyProvider = Provider.of<RoomChatLobby>(context, listen: false);
+    final authToken = lobbyProvider.authToken;
 
-      // Auto-resume hashing process if paused
-      try {
-        final pausedResp = await rsApiCall(
-          '/rsFiles/hashingProcessPaused',
+    // Auto-resume hashing process if paused
+    try {
+      final pausedResp = await rsApiCall(
+        '/rsFiles/hashingProcessPaused',
+        authToken: authToken,
+      );
+      if (pausedResp['retval'] == true) {
+        debugPrint(
+            'DEBUG: RetroShare hashing process is paused. Resuming it...');
+        await rsApiCall(
+          '/rsFiles/togglePauseHashingProcess',
           authToken: authToken,
         );
-        if (pausedResp['retval'] == true) {
-          debugPrint('DEBUG: RetroShare hashing process is paused. Resuming it...');
-          await rsApiCall(
-            '/rsFiles/togglePauseHashingProcess',
-            authToken: authToken,
-          );
-        }
-      } catch (e) {
-        debugPrint('Error checking/resuming hashing process: $e');
       }
+    } catch (e) {
+      debugPrint('Error checking/resuming hashing process: $e');
+    }
 
-      final response = await rsApiCall(
-        '/rsFiles/ExtraFileHash',
-        authToken: authToken,
-        params: {
-          'localpath': normalizedPath,
-          'period': {'xstr64': (31536000 * 10).toString()},
-          'flags': 0x40,
-        },
-      );
-      final retval = response['retval'];
-      final success = (retval is bool && retval) || (retval is int && retval == 1);
-      
-      if (!success) {
-        throw Exception('Core failed to start hashing.');
-      }
+    final response = await rsApiCall(
+      '/rsFiles/ExtraFileHash',
+      authToken: authToken,
+      params: {
+        'localpath': normalizedPath,
+        'period': {'xstr64': (31536000 * 10).toString()},
+        'flags': 0x40,
+      },
+    );
+    final retval = response['retval'];
+    final success =
+        (retval is bool && retval) || (retval is int && retval == 1);
 
-      _hashingTimer?.cancel();
-      _hashingTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-        try {
-          final statusResp = await rsApiCall(
-            '/rsFiles/ExtraFileStatus',
-            authToken: authToken,
-            params: {'localpath': normalizedPath},
-          );
-          
-          debugPrint('DEBUG: /rsFiles/ExtraFileStatus response: $statusResp');
-          
-          final info = statusResp['info'] as Map?;
-          final hash = info?['hash'] as String?;
-          if (hash != null &&
-              hash.isNotEmpty &&
-              hash != '0000000000000000000000000000000000000000') {
-            var sizeInBytes = size;
-            final sizeVal = info?['size'];
-            if (sizeVal is int) {
-              sizeInBytes = sizeVal;
-            } else if (sizeVal is Map) {
-              final xstr = sizeVal['xstr64'] as String?;
-              if (xstr != null) {
-                sizeInBytes = int.tryParse(xstr) ?? size;
-              }
-            }
+    if (!success) {
+      throw Exception('Core failed to start hashing.');
+    }
 
-            timer.cancel();
-            if (mounted) {
-              setState(() {
-                _attachedFileHash = hash;
-                _attachedFileSize = sizeInBytes;
-                _isHashingFile = false;
-              });
+    _hashingTimer?.cancel();
+    _hashingTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      try {
+        final statusResp = await rsApiCall(
+          '/rsFiles/ExtraFileStatus',
+          authToken: authToken,
+          params: {'localpath': normalizedPath},
+        );
+
+        debugPrint('DEBUG: /rsFiles/ExtraFileStatus response: $statusResp');
+
+        final info = statusResp['info'] as Map?;
+        final hash = info?['hash'] as String?;
+        if (hash != null &&
+            hash.isNotEmpty &&
+            hash != '0000000000000000000000000000000000000000') {
+          var sizeInBytes = size;
+          final sizeVal = info?['size'];
+          if (sizeVal is int) {
+            sizeInBytes = sizeVal;
+          } else if (sizeVal is Map) {
+            final xstr = sizeVal['xstr64'] as String?;
+            if (xstr != null) {
+              sizeInBytes = int.tryParse(xstr) ?? size;
             }
           }
-        } catch (e) {
-          debugPrint('Error checking file hashing status: $e');
+
+          timer.cancel();
+          if (mounted) {
+            setState(() {
+              _attachedFileHash = hash;
+              _attachedFileSize = sizeInBytes;
+              _isHashingFile = false;
+            });
+          }
         }
-      });
+      } catch (e) {
+        debugPrint('Error checking file hashing status: $e');
+      }
+    });
   }
 
   void _cancelFileAttachment() {
@@ -1085,7 +1119,7 @@ class MessagesTabState extends State<MessagesTab> {
     if (hash != null) {
       final lobbyProvider = Provider.of<RoomChatLobby>(context, listen: false);
       final authToken = lobbyProvider.authToken;
-      
+
       rsApiCall(
         '/rsFiles/extraFileRemove',
         authToken: authToken,
@@ -1108,9 +1142,10 @@ class MessagesTabState extends State<MessagesTab> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () {
-        if (_showEmojiPicker) {
+        if (_showEmojiPicker || _showStickerPicker) {
           setState(() {
             _showEmojiPicker = false;
+            _showStickerPicker = false;
           });
           return Future.value(false);
         }
@@ -1152,8 +1187,9 @@ class MessagesTabState extends State<MessagesTab> {
                 final msgList = _searchQuery.isEmpty
                     ? allMessages
                     : allMessages
-                        .where((message) =>
-                            (message.msg ?? '').toLowerCase().contains(_searchQuery))
+                        .where((message) => (message.msg ?? '')
+                            .toLowerCase()
+                            .contains(_searchQuery))
                         .toList();
 
                 final identitiesProvider =
@@ -1170,22 +1206,25 @@ class MessagesTabState extends State<MessagesTab> {
                       itemCount: msgList.length,
                       itemBuilder: (BuildContext context, int index) {
                         final message = msgList[index];
-                        final key = ValueKey('${message.sendTime}_${message.msg}_$index');
-                        
+                        final key = ValueKey(
+                            '${message.sendTime}_${message.msg}_$index');
+
                         var bubbleTitle = '';
-                        final isSystem = ((message.chatflags ?? 0) & 0x0008) != 0;
+                        final isSystem =
+                            ((message.chatflags ?? 0) & 0x0008) != 0;
 
                         if (isSystem) {
                           bubbleTitle = 'Status';
                         } else if (widget.isRoom ?? false) {
                           if (message.incoming ?? false) {
-                            bubbleTitle = messagesList.getChatSenderName(message);
+                            bubbleTitle =
+                                messagesList.getChatSenderName(message);
                           }
                         } else {
                           // 1:1 Chat nicknames
                           if (message.incoming ?? false) {
-                            bubbleTitle = interlocutorIdentity?.name ?? 
-                                widget.chat.chatName ?? 
+                            bubbleTitle = interlocutorIdentity?.name ??
+                                widget.chat.chatName ??
                                 'Interlocutor';
                           } else {
                             bubbleTitle = ownIdentity?.name ?? 'Me';
@@ -1238,7 +1277,10 @@ class MessagesTabState extends State<MessagesTab> {
           if (_attachedImageFile != null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(128),
+              color: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withAlpha(128),
               child: Row(
                 children: [
                   Stack(
@@ -1296,19 +1338,26 @@ class MessagesTabState extends State<MessagesTab> {
           if (_attachedFile != null)
             Builder(
               builder: (context) {
-                final isVoice = _attachedFileName?.startsWith('voice_msg_') == true ||
-                    _attachedFileName?.endsWith('.m4a') == true;
+                final isVoice =
+                    _attachedFileName?.startsWith('voice_msg_') == true ||
+                        _attachedFileName?.endsWith('.m4a') == true;
                 final isVideo = _isVideoFile(_attachedFileName ?? '');
                 final accentColor = isVoice
                     ? Colors.teal
                     : (isVideo ? Colors.red : Colors.orange);
                 final iconData = isVoice
                     ? Icons.mic_rounded
-                    : (isVideo ? Icons.videocam_rounded : Icons.insert_drive_file_rounded);
+                    : (isVideo
+                        ? Icons.videocam_rounded
+                        : Icons.insert_drive_file_rounded);
 
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(128),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest
+                      .withAlpha(128),
                   child: Row(
                     children: [
                       Container(
@@ -1352,7 +1401,9 @@ class MessagesTabState extends State<MessagesTab> {
                                 fontSize: 12,
                                 color: _isHashingFile
                                     ? accentColor
-                                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -1389,12 +1440,14 @@ class MessagesTabState extends State<MessagesTab> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete_forever_rounded, color: Colors.red),
+                          icon: const Icon(Icons.delete_forever_rounded,
+                              color: Colors.red),
                           tooltip: 'Cancel recording',
                           onPressed: _cancelRecording,
                         ),
                         IconButton(
-                          icon: const Icon(Icons.check_circle_rounded, color: Colors.green),
+                          icon: const Icon(Icons.check_circle_rounded,
+                              color: Colors.green),
                           tooltip: 'Attach voice message',
                           onPressed: _stopAndAttachRecording,
                         ),
@@ -1404,21 +1457,29 @@ class MessagesTabState extends State<MessagesTab> {
                       children: <Widget>[
                         IconButton(
                           icon: Icon(
-                            _showEmojiPicker ? Icons.keyboard : Icons.insert_emoticon,
+                            _showEmojiPicker || _showStickerPicker
+                                ? Icons.keyboard
+                                : Icons.insert_emoticon,
                           ),
-                          tooltip: _showEmojiPicker
+                          tooltip: _showEmojiPicker || _showStickerPicker
                               ? 'Show keyboard'
-                              : 'Show emoji picker',
+                              : 'Show emoji and stickers',
                           onPressed: () {
-                            if (!_showEmojiPicker) {
+                            final pickerIsOpen =
+                                _showEmojiPicker || _showStickerPicker;
+                            if (!pickerIsOpen) {
                               _focusNode.unfocus();
                             }
                             if (mounted) {
                               setState(() {
-                                _showEmojiPicker = !_showEmojiPicker;
+                                if (pickerIsOpen) {
+                                  _showEmojiPicker = false;
+                                  _showStickerPicker = false;
+                                } else {
+                                  _showEmojiPicker = true;
+                                }
                               });
                             }
-                            if (!_showEmojiPicker) {}
                           },
                         ),
                         Expanded(
@@ -1431,13 +1492,13 @@ class MessagesTabState extends State<MessagesTab> {
                             ),
                             padding: const EdgeInsets.symmetric(horizontal: 15),
                             child: TextField(
-                              keyboardAppearance:
-                                  Theme.of(context).brightness,
+                              keyboardAppearance: Theme.of(context).brightness,
                               onTap: () {
-                                if (_showEmojiPicker) {
+                                if (_showEmojiPicker || _showStickerPicker) {
                                   if (mounted) {
                                     setState(() {
                                       _showEmojiPicker = false;
+                                      _showStickerPicker = false;
                                     });
                                   }
                                 }
@@ -1450,8 +1511,8 @@ class MessagesTabState extends State<MessagesTab> {
                               decoration: InputDecoration(
                                 border: InputBorder.none,
                                 hintText: 'Type text...',
-                                hintStyle:
-                                    TextStyle(color: Theme.of(context).hintColor),
+                                hintStyle: TextStyle(
+                                    color: Theme.of(context).hintColor),
                               ),
                               style: Theme.of(context).textTheme.bodyLarge,
                               textInputAction: TextInputAction.send,
@@ -1465,14 +1526,19 @@ class MessagesTabState extends State<MessagesTab> {
                                 ? Icons.image
                                 : Icons.attach_file_rounded,
                           ),
-                          tooltip: (widget.isRoom ?? false) ? 'Send image' : 'Attach file',
-                          onPressed: (widget.isRoom ?? false) ? _sendImage : _attachImage,
+                          tooltip: (widget.isRoom ?? false)
+                              ? 'Send image'
+                              : 'Attach file',
+                          onPressed: (widget.isRoom ?? false)
+                              ? _sendImage
+                              : _attachImage,
                         ),
                         ListenableBuilder(
                           listenable: msgController,
                           builder: (context, _) {
                             final hasText = msgController.text.isNotEmpty;
-                            final hasAttachment = _attachedImageFile != null || _attachedFile != null;
+                            final hasAttachment = _attachedImageFile != null ||
+                                _attachedFile != null;
                             final canRecord = !(widget.isRoom ?? false);
                             if (hasText || hasAttachment || !canRecord) {
                               return IconButton(
@@ -1494,42 +1560,90 @@ class MessagesTabState extends State<MessagesTab> {
             ),
           ),
           Offstage(
-            offstage: !_showEmojiPicker,
+            offstage: !(_showEmojiPicker || _showStickerPicker),
             child: SizedBox(
-              height: 250,
-              child: emoji_picker.EmojiPicker(
-                onEmojiSelected: (category, emoji) => _onEmojiSelected(emoji),
-                onBackspacePressed: _onBackspacePressed,
-                config: emoji_picker.Config(
-                  emojiViewConfig: emoji_picker.EmojiViewConfig(
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                  ),
-                  categoryViewConfig: emoji_picker.CategoryViewConfig(
-                    backgroundColor:
-                        Theme.of(context).colorScheme.surfaceContainer,
-                    indicatorColor: Theme.of(context).colorScheme.primary,
-                    iconColor:
-                        Theme.of(context).colorScheme.onSurfaceVariant,
-                    iconColorSelected: Theme.of(context).colorScheme.primary,
-                    backspaceColor: Theme.of(context).colorScheme.primary,
-                    dividerColor: Theme.of(context).dividerColor,
-                  ),
-                  searchViewConfig: emoji_picker.SearchViewConfig(
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                    buttonIconColor:
-                        Theme.of(context).colorScheme.onSurfaceVariant,
-                    inputTextStyle: Theme.of(context).textTheme.bodyLarge,
-                    hintTextStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).hintColor,
+              height: 300,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment<bool>(
+                          value: false,
+                          icon: Icon(Icons.insert_emoticon),
+                          label: Text('Emoji'),
                         ),
+                        ButtonSegment<bool>(
+                          value: true,
+                          icon: Icon(Icons.emoji_emotions_outlined),
+                          label: Text('Stickers'),
+                        ),
+                      ],
+                      selected: {_showStickerPicker},
+                      onSelectionChanged: (selection) {
+                        setState(() {
+                          _showStickerPicker = selection.first;
+                          _showEmojiPicker = !_showStickerPicker;
+                        });
+                      },
+                    ),
                   ),
-                  skinToneConfig: emoji_picker.SkinToneConfig(
-                    dialogBackgroundColor:
-                        Theme.of(context).colorScheme.surfaceContainerHigh,
-                    indicatorColor:
-                        Theme.of(context).colorScheme.onSurfaceVariant,
+                  Expanded(
+                    child: _showStickerPicker
+                        ? StickerPicker(onStickerSelected: _sendSticker)
+                        : emoji_picker.EmojiPicker(
+                            onEmojiSelected: (category, emoji) =>
+                                _onEmojiSelected(emoji),
+                            onBackspacePressed: _onBackspacePressed,
+                            config: emoji_picker.Config(
+                              emojiViewConfig: emoji_picker.EmojiViewConfig(
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.surface,
+                              ),
+                              categoryViewConfig:
+                                  emoji_picker.CategoryViewConfig(
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainer,
+                                indicatorColor:
+                                    Theme.of(context).colorScheme.primary,
+                                iconColor: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                                iconColorSelected:
+                                    Theme.of(context).colorScheme.primary,
+                                backspaceColor:
+                                    Theme.of(context).colorScheme.primary,
+                                dividerColor: Theme.of(context).dividerColor,
+                              ),
+                              searchViewConfig: emoji_picker.SearchViewConfig(
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.surface,
+                                buttonIconColor: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                                inputTextStyle:
+                                    Theme.of(context).textTheme.bodyLarge,
+                                hintTextStyle: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                      color: Theme.of(context).hintColor,
+                                    ),
+                              ),
+                              skinToneConfig: emoji_picker.SkinToneConfig(
+                                dialogBackgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHigh,
+                                indicatorColor: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                          ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
@@ -1565,9 +1679,11 @@ class MessagesTabState extends State<MessagesTab> {
 
           if (fileHash != null && fileSize != null && fileName != null) {
             final encodedName = Uri.encodeComponent(fileName);
-            var fileLink = 'retroshare://file?name=$encodedName&size=$fileSize&hash=$fileHash';
+            var fileLink =
+                'retroshare://file?name=$encodedName&size=$fileSize&hash=$fileHash';
 
-            final isVoice = fileName.startsWith('voice_msg_') || fileName.endsWith('.m4a');
+            final isVoice =
+                fileName.startsWith('voice_msg_') || fileName.endsWith('.m4a');
             if (isVoice && _recordedWaveformInt.isNotEmpty) {
               final waveformStr = _recordedWaveformInt.join(',');
               fileLink += '&waveform=$waveformStr';
@@ -1577,13 +1693,16 @@ class MessagesTabState extends State<MessagesTab> {
             final fileHtml = isVoice
                 ? '<a href="$fileLink">$fileName</a>'
                 : '<a href="$fileLink">$fileName</a> <font color="blue">($friendlySize)</font>';
-            finalMessage = fileHtml + (finalMessage.isNotEmpty ? '<br/>$finalMessage' : '');
+            finalMessage = fileHtml +
+                (finalMessage.isNotEmpty ? '<br/>$finalMessage' : '');
           }
         }
 
         if (hasImage) {
-          final htmlImage = "<img alt='Image' src='data:$_attachedImageMimeType;base64,$_attachedImageBase64'/>";
-          finalMessage = htmlImage + (finalMessage.isNotEmpty ? '<br/>$finalMessage' : '');
+          final htmlImage =
+              "<img alt='Image' src='data:$_attachedImageMimeType;base64,$_attachedImageBase64'/>";
+          finalMessage =
+              htmlImage + (finalMessage.isNotEmpty ? '<br/>$finalMessage' : '');
         }
 
         await Provider.of<RoomChatLobby>(context, listen: false).sendMessage(
@@ -1621,7 +1740,8 @@ class MessagesTabState extends State<MessagesTab> {
   String _friendlyUnit(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
@@ -1639,7 +1759,8 @@ class _RecordingDot extends StatefulWidget {
   State<_RecordingDot> createState() => _RecordingDotState();
 }
 
-class _RecordingDotState extends State<_RecordingDot> with SingleTickerProviderStateMixin {
+class _RecordingDotState extends State<_RecordingDot>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
