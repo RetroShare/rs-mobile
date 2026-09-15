@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:retroshare/apiUtils/retroshare_service.dart' as mobile_service;
-import 'package:retroshare/apiUtils/tor_service.dart';
 import 'package:retroshare_api_wrapper/retroshare.dart';
 
 String deriveApiToken(String locationId, String password) {
@@ -133,10 +132,7 @@ class AccountCredentials with ChangeNotifier {
   }
 
   Future<void> login(Account currentAccount, String password) async {
-    await _prepareTorForAccount(currentAccount);
-    if (await _restartBackendIfLoggedIn()) {
-      await _prepareTorForAccount(currentAccount);
-    }
+    await _restartBackendIfLoggedIn();
     final int resp = await RsLoginHelper.requestLogIn(
       currentAccount,
       password,
@@ -163,24 +159,9 @@ class AccountCredentials with ChangeNotifier {
   Future<void> signup(
     String username,
     String password,
-    String nodename, {
-    bool makeHidden = false,
-  }) async {
-    var configuration = makeHidden
-        ? await _prepareTorForHiddenLocation()
-        : await _prepareTorForStandardLocation();
-    if (makeHidden && configuration?.mode == TorMode.disabled) {
-      throw const HttpException('Tor is disabled');
-    }
-
-    if (await _restartBackendIfLoggedIn()) {
-      configuration = makeHidden
-          ? await _prepareTorForHiddenLocation()
-          : await _prepareTorForStandardLocation();
-      if (makeHidden && configuration?.mode == TorMode.disabled) {
-        throw const HttpException('Tor is disabled');
-      }
-    }
+    String nodename,
+  ) async {
+    await _restartBackendIfLoggedIn();
 
     final resp = await rsApiCall(
       '/rsLoginHelper/createLocationV2',
@@ -190,11 +171,6 @@ class AccountCredentials with ChangeNotifier {
         'locationName': nodename.isEmpty ? 'mobile' : nodename,
         'pgpName': username,
         'password': password,
-        'makeHidden': makeHidden,
-        // Android owns the Tor process, while libretroshare's automatic Tor
-        // manager still creates and configures the onion service through the
-        // external control port.
-        'makeAutoTor': makeHidden,
         'apiUser': username,
         'apiPass': deriveApiToken(username, password),
       },
@@ -223,44 +199,10 @@ class AccountCredentials with ChangeNotifier {
     }
   }
 
-  Future<TorConfiguration?> _prepareTorForAccount(Account account) async {
-    final hidden = await TorServiceControl.isHiddenLocation(account.locationId);
-    return hidden
-        ? _prepareTorForHiddenLocation()
-        : _prepareTorForStandardLocation();
-  }
-
-  Future<TorConfiguration?> _prepareTorForHiddenLocation() async {
-    if (!Platform.isAndroid) return null;
-    var configuration = await TorServiceControl.getConfiguration(status: true);
-    if (configuration.mode == TorMode.disabled) {
-      configuration = await TorServiceControl.configure(mode: TorMode.embedded);
-    } else if (configuration.mode == TorMode.embedded &&
-        !configuration.reachable) {
-      await TorServiceControl.startConfiguredRuntime();
-    }
-    await TorServiceControl.configureBackend(null, configuration);
-    return configuration;
-  }
-
-  Future<TorConfiguration?> _prepareTorForStandardLocation() async {
-    if (!Platform.isAndroid) return null;
-    await TorServiceControl.stopRuntime();
-    return const TorConfiguration(
-      mode: TorMode.disabled,
-      host: '127.0.0.1',
-      socksPort: 9050,
-      controlPort: 9051,
-    );
-  }
-
-  /// RetroShare supports one unlocked location per backend instance. Restart
-  /// only that backend before switching/creating locations; embedded Tor is a
-  /// shared runtime and must remain alive across account changes.
   Future<bool> _restartBackendIfLoggedIn() async {
     if (!await RsLoginHelper.checkLoggedIn()) return false;
 
-    await mobile_service.RsServiceControl.stopRetroshare(stopTor: false);
+    await mobile_service.RsServiceControl.stopRetroshare();
     if (!await mobile_service.RsServiceControl.startRetroshare()) {
       throw const HttpException('RetroShare service failed to restart');
     }
@@ -292,7 +234,6 @@ class AccountCredentials with ChangeNotifier {
     String nodeName = 'mobile',
   }) async {
     try {
-      await _prepareTorForStandardLocation();
       await _restartBackendIfLoggedIn();
       final importResp = await rsApiCall(
         '/rsAccounts/importIdentityFromString',

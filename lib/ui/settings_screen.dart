@@ -19,11 +19,29 @@ class SettingsScreenState extends State<SettingsScreen> {
   String _statusMessage = '';
   int _presenceStatus = 0;
   bool _isLoadingStatus = true;
+  late final Future<PackageInfo> _packageInfoFuture;
+  late final Future<String> _coreVersionFuture;
 
   @override
   void initState() {
     super.initState();
+    _packageInfoFuture = PackageInfo.fromPlatform();
+    _coreVersionFuture = _loadCoreVersion();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadStatusMessage());
+  }
+
+  Future<String> _loadCoreVersion() async {
+    try {
+      final response = await rsApiCall('/rsJsonApi/version')
+          .timeout(const Duration(seconds: 5));
+      final version = response['human'];
+      if (version is String && version.trim().isNotEmpty) {
+        return version.trim();
+      }
+    } catch (error) {
+      debugPrint('Failed to load libretroshare version: $error');
+    }
+    return 'Unavailable';
   }
 
   Future<void> _loadStatusMessage() async {
@@ -401,7 +419,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 24),
                   FutureBuilder<PackageInfo>(
-                    future: PackageInfo.fromPlatform(),
+                    future: _packageInfoFuture,
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
                         final version = snapshot.data!.version;
@@ -418,6 +436,20 @@ class SettingsScreenState extends State<SettingsScreen> {
                       }
                       return const SizedBox.shrink();
                     },
+                  ),
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: FutureBuilder<String>(
+                      future: _coreVersionFuture,
+                      builder: (context, snapshot) => SelectableText(
+                        'libretroshare: ${snapshot.data ?? 'Loading…'}',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 30),
                 ],

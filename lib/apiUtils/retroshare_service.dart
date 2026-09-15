@@ -44,7 +44,8 @@ class RsServiceControl {
       if (Platform.isWindows) {
         // Clean up any zombie daemon processes from previous runs
         try {
-          await Process.run('taskkill', ['/f', '/im', 'retroshare-service.exe']);
+          await Process.run(
+              'taskkill', ['/f', '/im', 'retroshare-service.exe']);
         } catch (_) {}
 
         final exePath = Platform.resolvedExecutable;
@@ -69,12 +70,15 @@ class RsServiceControl {
             print('RS-Service stderr: $output');
           });
 
-          unawaited(_process!.exitCode.then((code) {
-            print('retroshare-service.exe exited with code $code');
-            _process = null;
-          }),);
+          unawaited(
+            _process!.exitCode.then((code) {
+              print('retroshare-service.exe exited with code $code');
+              _process = null;
+            }),
+          );
         } else {
-          print('retroshare-service.exe not found in app directory: $servicePath');
+          print(
+              'retroshare-service.exe not found in app directory: $servicePath');
         }
       } else {
         await rsPlatform.invokeMethod('start');
@@ -95,7 +99,6 @@ class RsServiceControl {
 
   static Future<void> stopRetroshare({
     bool wait = true,
-    bool stopTor = true,
   }) async {
     try {
       if (Platform.isWindows) {
@@ -104,7 +107,7 @@ class RsServiceControl {
           _process = null;
         }
       } else {
-        await rsPlatform.invokeMethod(stopTor ? 'stop' : 'stopBackend');
+        await rsPlatform.invokeMethod('stop');
       }
 
       if (wait) {
